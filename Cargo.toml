@@ -1,0 +1,17 @@
+[package]
+name = "asuran"
+description = "Deduplicating, fault tolerant archiver"
+license = "MIT"
+version = "0.0.0"
+authors = ["Nathan McCarty <nathan@mccarty.io>"]
+edition = "2018"
+
+[lib]
+name = "libasuran"
+path = "src/lib.rs"
+
+[[bin]]
+name = "asuran"
+path = "src/bin.rs"
+
+[dependencies]
