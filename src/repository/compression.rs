@@ -1,5 +1,3 @@
-use std::io;
-
 /// Compression algorithim
 #[derive(Copy, Clone)]
 pub enum Compression {
