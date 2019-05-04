@@ -24,7 +24,7 @@ build_job:
   stage: build
   script:
     - cargo build --release
-    - mv target/release/rust-duplicati-restore .
+    - mv target/release/asuran .
   artifacts:
     paths:
-      - rust-duplicati-restore
+      - asuran
