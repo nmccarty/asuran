@@ -15,3 +15,9 @@ name = "asuran"
 path = "src/bin.rs"
 
 [dependencies]
+base64 = "0.10.1"
+zstd = "0.4"
+rust-crypto = "0.2.36"
+bcrypt = "0.4"
+rand = "0.6.5"
+zeroize = "0.6.0"
