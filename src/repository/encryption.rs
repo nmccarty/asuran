@@ -5,6 +5,7 @@ use std::cmp;
 use zeroize::Zeroize;
 
 /// Encryption Algorithim
+#[derive(Copy, Clone)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
     NoEncryption,

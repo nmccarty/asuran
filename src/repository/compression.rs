@@ -1,6 +1,7 @@
 use std::io;
 
 /// Compression algorithim
+#[derive(Copy, Clone)]
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
@@ -27,7 +28,7 @@ impl Compression {
     pub fn decompress(&self, data: &[u8]) -> Option<Vec<u8>> {
         match self {
             Compression::NoCompression => Some(data.to_vec()),
-            Compression::ZStd { level } => {
+            Compression::ZStd { .. } => {
                 let mut output = Vec::<u8>::new();
                 let result = zstd::stream::copy_decode(data, &mut output);
                 if let Err(_) = result {

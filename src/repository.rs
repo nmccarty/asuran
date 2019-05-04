@@ -56,3 +56,5 @@ pub struct Chunk {
     /// Encryption Algorithim used, also stores IV
     encryption: Encryption,
 }
+
+impl Chunk {}
