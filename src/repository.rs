@@ -1,19 +1,15 @@
 use std::cmp;
 
 use crate::repository::backend::*;
+use crate::repository::compression::*;
 use crate::repository::encryption::*;
 
 pub mod backend;
+pub mod compression;
 pub mod encryption;
 
 pub struct Repository {
     backend: Box<dyn Backend>,
-}
-
-/// Compression algorithim
-pub enum Compression {
-    NoCompression,
-    ZStd { level: i32 },
 }
 
 /// HMAC Algorithim
