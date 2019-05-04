@@ -2,6 +2,7 @@ use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
 use crypto::{aes, blockmodes, buffer};
 use rand::prelude::*;
 use std::cmp;
+use zeroize::Zeroize;
 
 /// Encryption Algorithim
 pub enum Encryption {
@@ -38,9 +39,8 @@ impl Encryption {
                 // Create a key of the correct length, and fill it with
                 // zeros to start with
                 let mut proper_key: [u8; 32] = [0; 32];
-                for i in 0..cmp::min(key.len(), 32) {
-                    proper_key[i] = key[i]
-                }
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
                 let mut encryptor = aes::cbc_encryptor(
                     aes::KeySize::KeySize256,
@@ -72,6 +72,9 @@ impl Encryption {
                     }
                 }
 
+                // Zeroize key
+                proper_key.zeroize();
+
                 final_result
             }
         }
@@ -91,9 +94,8 @@ impl Encryption {
                 // zeros to start with
                 let mut proper_key: [u8; 32] = [0; 32];
                 // Copy key into proper key
-                for i in 0..cmp::min(key.len(), 32) {
-                    proper_key[i] = key[i];
-                }
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
                 let mut decryptor = aes::cbc_decryptor(
                     aes::KeySize::KeySize256,
@@ -110,7 +112,12 @@ impl Encryption {
                 loop {
                     let result = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true);
                     match result {
-                        Err(_) => return None,
+                        Err(_) => {
+                            return {
+                                proper_key.zeroize();
+                                None
+                            }
+                        }
                         Ok(result) => {
                             final_result.extend(
                                 write_buffer
@@ -126,6 +133,10 @@ impl Encryption {
                         }
                     }
                 }
+
+                // Zeroize key
+                proper_key.zeroize();
+
                 Some(final_result)
             }
         }
