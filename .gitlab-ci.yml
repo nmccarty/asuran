@@ -1,0 +1,30 @@
+image: "rustlang/rust:nightly"
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq --no-install-recommends build-essential
+  - apt-get install -yqq clang
+
+cache:
+  paths:
+    - target
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --verbose -- --nocapture
+
+build_job:
+  stage: build
+  script:
+    - cargo build --release
+    - mv target/release/rust-duplicati-restore .
+  artifacts:
+    paths:
+      - rust-duplicati-restore
