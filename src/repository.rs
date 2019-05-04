@@ -57,4 +57,58 @@ pub struct Chunk {
     encryption: Encryption,
 }
 
-impl Chunk {}
+impl Chunk {
+    /// Will Pack the data into a chunk with the given compression and encryption
+    pub fn pack(
+        data: &[u8],
+        compression: Compression,
+        encryption: Encryption,
+        key: &[u8],
+    ) -> Chunk {
+        let compressed_data = compression.compress(data);
+        let data = encryption.encrypt(&compressed_data, key);
+        Chunk {
+            data,
+            compression,
+            encryption,
+        }
+    }
+
+    /// Decrypts and decompresses the data in the chunk
+    ///
+    /// Will return none if either the decompression or the decryption fail
+    pub fn unpack(&self, key: &[u8]) -> Option<Vec<u8>> {
+        let decrypted_data = self.encryption.decrypt(&self.data, key)?;
+        let decompressed_data = self.compression.decompress(&decrypted_data)?;
+
+        Some(decompressed_data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::prelude::*;
+    use std::str;
+
+    #[test]
+    fn chunk_aes256cbc_zstd6() {
+        let data_string =
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+        let data_bytes = data_string.as_bytes();
+        let compression = Compression::ZStd { level: 6 };
+        let encryption = Encryption::new_aes256cbc();
+
+        let mut key: [u8; 32] = [0; 32];
+        thread_rng().fill_bytes(&mut key);
+
+        let packed = Chunk::pack(&data_bytes, compression, encryption, &key);
+
+        let output_bytes = packed.unpack(&key).unwrap();
+        let output_string = str::from_utf8(&output_bytes).unwrap();
+
+        assert_eq!(data_string, output_string);
+    }
+
+}
