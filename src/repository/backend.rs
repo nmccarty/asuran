@@ -1,5 +1,3 @@
-use std::io::{Read, Seek, Write};
-
 pub trait Segment {
     /// Returns the free bytes in this segment
     fn free_bytes(&self) -> usize;
