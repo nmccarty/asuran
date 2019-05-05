@@ -8,18 +8,18 @@ pub trait Segment {
     /// Requires the start and end positions for the chunk
     ///
     /// Will return None if the read fails
-    fn read_chunk(&self, start: u64, end: u64) -> Option<Vec<u8>>;
+    fn read_chunk(&mut self, start: u64, length: u64) -> Option<Vec<u8>>;
     /// Writes a chunk to the segment
     ///
-    /// Retuns Some(start,end), or None if writing fails
-    fn write_chunk(&self, chunk: &[u8]) -> Option<(u64, u64)>;
+    /// Retuns Some(start,length), or None if writing fails
+    fn write_chunk(&mut self, chunk: &[u8]) -> Option<(u64, u64)>;
 }
 
 pub trait Backend {
     /// Gets a particular segment
     ///
     /// Returns None if it does not exist or can not be found
-    fn get_segment(&self, id: u64) -> Box<dyn Segment>;
+    fn get_segment(&self, id: u64) -> Option<Box<dyn Segment>>;
     /// Creates a new segment
     ///
     /// Returns Some(id) with the segement if it can be created
