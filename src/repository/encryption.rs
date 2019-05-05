@@ -64,7 +64,7 @@ impl Encryption {
                             .take_read_buffer()
                             .take_remaining()
                             .iter()
-                            .map(|&i| i),
+                            .cloned(),
                     );
 
                     match result {
@@ -125,7 +125,7 @@ impl Encryption {
                                     .take_read_buffer()
                                     .take_remaining()
                                     .iter()
-                                    .map(|&i| i),
+                                    .cloned(),
                             );
                             match result {
                                 BufferResult::BufferUnderflow => break,

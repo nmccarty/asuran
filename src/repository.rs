@@ -33,9 +33,8 @@ impl Key {
     /// Keys shorter than 32 bytes will be padded at the end with zeros.
     pub fn new(input_key: &[u8]) -> Key {
         let mut key: [u8; 32] = [0; 32];
-        for i in 0..cmp::min(32, input_key.len()) {
-            key[i] = input_key[i];
-        }
+        key[..cmp::min(32, input_key.len())]
+            .clone_from_slice(&input_key[..cmp::min(32, input_key.len())]);
         Key { key }
     }
 
@@ -82,6 +81,21 @@ impl Chunk {
         let decompressed_data = self.compression.decompress(&decrypted_data)?;
 
         Some(decompressed_data)
+    }
+
+    /// Returns the length of the data bytes
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Determine if this chunk is empty
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns a reference to the raw bytes of this chunk
+    pub fn get_bytes(&self) -> &[u8] {
+        &self.data
     }
 }
 

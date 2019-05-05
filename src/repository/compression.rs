@@ -9,12 +9,12 @@ impl Compression {
     /// Will compress the given data
     ///
     /// Panics if compression fails
-    pub fn compress(&self, data: &[u8]) -> Vec<u8> {
+    pub fn compress(self, data: &[u8]) -> Vec<u8> {
         match self {
             Compression::NoCompression => data.to_vec(),
             Compression::ZStd { level } => {
                 let mut output = Vec::<u8>::new();
-                zstd::stream::copy_encode(data, &mut output, *level).unwrap();
+                zstd::stream::copy_encode(data, &mut output, level).unwrap();
                 output
             }
         }
@@ -23,13 +23,13 @@ impl Compression {
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails
-    pub fn decompress(&self, data: &[u8]) -> Option<Vec<u8>> {
+    pub fn decompress(self, data: &[u8]) -> Option<Vec<u8>> {
         match self {
             Compression::NoCompression => Some(data.to_vec()),
             Compression::ZStd { .. } => {
                 let mut output = Vec::<u8>::new();
                 let result = zstd::stream::copy_decode(data, &mut output);
-                if let Err(_) = result {
+                if result.is_err() {
                     None
                 } else {
                     Some(output)
