@@ -20,6 +20,8 @@ pub trait Backend {
     ///
     /// Returns None if it does not exist or can not be found
     fn get_segment(&self, id: u64) -> Option<Box<dyn Segment>>;
+    /// Returns the id of the higest segment
+    fn highest_segment(&self) -> u64;
     /// Creates a new segment
     ///
     /// Returns Some(id) with the segement if it can be created
