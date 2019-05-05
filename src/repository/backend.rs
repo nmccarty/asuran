@@ -11,7 +11,7 @@ pub trait Segment {
     fn read_chunk(&self, start: usize, end: usize) -> Option<Vec<u8>>;
     /// Writes a chunk to the segment
     ///
-    /// Retuns Some(star,end), or None if writing fails
+    /// Retuns Some(start,end), or None if writing fails
     fn write_chunk(&self, chunk: &[u8]) -> Option<(usize, usize)>;
 }
 
