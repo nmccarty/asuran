@@ -1,3 +1,5 @@
+use std::io::Result;
+
 pub mod filesystem;
 
 pub trait Segment {
@@ -35,6 +37,6 @@ pub trait Backend {
     ///
     /// Backend should write the new index first, and then delete the old one
     ///
-    /// Returns false if the index could not be written.
-    fn write_index(&self, index: &[u8], id: u64) -> bool;
+    /// Returns Err if the index could not be written.
+    fn write_index(&self, index: &[u8]) -> Result<()>;
 }
