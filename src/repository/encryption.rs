@@ -1,11 +1,12 @@
 use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
 use crypto::{aes, blockmodes, buffer};
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::cmp;
 use zeroize::Zeroize;
 
 /// Encryption Algorithim
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
     NoEncryption,
@@ -140,6 +141,13 @@ impl Encryption {
 
                 Some(final_result)
             }
+        }
+    }
+
+    pub fn new_iv(self) -> Encryption {
+        match self {
+            Encryption::NoEncryption => Encryption::NoEncryption,
+            Encryption::AES256CBC { .. } => Encryption::new_aes256cbc(),
         }
     }
 }

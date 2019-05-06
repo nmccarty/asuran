@@ -1,4 +1,8 @@
+use rmp_serde::{Deserializer, Serializer};
+use serde::{Deserialize, Serialize};
 use std::cmp;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::repository::backend::*;
 use crate::repository::compression::*;
@@ -12,10 +16,49 @@ pub mod hmac;
 
 pub struct Repository {
     backend: Box<dyn Backend>,
+    index: HashMap<Key, (u64, u64)>,
+    /// Default compression for new chunks
+    compression: Compression,
+    /// Default MAC algorthim for new chunks
+    hmac: HMAC,
+    /// Default encryption algorthim for new chunks
+    encryption: Encryption,
+    /// Encryption key for this repo
+    key: Vec<u8>,
+}
+
+impl Repository {
+    /// Creates a new repository with the specificed backend and defaults
+    pub fn new(
+        backend: Box<dyn Backend>,
+        compression: Compression,
+        hmac: HMAC,
+        encryption: Encryption,
+        key: &[u8],
+    ) -> Repository {
+        // Check for index, create a new one if it doesnt exist
+        let index_vec = backend.get_index();
+        let index = if index_vec.is_empty() {
+            HashMap::new()
+        } else {
+            let mut de = Deserializer::new(index_vec.as_slice());
+            Deserialize::deserialize(&mut de).expect("Unable to parse index")
+        };
+        let key = key.to_vec();
+
+        Repository {
+            backend,
+            index,
+            compression,
+            hmac,
+            encryption,
+            key,
+        }
+    }
 }
 
 /// Key for an object in a repository
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct Key {
     /// Keys are a bytestring of length 32
     ///
@@ -45,8 +88,10 @@ impl Key {
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository
+#[derive(Serialize, Deserialize)]
 pub struct Chunk {
     /// The data of the chunk, stored as a vec of raw bytes
+    #[serde(with = "serde_bytes")]
     data: Vec<u8>,
     /// Compression algorithim used
     compression: Compression,
@@ -57,6 +102,7 @@ pub struct Chunk {
     /// HAMC key is also the same as the repo encryption key
     hmac: HMAC,
     /// Actual MAC value of this chunk
+    #[serde(with = "serde_bytes")]
     mac: Vec<u8>,
     /// Chunk ID, generated from the HMAC
     id: Key,

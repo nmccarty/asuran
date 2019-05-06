@@ -1,9 +1,11 @@
 use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
 /// HMAC Algorithim
+#[derive(Deserialize, Serialize)]
 pub enum HMAC {
     SHA256,
 }

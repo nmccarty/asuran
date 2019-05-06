@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Compression algorithim
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
