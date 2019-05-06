@@ -2,7 +2,6 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use crate::repository::backend::*;
 use crate::repository::compression::*;
@@ -16,7 +15,7 @@ pub mod hmac;
 
 pub struct Repository {
     backend: Box<dyn Backend>,
-    index: HashMap<Key, (u64, u64)>,
+    index: HashMap<Key, (u64, u64, u64)>,
     /// Default compression for new chunks
     compression: Compression,
     /// Default MAC algorthim for new chunks
@@ -54,6 +53,85 @@ impl Repository {
             encryption,
             key,
         }
+    }
+
+    /// Commits the index
+    pub fn commit_index(&self) {
+        let mut buff = Vec::<u8>::new();
+        let mut se = Serializer::new(&mut buff);
+        self.index.serialize(&mut se).unwrap();
+        self.backend
+            .write_index(&buff)
+            .expect("Unable to commit index");
+    }
+
+    /// Writes a chunk to the repo
+    ///
+    /// Uses all defaults
+    ///
+    /// Will return None if writing the chunk fails
+    pub fn write_chunk(&mut self, data: &[u8]) -> Option<Key> {
+        let chunk = Chunk::pack(
+            data,
+            self.compression,
+            self.encryption.new_iv(),
+            self.hmac,
+            &self.key,
+        );
+
+        let id = chunk.get_id();
+
+        let mut buff = Vec::<u8>::new();
+        chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
+
+        // Get highest segment and check to see if has enough space
+        let backend = &self.backend;
+        let mut seg_id = backend.highest_segment();
+        let test_segment = backend.get_segment(seg_id)?;
+
+        let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+            seg_id = backend.make_segment()?;
+            backend.get_segment(seg_id)?
+        } else {
+            test_segment
+        };
+
+        let (start, length) = segment.write_chunk(&buff)?;
+        self.index.insert(id, (seg_id, start, length));
+
+        Some(id)
+    }
+
+    /// Determines if a chunk exists in the index
+    pub fn has_chunk(&self, id: Key) -> bool {
+        self.index.contains_key(&id)
+    }
+
+    /// Reads a chunk from the repo
+    ///
+    /// Returns none if reading the chunk fails
+    pub fn read_chunk(&self, id: Key) -> Option<Vec<u8>> {
+        // First, check if the chunk exists
+        if self.has_chunk(id) {
+            let (seg_id, start, length) = *self.index.get(&id)?;
+            let mut segment = self.backend.get_segment(seg_id)?;
+            let chunk_bytes = segment.read_chunk(start, length)?;
+
+            let mut de = Deserializer::new(&chunk_bytes[..]);
+            let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
+
+            let data = chunk.unpack(&self.key)?;
+
+            Some(data)
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for Repository {
+    fn drop(&mut self) {
+        self.commit_index();
     }
 }
 

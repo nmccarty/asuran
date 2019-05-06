@@ -1,4 +1,3 @@
-use std::cmp;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -27,6 +26,22 @@ impl FileSystem {
             segment_size,
         }
     }
+
+    #[cfg(test)]
+    /// Testing only constructor that has a much smaller segment size (16KB) and
+    /// segements per folder (2)
+    pub fn new_test(root_directory: &str) -> FileSystem {
+        let segments_per_folder: u64 = 2;
+        let segment_size: u64 = 16 * 10_u64.pow(3);
+        // Create the directory if it doesn't exist
+        fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
+
+        FileSystem {
+            root_directory: root_directory.to_string(),
+            segments_per_folder,
+            segment_size,
+        }
+    }
 }
 
 impl Backend for FileSystem {
@@ -46,7 +61,7 @@ impl Backend for FileSystem {
     fn highest_segment(&self) -> u64 {
         WalkDir::new(self.root_directory.clone())
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .map(|i| {
                 let str = i.path().file_name().unwrap().to_str();
                 str.unwrap().to_string()
@@ -92,14 +107,6 @@ impl Backend for FileSystem {
 pub struct FileSystemSegment {
     file: fs::File,
     max_size: u64,
-}
-
-impl FileSystemSegment {
-    /// Creates an object for the existing segment file
-    fn from_file(path: &str, max_size: u64) -> FileSystemSegment {
-        let file = fs::File::open(path).expect("Unable to open segment file");
-        FileSystemSegment { file, max_size }
-    }
 }
 
 impl Segment for FileSystemSegment {
