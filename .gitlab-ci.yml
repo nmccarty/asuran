@@ -18,7 +18,7 @@ test:
   script:
     - rustc --version
     - cargo --version
-    - cargo test --verbose -- --nocapture
+    - cargo test --verbose
 
 build_job:
   stage: build
