@@ -50,7 +50,11 @@ impl Backend for FileSystem {
         let path = Path::new(&self.root_directory)
             .join(Path::new(&dir_name))
             .join(Path::new(&id.to_string()));
-        let file = fs::File::open(path).ok()?;
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)
+            .ok()?;
         let segment = FileSystemSegment {
             file,
             max_size: self.segment_size,
@@ -125,8 +129,8 @@ impl Segment for FileSystemSegment {
     fn write_chunk(&mut self, chunk: &[u8]) -> Option<(u64, u64)> {
         let length = chunk.len() as u64;
         let location = self.file.seek(SeekFrom::End(1)).ok()?;
-        self.file.write_all(chunk).ok()?;
+        self.file.write_all(chunk).unwrap();
 
-        Some((length, location))
+        Some((location, length))
     }
 }

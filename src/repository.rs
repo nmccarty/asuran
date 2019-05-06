@@ -78,7 +78,6 @@ impl Repository {
             self.hmac,
             &self.key,
         );
-
         let id = chunk.get_id();
 
         let mut buff = Vec::<u8>::new();
@@ -87,8 +86,14 @@ impl Repository {
         // Get highest segment and check to see if has enough space
         let backend = &self.backend;
         let mut seg_id = backend.highest_segment();
-        let test_segment = backend.get_segment(seg_id)?;
-
+        let test_segment = backend.get_segment(seg_id);
+        // If no segments exist, we must create one
+        let test_segment = if test_segment.is_none() {
+            seg_id = backend.make_segment()?;
+            backend.get_segment(seg_id)?
+        } else {
+            test_segment?
+        };
         let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
             seg_id = backend.make_segment()?;
             backend.get_segment(seg_id)?
@@ -280,8 +285,11 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repository::backend::filesystem::*;
+    use crate::repository::backend::*;
     use rand::prelude::*;
     use std::str;
+    use tempfile::tempdir;
 
     #[test]
     fn chunk_aes256cbc_zstd6() {
@@ -321,6 +329,47 @@ mod tests {
         let result = packed.unpack(&key);
 
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn repository_add_read() {
+        let mut key: [u8; 32] = [0; 32];
+        thread_rng().fill_bytes(&mut key);
+
+        let size = 7 * 10_u64.pow(3);
+        let mut data1 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data1);
+        let mut data2 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data2);
+        let mut data3 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data3);
+
+        let root_dir = tempdir().unwrap();
+        let root_path = root_dir.path().display().to_string();
+        println!("Repo root dir: {}", root_path);
+
+        let backend = Box::new(FileSystem::new_test(&root_path));
+        let mut repo = Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::SHA256,
+            Encryption::new_aes256cbc(),
+            &key,
+        );
+
+        println!("Adding Chunks");
+        let key1 = repo.write_chunk(&data1).unwrap();
+        let key2 = repo.write_chunk(&data2).unwrap();
+        let key3 = repo.write_chunk(&data3).unwrap();
+
+        println!("Reading Chunks");
+        let out1 = repo.read_chunk(key1).unwrap();
+        let out2 = repo.read_chunk(key2).unwrap();
+        let out3 = repo.read_chunk(key3).unwrap();
+
+        assert_eq!(data1, out1);
+        assert_eq!(data2, out2);
+        assert_eq!(data3, out3);
     }
 
 }

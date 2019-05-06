@@ -28,3 +28,4 @@ walkdir = "2.2.7"
 serde = { version = "1.0.90", features = ["derive"]}
 rmp-serde = "0.13.7"
 serde_bytes = "0.11"
+tempfile = "3.0.7"
