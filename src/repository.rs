@@ -69,7 +69,8 @@ impl Repository {
     ///
     /// Uses all defaults
     ///
-    /// Will return None if writing the chunk fails
+    /// Will return None if writing the chunk fails.
+    /// Will not write the chunk if it already exists.
     pub fn write_chunk(&mut self, data: &[u8]) -> Option<Key> {
         let chunk = Chunk::pack(
             data,
@@ -80,31 +81,36 @@ impl Repository {
         );
         let id = chunk.get_id();
 
-        let mut buff = Vec::<u8>::new();
-        chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
-
-        // Get highest segment and check to see if has enough space
-        let backend = &self.backend;
-        let mut seg_id = backend.highest_segment();
-        let test_segment = backend.get_segment(seg_id);
-        // If no segments exist, we must create one
-        let test_segment = if test_segment.is_none() {
-            seg_id = backend.make_segment()?;
-            backend.get_segment(seg_id)?
+        // Check if chunk exists
+        if self.has_chunk(id) {
+            Some(id)
         } else {
-            test_segment?
-        };
-        let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
-            seg_id = backend.make_segment()?;
-            backend.get_segment(seg_id)?
-        } else {
-            test_segment
-        };
+            let mut buff = Vec::<u8>::new();
+            chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
-        let (start, length) = segment.write_chunk(&buff)?;
-        self.index.insert(id, (seg_id, start, length));
+            // Get highest segment and check to see if has enough space
+            let backend = &self.backend;
+            let mut seg_id = backend.highest_segment();
+            let test_segment = backend.get_segment(seg_id);
+            // If no segments exist, we must create one
+            let test_segment = if test_segment.is_none() {
+                seg_id = backend.make_segment()?;
+                backend.get_segment(seg_id)?
+            } else {
+                test_segment?
+            };
+            let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+                seg_id = backend.make_segment()?;
+                backend.get_segment(seg_id)?
+            } else {
+                test_segment
+            };
 
-        Some(id)
+            let (start, length) = segment.write_chunk(&buff)?;
+            self.index.insert(id, (seg_id, start, length));
+
+            Some(id)
+        }
     }
 
     /// Determines if a chunk exists in the index

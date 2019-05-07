@@ -1,5 +1,6 @@
 use std::io::Read;
 
+#[derive(Clone)]
 pub struct Chunker {
     /// Hash Mask
     mask: u32,
@@ -57,6 +58,7 @@ impl Chunker {
 }
 
 /// Buzhash implemtation
+#[derive(Clone)]
 struct BuzHash {
     state: u32,
     buf: Vec<u8>,
