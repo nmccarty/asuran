@@ -16,7 +16,7 @@ impl FileSystem {
     /// directory (250) and segment size (250MB)
     pub fn new(root_directory: &str) -> FileSystem {
         let segments_per_folder: u64 = 250;
-        let segment_size: u64 = 250 * 10_u64.pow(6);
+        let segment_size: u64 = 250 * 10_u64.pow(3);
         // Create the directory if it doesn't exist
         fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
 
@@ -27,7 +27,7 @@ impl FileSystem {
         }
     }
 
-    #[cfg(test)]
+    //    #[cfg(test)]
     /// Testing only constructor that has a much smaller segment size (16KB) and
     /// segements per folder (2)
     pub fn new_test(root_directory: &str) -> FileSystem {
@@ -116,7 +116,11 @@ pub struct FileSystemSegment {
 impl Segment for FileSystemSegment {
     fn free_bytes(&self) -> u64 {
         let file_size = self.file.metadata().unwrap().len();
-        self.max_size - file_size
+        if file_size > self.max_size {
+            0
+        } else {
+            self.max_size - file_size
+        }
     }
 
     fn read_chunk(&mut self, start: u64, length: u64) -> Option<Vec<u8>> {

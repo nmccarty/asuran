@@ -1,4 +1,9 @@
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
+
+#[cfg(feature = "profile")]
+use flame::*;
+#[cfg(feature = "profile")]
+use flamer::*;
 
 #[derive(Clone)]
 pub struct Chunker {
@@ -17,38 +22,38 @@ impl Chunker {
         }
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Generates split indicies for a reader
-    pub fn split_reader(&mut self, reader: impl Read) -> Vec<u64> {
+    pub fn split_reader(&mut self, reader: &mut (impl Read + Seek)) -> Vec<u64> {
         let hasher = &mut self.hasher;
         hasher.reset();
 
         let mut splits = Vec::<u64>::new();
 
-        let bytes = reader
-            .bytes()
-            .filter_map(std::result::Result::ok)
-            .enumerate();
-
-        let mut last_index = 0;
-        for (index, byte) in bytes {
+        let mut buf = [0_u8];
+        let mut index = 1;
+        while let Ok(_) = reader.read_exact(&mut buf) {
+            let byte = buf[0];
             let hash = hasher.hash_byte(byte);
             if (hash & self.mask) == 0 {
                 splits.push(index as u64);
                 hasher.reset();
             }
-            last_index = index;
+            index = index + 1;
+            reader.seek(SeekFrom::Start(index)).unwrap();
         }
-        splits.push(last_index as u64);
+        splits.push(index as u64);
         splits
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Generates ranges based on splits
-    pub fn split_ranges(&mut self, reader: impl Read) -> Vec<(u64, u64)> {
+    pub fn split_ranges(&mut self, reader: &mut (impl Read + Seek)) -> Vec<(u64, u64)> {
         let indexes = self.split_reader(reader);
         let mut splits = Vec::new();
         splits.push((0, indexes[0]));
         for i in 1..indexes.len() {
-            let start = indexes[i - 1] + 1;
+            let start = indexes[i - 1];
             let end = indexes[i];
             splits.push((start, end));
         }

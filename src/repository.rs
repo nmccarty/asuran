@@ -8,6 +8,11 @@ use crate::repository::compression::*;
 use crate::repository::encryption::*;
 use crate::repository::hmac::*;
 
+#[cfg(feature = "profile")]
+use flame::*;
+#[cfg(feature = "profile")]
+use flamer::*;
+
 pub mod backend;
 pub mod compression;
 pub mod encryption;
@@ -55,6 +60,7 @@ impl Repository {
         }
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Commits the index
     pub fn commit_index(&self) {
         let mut buff = Vec::<u8>::new();
@@ -65,6 +71,7 @@ impl Repository {
             .expect("Unable to commit index");
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
     /// Uses all defaults
@@ -118,6 +125,7 @@ impl Repository {
         self.index.contains_key(&id)
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
@@ -198,6 +206,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
+    #[cfg_attr(feature = "profile", flame)]
     /// Will Pack the data into a chunk with the given compression and encryption
     pub fn pack(
         data: &[u8],
@@ -220,6 +229,7 @@ impl Chunk {
         }
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Decrypts and decompresses the data in the chunk
     ///
     /// Will return none if either the decompression or the decryption fail

@@ -2,6 +2,11 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
+#[cfg(feature = "profile")]
+use flame::*;
+#[cfg(feature = "profile")]
+use flamer::*;
+
 type HmacSha256 = Hmac<Sha256>;
 
 /// HMAC Algorithim
@@ -11,6 +16,7 @@ pub enum HMAC {
 }
 
 impl HMAC {
+    #[cfg_attr(feature = "profile", flame)]
     /// Produces a MAC for the given data with the given key
     pub fn mac(self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
@@ -21,6 +27,8 @@ impl HMAC {
             }
         }
     }
+
+    #[cfg_attr(feature = "profile", flame)]
     /// Verifies the data given the data, a MAC, and a key
     pub fn verify(self, input_mac: &[u8], data: &[u8], key: &[u8]) -> bool {
         let mut mac = HmacSha256::new_varkey(key).unwrap();

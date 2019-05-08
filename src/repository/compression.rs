@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "profile")]
+use flame::*;
+#[cfg(feature = "profile")]
+use flamer::*;
+
 /// Compression algorithim
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Compression {
@@ -8,6 +13,7 @@ pub enum Compression {
 }
 
 impl Compression {
+    #[cfg_attr(feature = "profile", flame)]
     /// Will compress the given data
     ///
     /// Panics if compression fails
@@ -22,6 +28,7 @@ impl Compression {
         }
     }
 
+    #[cfg_attr(feature = "profile", flame)]
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails
