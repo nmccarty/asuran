@@ -30,16 +30,21 @@ impl Chunker {
 
         let mut splits = Vec::<u64>::new();
 
-        let mut buf = [0_u8];
+        let mut buf = [0_u8; 8192];
         let mut index = 1;
-        while let Ok(_) = reader.read_exact(&mut buf) {
-            let byte = buf[0];
-            let hash = hasher.hash_byte(byte);
-            if (hash & self.mask) == 0 {
-                splits.push(index as u64);
-                hasher.reset();
+        while let Ok(len) = reader.read(&mut buf) {
+            if len == 0 {
+                break;
             }
-            index = index + 1;
+            for i in 0..len {
+                let byte = buf[i];
+                let hash = hasher.hash_byte(byte);
+                if (hash & self.mask) == 0 {
+                    splits.push(index as u64);
+                    hasher.reset();
+                }
+                index = index + 1;
+            }
             reader.seek(SeekFrom::Start(index)).unwrap();
         }
         splits.push(index as u64);
@@ -123,7 +128,7 @@ impl BuzHash {
         self.state = 0;
         self.bufpos = 0;
         self.overflow = false;
-        self.buf = vec![0u8; self.size as usize];
+        //        self.buf = vec![0u8; self.size as usize];
     }
 }
 
