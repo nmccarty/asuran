@@ -24,41 +24,44 @@ impl Chunker {
 
     #[cfg_attr(feature = "profile", flame)]
     /// Generates split indicies for a reader
-    pub fn split_reader(&mut self, reader: &mut (impl Read + Seek)) -> Vec<u64> {
+    pub fn split_reader(&mut self, reader: &mut impl Read) -> Vec<u64> {
         let hasher = &mut self.hasher;
         hasher.reset();
 
         let mut splits = Vec::<u64>::new();
 
-        let mut buf = [0_u8; 8192];
-        let mut index = 1;
-        while let Ok(len) = reader.read(&mut buf) {
-            if len == 0 {
-                break;
+        let bytes = reader
+            .by_ref()
+            .bytes()
+            .filter_map(std::result::Result::ok)
+            .enumerate();
+        let mut last_index = 0;
+        let mut split = false;
+        for (index, byte) in bytes {
+            let hash = hasher.hash_byte(byte);
+            if (hash & self.mask) == 0 {
+                splits.push(index as u64);
+                hasher.reset();
+                split = true;
+            } else {
+                split = false;
             }
-            for i in 0..len {
-                let byte = buf[i];
-                let hash = hasher.hash_byte(byte);
-                if (hash & self.mask) == 0 {
-                    splits.push(index as u64);
-                    hasher.reset();
-                }
-                index = index + 1;
-            }
-            reader.seek(SeekFrom::Start(index)).unwrap();
+            last_index = index;
         }
-        splits.push(index as u64);
+        if !split {
+            splits.push(last_index as u64);
+        }
         splits
     }
 
     #[cfg_attr(feature = "profile", flame)]
     /// Generates ranges based on splits
-    pub fn split_ranges(&mut self, reader: &mut (impl Read + Seek)) -> Vec<(u64, u64)> {
+    pub fn split_ranges(&mut self, reader: &mut impl Read) -> Vec<(u64, u64)> {
         let indexes = self.split_reader(reader);
         let mut splits = Vec::new();
         splits.push((0, indexes[0]));
         for i in 1..indexes.len() {
-            let start = indexes[i - 1];
+            let start = indexes[i - 1] + 1;
             let end = indexes[i];
             splits.push((start, end));
         }

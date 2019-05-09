@@ -56,10 +56,12 @@ impl Archive {
         let slices = chunker.split_ranges(from_reader);
         for (start, end) in slices.iter() {
             println!("Slice range: {} - {} Length: {}", start, end, end - start);
-            let length = end - start;
+            let length = end - start + 1;
             let mut buf = vec![0u8; length as usize];
             from_reader.seek(SeekFrom::Start(*start)).ok()?;
-            from_reader.read_exact(&mut buf).ok()?;
+            from_reader
+                .read_exact(&mut buf)
+                .expect("Unable to read all bytes from file");
             let id = repository.write_chunk(&buf)?;
             locations.push(ChunkLocation { id, start: *start });
         }
@@ -112,7 +114,7 @@ mod tests {
             let chunker = Chunker::new(8, 12, 0);
 
             let key: [u8; 32] = [0u8; 32];
-            let size = 2 * 2_usize.pow(18);
+            let size = 2 * 2_usize.pow(14);
             let mut data = vec![0_u8; size];
             let mut rand = SmallRng::seed_from_u64(seed);
             rand.fill_bytes(&mut data);
@@ -146,9 +148,7 @@ mod tests {
 
             let output = buf.into_inner();
             println!("Input length: {}", data.len());
-            println!("Input: \n{:X?}", data);
             println!("Output length: {}", output.len());
-            println!("Output: \n{:X?}", output);
 
             let mut mismatch = false;
             for i in 0..data.len() {
