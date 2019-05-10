@@ -9,8 +9,6 @@ use crate::repository::encryption::*;
 use crate::repository::hmac::*;
 
 #[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
 use flamer::*;
 
 pub mod backend;

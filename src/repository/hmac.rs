@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 #[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
 use flamer::*;
 
 type HmacSha256 = Hmac<Sha256>;

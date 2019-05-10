@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 #[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
 use flamer::flame;
 
 /// An archive in a repository

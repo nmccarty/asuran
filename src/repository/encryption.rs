@@ -6,8 +6,6 @@ use std::cmp;
 use zeroize::Zeroize;
 
 #[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
 use flamer::*;
 
 /// Encryption Algorithim

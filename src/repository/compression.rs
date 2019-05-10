@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
 use flamer::*;
 
 /// Compression algorithim
