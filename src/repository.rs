@@ -213,10 +213,11 @@ impl Chunk {
         hmac: HMAC,
         key: &[u8],
     ) -> Chunk {
-        let mac = hmac.mac(&data, key);
+        let id_mac = hmac.mac(&data, key);
         let compressed_data = compression.compress(data);
         let data = encryption.encrypt(&compressed_data, key);
-        let id = Key::new(&mac);
+        let id = Key::new(&id_mac);
+        let mac = hmac.mac(&data, key);
         Chunk {
             data,
             compression,
@@ -234,10 +235,9 @@ impl Chunk {
     ///
     /// Will also return none if the HMAC verification fails
     pub fn unpack(&self, key: &[u8]) -> Option<Vec<u8>> {
-        let decrypted_data = self.encryption.decrypt(&self.data, key)?;
-        let decompressed_data = self.compression.decompress(&decrypted_data)?;
-
-        if self.hmac.verify(&self.mac, &decompressed_data, key) {
+        if self.hmac.verify(&self.mac, &self.data, key) {
+            let decrypted_data = self.encryption.decrypt(&self.data, key)?;
+            let decompressed_data = self.compression.decompress(&decrypted_data)?;
             Some(decompressed_data)
         } else {
             None
