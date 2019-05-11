@@ -305,16 +305,12 @@ mod tests {
     use std::str;
     use tempfile::tempdir;
 
-    #[test]
-    fn chunk_aes256cbc_zstd6() {
+    fn chunk_with_settings(compression: Compression, encryption: Encryption, hmac: HMAC) {
         let data_string =
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
         let data_bytes = data_string.as_bytes();
         println!("Data: \n:{:X?}", data_bytes);
-        let compression = Compression::ZStd { level: 6 };
-        let encryption = Encryption::new_aes256cbc();
-        let hmac = HMAC::SHA256;
 
         let mut key: [u8; 32] = [0; 32];
         thread_rng().fill_bytes(&mut key);
@@ -324,6 +320,22 @@ mod tests {
         let output_bytes = packed.unpack(&key);
 
         assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
+    }
+
+    #[test]
+    fn chunk_aes256cbc_zstd6_SHA256() {
+        let compression = Compression::ZStd { level: 6 };
+        let encryption = Encryption::new_aes256cbc();
+        let hmac = HMAC::SHA256;
+        chunk_with_settings(compression, encryption, hmac);
+    }
+
+    #[test]
+    fn chunk_aes256cbc_zstd6_Blake2B() {
+        let compression = Compression::ZStd { level: 6 };
+        let encryption = Encryption::new_aes256cbc();
+        let hmac = HMAC::Blake2b;
+        chunk_with_settings(compression, encryption, hmac);
     }
 
     #[test]
