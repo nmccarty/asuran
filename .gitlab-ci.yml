@@ -36,3 +36,6 @@ pages:
     - cargo doc --no-deps
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url={{ Asuran }}">' > public/index.html
+  artifacts:
+    pathts:
+      - public
