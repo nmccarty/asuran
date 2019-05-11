@@ -12,6 +12,7 @@ cache:
 stages:
   - test
   - build
+  - doc
 
 test:
   stage: test
@@ -28,3 +29,10 @@ build_job:
   artifacts:
     paths:
       - asuran
+
+pages:
+  stage: doc
+  script:
+    - cargo doc --no-deps
+    - mv target/doc public
+    - echo '<meta http-equiv="refresh" content="0; url={{ Asuran }}">' > public/index.html
