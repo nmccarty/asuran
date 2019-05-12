@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn chunk_aes256cbc_zstd6_SHA256() {
+    fn chunk_aes256cbc_zstd6_sha256() {
         let compression = Compression::ZStd { level: 6 };
         let encryption = Encryption::new_aes256cbc();
         let hmac = HMAC::SHA256;
@@ -331,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn chunk_aes256cbc_zstd6_Blake2B() {
+    fn chunk_aes256cbc_zstd6_blake2b() {
         let compression = Compression::ZStd { level: 6 };
         let encryption = Encryption::new_aes256cbc();
         let hmac = HMAC::Blake2b;
@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn chunk_aes256ctr_zstd6_Blake2B() {
+    fn chunk_aes256ctr_zstd6_blake2b() {
         let compression = Compression::ZStd { level: 6 };
         let encryption = Encryption::new_aes256ctr();
         let hmac = HMAC::Blake2b;
