@@ -35,6 +35,8 @@ pages:
   script:
     - cargo doc --no-deps
     - mv target/doc public
+    - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
+    
   artifacts:
     paths:
       - public
