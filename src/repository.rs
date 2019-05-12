@@ -339,6 +339,14 @@ mod tests {
     }
 
     #[test]
+    fn chunk_aes256ctr_zstd6_Blake2B() {
+        let compression = Compression::ZStd { level: 6 };
+        let encryption = Encryption::new_aes256ctr();
+        let hmac = HMAC::Blake2b;
+        chunk_with_settings(compression, encryption, hmac);
+    }
+
+    #[test]
     fn detect_bad_data() {
         let data_string = "I am but a humble test string";
         let data_bytes = data_string.as_bytes();

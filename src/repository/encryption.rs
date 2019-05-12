@@ -12,6 +12,7 @@ use flamer::*;
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
+    AES256CTR { iv: [u8; 16] },
     NoEncryption,
 }
 
@@ -23,11 +24,19 @@ impl Encryption {
         Encryption::AES256CBC { iv }
     }
 
+    /// Creates a new AES256CTR with a random securely generated IV
+    pub fn new_aes256ctr() -> Encryption {
+        let mut iv: [u8; 16] = [0; 16];
+        thread_rng().fill_bytes(&mut iv);
+        Encryption::AES256CTR { iv }
+    }
+
     /// Returns the key length of this encryption method in bytes
     pub fn key_length(&self) -> usize {
         match self {
             Encryption::NoEncryption => 0,
             Encryption::AES256CBC { .. } => 32,
+            Encryption::AES256CTR { .. } => 32,
         }
     }
 
@@ -81,6 +90,18 @@ impl Encryption {
                 // Zeroize key
                 proper_key.zeroize();
 
+                final_result
+            }
+            Encryption::AES256CTR { iv } => {
+                let mut proper_key: [u8; 32] = [0; 32];
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+
+                let mut encryptor = aes::ctr(aes::KeySize::KeySize256, &proper_key, &iv[..]);
+                let mut final_result = vec![0_u8; data.len()];
+                encryptor.process(&data, &mut final_result);
+
+                proper_key.zeroize();
                 final_result
             }
         }
@@ -146,6 +167,18 @@ impl Encryption {
 
                 Some(final_result)
             }
+            Encryption::AES256CTR { iv } => {
+                let mut proper_key: [u8; 32] = [0; 32];
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+
+                let mut encryptor = aes::ctr(aes::KeySize::KeySize256, &proper_key, &iv[..]);
+                let mut final_result = vec![0_u8; data.len()];
+                encryptor.process(&data, &mut final_result);
+
+                proper_key.zeroize();
+                Some(final_result)
+            }
         }
     }
 
@@ -153,6 +186,7 @@ impl Encryption {
         match self {
             Encryption::NoEncryption => Encryption::NoEncryption,
             Encryption::AES256CBC { .. } => Encryption::new_aes256cbc(),
+            Encryption::AES256CTR { .. } => Encryption::new_aes256ctr(),
         }
     }
 }
@@ -162,12 +196,9 @@ mod tests {
     use super::*;
     use std::str;
 
-    #[test]
-    fn test_aes256cbc() {
+    fn test_encryption(enc: Encryption) {
         let mut key: [u8; 32] = [0; 32];
         thread_rng().fill_bytes(&mut key);
-
-        let enc = Encryption::new_aes256cbc();
 
         let data_string =
             "The quick brown fox jumps over the lazy dog. Jackdaws love my big sphinx of quartz.";
@@ -182,5 +213,17 @@ mod tests {
         println!("Decrypted string: {}", decrypted_string);
 
         assert_eq!(data_string, decrypted_string);
+    }
+
+    #[test]
+    fn test_aes256cbc() {
+        let enc = Encryption::new_aes256cbc();
+        test_encryption(enc);
+    }
+
+    #[test]
+    fn test_aes256ctr() {
+        let enc = Encryption::new_aes256ctr();
+        test_encryption(enc);
     }
 }
