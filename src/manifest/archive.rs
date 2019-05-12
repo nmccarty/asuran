@@ -53,7 +53,6 @@ impl Archive {
 
         let slices = chunker.split_ranges(from_reader);
         for (start, end) in slices.iter() {
-            println!("Slice range: {} - {} Length: {}", start, end, end - start);
             let length = end - start + 1;
             let mut buf = vec![0u8; length as usize];
             from_reader.seek(SeekFrom::Start(*start)).ok()?;
