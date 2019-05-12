@@ -28,26 +28,34 @@ impl Chunker {
 
         let mut splits = Vec::<u64>::new();
 
-        let bytes = reader
-            .by_ref()
-            .bytes()
-            .filter_map(std::result::Result::ok)
-            .enumerate();
-        let mut last_index = 0;
+        let mut index = 0;
         let mut split = false;
-        for (index, byte) in bytes {
-            let hash = hasher.hash_byte(byte);
-            if (hash & self.mask) == 0 {
-                splits.push(index as u64);
-                hasher.reset();
-                split = true;
+        let mut buf = [0_u8; 8192];
+        loop {
+            let count = reader.read(&mut buf);
+            if let Ok(len) = count {
+                if len == 0 {
+                    break;
+                } else {
+                    for i in 0..len {
+                        let hash = hasher.hash_byte(buf[i]);
+                        if hash & self.mask == 0 {
+                            splits.push(index as u64);
+                            hasher.reset();
+                            split = true;
+                        } else {
+                            split = false;
+                        }
+                        index = index + 1;
+                    }
+                }
             } else {
-                split = false;
+                break;
             }
-            last_index = index;
         }
+
         if !split {
-            splits.push(last_index as u64);
+            splits.push(index - 1 as u64);
         }
         splits
     }
