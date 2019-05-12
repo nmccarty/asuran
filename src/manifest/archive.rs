@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 #[cfg(feature = "profile")]
+use flame::*;
+#[cfg(feature = "profile")]
 use flamer::flame;
 
 /// An archive in a repository
@@ -52,6 +54,8 @@ impl Archive {
         let mut locations: Vec<ChunkLocation> = Vec::new();
 
         let slices = chunker.split_ranges(from_reader);
+        #[cfg(feature = "profile")]
+        flame::start("Packing chunks");
         for (start, end) in slices.iter() {
             let length = end - start + 1;
             let mut buf = vec![0u8; length as usize];
@@ -62,6 +66,8 @@ impl Archive {
             let id = repository.write_chunk(&buf)?;
             locations.push(ChunkLocation { id, start: *start });
         }
+        #[cfg(feature = "profile")]
+        flame::end("Packing chunks");
 
         self.files.insert(path.to_string(), locations);
 
