@@ -129,8 +129,8 @@ mod tests {
             let mut repo = Repository::new(
                 backend,
                 Compression::ZStd { level: 1 },
-                HMAC::SHA256,
-                Encryption::new_aes256cbc(),
+                HMAC::Blake2b,
+                Encryption::new_aes256ctr(),
                 &key,
             );
 
