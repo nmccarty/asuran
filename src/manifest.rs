@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod target;
 
 /// Repository manifest
 ///
