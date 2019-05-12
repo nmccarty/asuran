@@ -1,4 +1,4 @@
-use crate::chunker::Chunker;
+use crate::chunker::{Chunker, Slice};
 use crate::repository::{Key, Repository};
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
@@ -49,22 +49,14 @@ impl Archive {
         path: &str,
         from_reader: &mut (impl Read + Seek),
     ) -> Option<()> {
-        let mut chunker = chunker.clone();
-
         let mut locations: Vec<ChunkLocation> = Vec::new();
 
-        let slices = chunker.split_ranges(from_reader);
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
-        for (start, end) in slices.iter() {
-            let length = end - start + 1;
-            let mut buf = vec![0u8; length as usize];
-            from_reader.seek(SeekFrom::Start(*start)).ok()?;
-            from_reader
-                .read_exact(&mut buf)
-                .expect("Unable to read all bytes from file");
-            let id = repository.write_chunk(&buf)?;
-            locations.push(ChunkLocation { id, start: *start });
+        let slices = chunker.chunked_iterator(from_reader);
+        for Slice { data, start, .. } in slices {
+            let id = repository.write_chunk(&data)?;
+            locations.push(ChunkLocation { id, start: start });
         }
         #[cfg(feature = "profile")]
         flame::end("Packing chunks");

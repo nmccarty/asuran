@@ -3,12 +3,100 @@ use std::io::Read;
 #[cfg(feature = "profile")]
 use flamer::*;
 
+pub struct Slice {
+    pub data: Vec<u8>,
+    pub start: u64,
+    pub end: u64,
+}
+
+pub struct IteratedReader<R: Read> {
+    /// Internal Reader
+    reader: R,
+    /// Hasher
+    hasher: BuzHash,
+    /// Hash Mask
+    mask: u32,
+    /// Minimum chunk size
+    min_size: usize,
+    /// Maximum chunk size
+    max_size: usize,
+    /// read buffer
+    buffer: [u8; 8192],
+    /// location of the cursor in the buffer
+    cursor: usize,
+    /// length of the data in the buffer
+    buffer_len: usize,
+    /// location of the cursor in the file
+    location: usize,
+    /// Flag for if end of file reached
+    finished: bool,
+}
+
+impl<R: Read> Iterator for IteratedReader<R> {
+    type Item = Slice;
+
+    #[cfg_attr(feature = "profile", flame)]
+    fn next(&mut self) -> Option<Slice> {
+        if self.finished {
+            None
+        } else {
+            let start = self.location;
+            let mut end = self.location;
+            let mut output = Vec::<u8>::new();
+            let hasher = &mut self.hasher;
+            hasher.reset();
+            let mut split = false;
+            while !split {
+                if self.cursor < self.buffer_len {
+                    let byte = self.buffer[self.cursor];
+                    output.push(byte);
+                    let hash = hasher.hash_byte(byte);
+                    let len = output.len();
+                    if (hash & self.mask) == 0 && (len >= self.min_size) && (len <= self.max_size) {
+                        split = true;
+                        end = self.location;
+                    }
+
+                    self.location += 1;
+                    self.cursor += 1;
+                } else {
+                    self.cursor = 0;
+                    let result = self.reader.read(&mut self.buffer);
+                    match result {
+                        Err(_) => {
+                            split = true;
+                            end = self.location;
+                            self.finished = true;
+                        }
+                        Ok(0) => {
+                            split = true;
+                            end = self.location;
+                            self.finished = true;
+                        }
+                        Ok(n) => {
+                            self.buffer_len = n;
+                        }
+                    }
+                }
+            }
+
+            Some(Slice {
+                data: output,
+                start: start as u64,
+                end: end as u64,
+            })
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Chunker {
     /// Hash Mask
     mask: u32,
     /// Hasher
     hasher: BuzHash,
+    /// Mask bits count
+    mask_bits: u32,
 }
 
 impl Chunker {
@@ -17,62 +105,24 @@ impl Chunker {
         Chunker {
             mask: 2_u32.pow(mask_bits) - 1,
             hasher: BuzHash::new(nonce, window as u32),
+            mask_bits,
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
-    /// Generates split indicies for a reader
-    pub fn split_reader(&mut self, reader: &mut impl Read) -> Vec<u64> {
-        let hasher = &mut self.hasher;
-        hasher.reset();
-
-        let mut splits = Vec::<u64>::new();
-
-        let mut index = 0;
-        let mut split = false;
-        let mut buf = [0_u8; 8192];
-        loop {
-            let count = reader.read(&mut buf);
-            if let Ok(len) = count {
-                if len == 0 {
-                    break;
-                } else {
-                    for i in 0..len {
-                        let hash = hasher.hash_byte(buf[i]);
-                        if hash & self.mask == 0 {
-                            splits.push(index as u64);
-                            hasher.reset();
-                            split = true;
-                        } else {
-                            split = false;
-                        }
-                        index = index + 1;
-                    }
-                }
-            } else {
-                break;
-            }
+    /// Produces an iterator over the slices in a file
+    pub fn chunked_iterator<R: Read>(&self, reader: R) -> IteratedReader<R> {
+        IteratedReader {
+            reader: reader,
+            hasher: self.hasher.clone(),
+            mask: self.mask,
+            min_size: 2_usize.pow(self.mask_bits - 2),
+            max_size: 2_usize.pow(self.mask_bits + 2),
+            buffer: [0_u8; 8192],
+            cursor: 0,
+            buffer_len: 0,
+            location: 0,
+            finished: false,
         }
-
-        if !split {
-            splits.push(index - 1 as u64);
-        }
-        splits
-    }
-
-    #[cfg_attr(feature = "profile", flame)]
-    /// Generates ranges based on splits
-    pub fn split_ranges(&mut self, reader: &mut impl Read) -> Vec<(u64, u64)> {
-        let indexes = self.split_reader(reader);
-        let mut splits = Vec::new();
-        splits.push((0, indexes[0]));
-        for i in 1..indexes.len() {
-            let start = indexes[i - 1] + 1;
-            let end = indexes[i];
-            splits.push((start, end));
-        }
-
-        splits
     }
 }
 
