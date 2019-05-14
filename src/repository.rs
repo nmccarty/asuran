@@ -153,7 +153,7 @@ impl Drop for Repository {
 }
 
 /// Key for an object in a repository
-#[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash)]
+#[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash, Debug)]
 pub struct Key {
     /// Keys are a bytestring of length 32
     ///

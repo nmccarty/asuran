@@ -1,7 +1,7 @@
+use blake2::Blake2b;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use blake2::Blake2b;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -9,7 +9,7 @@ use flamer::*;
 type HmacSha256 = Hmac<Sha256>;
 
 /// HMAC Algorithim
-#[derive(Deserialize, Serialize, Copy, Clone)]
+#[derive(Deserialize, Serialize, Copy, Clone, Debug)]
 pub enum HMAC {
     SHA256,
     Blake2b,

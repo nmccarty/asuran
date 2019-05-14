@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use flamer::*;
 
 /// Compression algorithim
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },

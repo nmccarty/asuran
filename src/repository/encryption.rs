@@ -9,7 +9,7 @@ use zeroize::Zeroize;
 use flamer::*;
 
 /// Encryption Algorithim
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
     AES256CTR { iv: [u8; 16] },
