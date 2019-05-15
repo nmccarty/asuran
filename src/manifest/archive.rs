@@ -43,8 +43,22 @@ impl Ord for ChunkLocation {
 #[derive(Serialize, Deserialize, Clone)]
 /// An active Archive
 pub struct Archive {
+    /// The name of this archive
+    ///
+    /// Can be used to pull this archive from the manifest later.
+    ///
+    /// Can be any arbitray string
     name: String,
+    /// Locations of all the chunks of the objects in this archive
     objects: HashMap<String, Vec<ChunkLocation>>,
+    /// The namespace this archive puts and gets objects in
+    ///
+    /// A namespace is a colon seperated lists of strings.
+    ///
+    /// The default namespace is :
+    ///
+    /// Namespaces are stored here as a vector of their parts
+    namespace: Vec<String>,
 }
 
 impl Archive {
@@ -52,6 +66,7 @@ impl Archive {
         Archive {
             name: name.to_string(),
             objects: HashMap::new(),
+            namespace: Vec::new(),
         }
     }
 
@@ -64,6 +79,7 @@ impl Archive {
         from_reader: &mut Read,
     ) -> Option<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
+        let path = self.canonical_namespace() + path;
 
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
@@ -91,6 +107,7 @@ impl Archive {
         path: &str,
         restore_to: &mut Write,
     ) -> Option<()> {
+        let path = self.canonical_namespace() + path;
         // Get chunk locations
         let mut locations = self.objects.get(&path.to_string())?.clone();
         locations.sort_unstable();
@@ -112,6 +129,22 @@ impl Archive {
         }
 
         Some(())
+    }
+
+    /// Returns the namespace of this archive in string form
+    pub fn canonical_namespace(&self) -> String {
+        self.namespace.join(":") + ":"
+    }
+
+    /// Changes namespace by adding the name to the end of the namespace
+    ///
+    /// Returns a new archive
+    pub fn namespace_append(&self, name: &str) -> Archive {
+        let mut new_namespace = self.namespace.clone();
+        new_namespace.push(name.to_string());
+        let mut archive = self.clone();
+        archive.namespace = new_namespace;
+        archive
     }
 }
 
@@ -185,6 +218,23 @@ mod tests {
 
             !mismatch
         }
+    }
+
+    #[test]
+    fn default_namespace() {
+        let archive = Archive::new("test");
+        let namespace = archive.canonical_namespace();
+        assert_eq!(namespace, ":");
+    }
+
+    #[test]
+    fn namespace_append() {
+        let archive = Archive::new("test");
+        let archive = archive.namespace_append("1");
+        let archive = archive.namespace_append("2");
+        let namespace = archive.canonical_namespace();
+        println!("Namespace: {}", namespace);
+        assert_eq!(namespace, "1:2:");
     }
 
 }
