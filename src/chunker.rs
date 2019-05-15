@@ -112,7 +112,7 @@ impl Chunker {
     /// Produces an iterator over the slices in a file
     pub fn chunked_iterator<R: Read>(&self, reader: R) -> IteratedReader<R> {
         IteratedReader {
-            reader: reader,
+            reader,
             hasher: self.hasher.clone(),
             mask: self.mask,
             min_size: 2_usize.pow(self.mask_bits - 2),
