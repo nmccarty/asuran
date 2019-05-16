@@ -70,20 +70,8 @@ impl Repository {
     }
 
     #[cfg_attr(feature = "profile", flame)]
-    /// Writes a chunk to the repo
-    ///
-    /// Uses all defaults
-    ///
-    /// Will return None if writing the chunk fails.
-    /// Will not write the chunk if it already exists.
-    pub fn write_chunk(&mut self, data: &[u8]) -> Option<Key> {
-        let chunk = Chunk::pack(
-            data,
-            self.compression,
-            self.encryption.new_iv(),
-            self.hmac,
-            &self.key,
-        );
+    /// Writes a chunk directly to the repository
+    pub fn write_raw(&mut self, chunk: Chunk) -> Option<Key> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -116,6 +104,25 @@ impl Repository {
 
             Some(id)
         }
+    }
+
+    #[cfg_attr(feature = "profile", flame)]
+    /// Writes a chunk to the repo
+    ///
+    /// Uses all defaults
+    ///
+    /// Will return None if writing the chunk fails.
+    /// Will not write the chunk if it already exists.
+    pub fn write_chunk(&mut self, data: &[u8]) -> Option<Key> {
+        let chunk = Chunk::pack(
+            data,
+            self.compression,
+            self.encryption.new_iv(),
+            self.hmac,
+            &self.key,
+        );
+
+        self.write_raw(chunk)
     }
 
     /// Determines if a chunk exists in the index
