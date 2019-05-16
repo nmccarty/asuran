@@ -125,6 +125,31 @@ impl Repository {
         self.write_raw(chunk)
     }
 
+    #[cfg_attr(feature = "profile", flame)]
+    /// Writes a chunk to the repo
+    ///
+    /// Uses all defaults
+    ///
+    /// Will return None if writing the chunk fails.
+    /// Will not write the chunk if it already exists.
+    ///
+    /// Manually sets the id of the written chunk.
+    /// This should be used carefully, as it has potential to damage the repository.
+    ///
+    /// Primiarly intended for writing the manifest
+    pub fn write_chunk_with_id(&mut self, data: &[u8], id: Key) -> Option<Key> {
+        let chunk = Chunk::pack_with_id(
+            data,
+            self.compression,
+            self.encryption.new_iv(),
+            self.hmac,
+            &self.key,
+            id,
+        );
+
+        self.write_raw(chunk)
+    }
+
     /// Determines if a chunk exists in the index
     pub fn has_chunk(&self, id: Key) -> bool {
         self.index.contains_key(&id)
@@ -224,6 +249,31 @@ impl Chunk {
         let compressed_data = compression.compress(data);
         let data = encryption.encrypt(&compressed_data, key);
         let id = Key::new(&id_mac);
+        let mac = hmac.mac(&data, key);
+        Chunk {
+            data,
+            compression,
+            encryption,
+            hmac,
+            mac,
+            id,
+        }
+    }
+
+    #[cfg_attr(feature = "profile", flame)]
+    /// Will pack a chunk, but manually setting the id instead of hashing
+    ///
+    /// This function should be used carefully, as it has potentiall to do major damage to the repository
+    pub fn pack_with_id(
+        data: &[u8],
+        compression: Compression,
+        encryption: Encryption,
+        hmac: HMAC,
+        key: &[u8],
+        id: Key,
+    ) -> Chunk {
+        let compressed_data = compression.compress(data);
+        let data = encryption.encrypt(&compressed_data, key);
         let mac = hmac.mac(&data, key);
         Chunk {
             data,
