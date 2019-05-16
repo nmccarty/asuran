@@ -28,7 +28,7 @@ hmac = "0.7.0"
 sha2 = "0.8.0"
 digest = "0.8.0"
 walkdir = "2.2.7"
-serde = { version = "1.0.90", features = ["derive"]}
+serde = { version = "1.0.90", features = ["derive", "rc"]}
 rmp-serde = "0.13.7"
 serde_bytes = "0.11"
 chrono = { version = "0.4", features = ["serde"] }

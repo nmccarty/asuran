@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::sync::{Arc, RwLock};
 
 #[cfg(feature = "profile")]
 use flame::*;
@@ -50,7 +51,7 @@ pub struct Archive {
     /// Can be any arbitray string
     name: String,
     /// Locations of all the chunks of the objects in this archive
-    objects: HashMap<String, Vec<ChunkLocation>>,
+    objects: Arc<RwLock<HashMap<String, Vec<ChunkLocation>>>>,
     /// The namespace this archive puts and gets objects in
     ///
     /// A namespace is a colon seperated lists of strings.
@@ -65,7 +66,7 @@ impl Archive {
     pub fn new(name: &str) -> Archive {
         Archive {
             name: name.to_string(),
-            objects: HashMap::new(),
+            objects: Arc::new(RwLock::new(HashMap::new())),
             namespace: Vec::new(),
         }
     }
@@ -95,7 +96,12 @@ impl Archive {
         #[cfg(feature = "profile")]
         flame::end("Packing chunks");
 
-        self.objects.insert(path.to_string(), locations);
+        let mut objects = self
+            .objects
+            .write()
+            .expect("Lock on Archive::objects is posioned.");
+
+        objects.insert(path.to_string(), locations);
 
         Some(())
     }
@@ -109,7 +115,11 @@ impl Archive {
     ) -> Option<()> {
         let path = self.canonical_namespace() + path;
         // Get chunk locations
-        let mut locations = self.objects.get(&path.to_string())?.clone();
+        let objects = self
+            .objects
+            .read()
+            .expect("Lock on Archive::objects is posioned.");
+        let mut locations = objects.get(&path.to_string())?.clone();
         locations.sort_unstable();
         let mut last_index = locations[0].start;
         for location in locations.iter() {
@@ -235,6 +245,48 @@ mod tests {
         let namespace = archive.canonical_namespace();
         println!("Namespace: {}", namespace);
         assert_eq!(namespace, "1:2:");
+    }
+
+    #[test]
+    fn namespaced_insertions() {
+        let chunker = Chunker::new(8, 12, 0);
+        let key: [u8; 32] = [0u8; 32];
+
+        let root_dir = tempdir().unwrap();
+        let root_path = root_dir.path().display().to_string();
+
+        let backend = Box::new(FileSystem::new_test(&root_path));
+        let mut repo = Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            &key,
+        );
+
+        let mut obj1 = Cursor::new([1_u8; 32]);
+        let mut obj2 = Cursor::new([2_u8; 32]);
+
+        let mut archive_1 = Archive::new("test");
+        let mut archive_2 = archive_1.clone();
+
+        let key1 = archive_1.put_object(&chunker, &mut repo, "1", &mut obj1);
+        let key2 = archive_2.put_object(&chunker, &mut repo, "2", &mut obj2);
+
+        let mut restore_1 = Cursor::new(Vec::<u8>::new());
+        archive_2.get_object(&repo, "1", &mut restore_1).unwrap();
+
+        let mut restore_2 = Cursor::new(Vec::<u8>::new());
+        archive_1.get_object(&repo, "2", &mut restore_2).unwrap();
+
+        let obj1 = obj1.into_inner();
+        let obj2 = obj2.into_inner();
+
+        let restore1 = restore_1.into_inner();
+        let restore2 = restore_2.into_inner();
+
+        assert_eq!(&obj1[..], &restore1[..]);
+        assert_eq!(&obj2[..], &restore2[..]);
     }
 
 }
