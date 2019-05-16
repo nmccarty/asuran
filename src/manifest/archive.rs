@@ -270,8 +270,12 @@ mod tests {
         let mut archive_1 = Archive::new("test");
         let mut archive_2 = archive_1.clone();
 
-        let key1 = archive_1.put_object(&chunker, &mut repo, "1", &mut obj1);
-        let key2 = archive_2.put_object(&chunker, &mut repo, "2", &mut obj2);
+        archive_1
+            .put_object(&chunker, &mut repo, "1", &mut obj1)
+            .unwrap();
+        archive_2
+            .put_object(&chunker, &mut repo, "2", &mut obj2)
+            .unwrap();
 
         let mut restore_1 = Cursor::new(Vec::<u8>::new());
         archive_2.get_object(&repo, "1", &mut restore_1).unwrap();
