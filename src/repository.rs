@@ -228,6 +228,16 @@ impl Key {
     }
 }
 
+/// Chunk Settings
+///
+/// Encapsulates the Encryption, Compression, and HMAC tags for a chunk
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ChunkSettings {
+    pub compression: Compression,
+    pub encryption: Encryption,
+    pub hmac: HMAC,
+}
+
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository
