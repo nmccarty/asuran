@@ -210,6 +210,21 @@ impl Key {
     pub fn get_key(&self) -> &[u8] {
         &self.key
     }
+
+    /// Verifies equaliy of this key with the first 32 bytes of a slice
+    pub fn verfiy(&self, slice: &[u8]) -> bool {
+        if slice.len() < self.key.len() {
+            false
+        } else {
+            let mut equal = true;
+            for i in 0..self.key.len() {
+                if self.key[i] != slice[i] {
+                    equal = false;
+                }
+            }
+            equal
+        }
+    }
 }
 
 /// Data chunk
@@ -295,7 +310,11 @@ impl Chunk {
         if self.hmac.verify(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
             let decompressed_data = self.compression.decompress(&decrypted_data)?;
-            Some(decompressed_data)
+            if self.id.verfiy(&self.hmac.mac(&decompressed_data, &key)) {
+                Some(decompressed_data)
+            } else {
+                None
+            }
         } else {
             None
         }
