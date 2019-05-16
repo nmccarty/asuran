@@ -13,12 +13,28 @@ use flame::*;
 #[cfg(feature = "profile")]
 use flamer::flame;
 
-/// An archive in a repository
+/// Pointer to an archive in a repository
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StoredArchive {
+    /// The name of the archive
     name: String,
+    /// Pointer the the archive metadata in the repository
     id: Key,
-    timestamp: DateTime<Utc>,
+    /// Time the archive was started it
+    ///
+    /// Used to prevent replay attackts
+    timestamp: DateTime<FixedOffset>,
+}
+
+impl StoredArchive {
+    /// Loads the archive metadata from the repository and unpacks it for use
+    pub fn load(&self, repo: &Repository) -> Option<Archive> {
+        let bytes = repo.read_chunk(self.id)?;
+        let mut de = Deserializer::new(&bytes[..]);
+        let archive: Archive =
+            Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
+        Some(archive)
+    }
 }
 
 /// Location of a chunk in a file
@@ -60,6 +76,9 @@ pub struct Archive {
     ///
     /// Namespaces are stored here as a vector of their parts
     namespace: Vec<String>,
+    /// Time stamp is set at archive creation, this is different than the one
+    /// set in stored archive
+    timestamp: DateTime<FixedOffset>,
 }
 
 impl Archive {
@@ -68,6 +87,7 @@ impl Archive {
             name: name.to_string(),
             objects: Arc::new(RwLock::new(HashMap::new())),
             namespace: Vec::new(),
+            timestamp: Local::now().with_timezone(Local::now().offset()),
         }
     }
 
@@ -156,6 +176,26 @@ impl Archive {
         archive.namespace = new_namespace;
         archive
     }
+
+    /// Stores archive metatdat in the repository, producing a Stored Archive
+    ///  object, and consuming the Archive in the process.
+    ///
+    /// Returns the key of the serialized archive in the repository
+    pub fn store(self, repo: &mut Repository) -> StoredArchive {
+        let mut bytes = Vec::<u8>::new();
+        self.serialize(&mut Serializer::new(&mut bytes))
+            .expect("Unable to serialize archive.");
+
+        let id = repo
+            .write_chunk(&bytes)
+            .expect("Unable to write archive metatdata to repository.");
+
+        StoredArchive {
+            id,
+            name: self.name,
+            timestamp: self.timestamp,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -172,6 +212,20 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
+    fn get_repo(key: &[u8; 32]) -> Repository {
+        let root_dir = tempdir().unwrap();
+        let root_path = root_dir.path().display().to_string();
+
+        let backend = Box::new(FileSystem::new_test(&root_path));
+        Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            key,
+        )
+    }
+
     quickcheck! {
         fn single_add_get(seed: u64) -> bool {
             println!("Seed: {}", seed);
@@ -182,18 +236,8 @@ mod tests {
             let mut data = vec![0_u8; size];
             let mut rand = SmallRng::seed_from_u64(seed);
             rand.fill_bytes(&mut data);
+            let mut repo = get_repo(&key);
 
-            let root_dir = tempdir().unwrap();
-            let root_path = root_dir.path().display().to_string();
-
-            let backend = Box::new(FileSystem::new_test(&root_path));
-            let mut repo = Repository::new(
-                backend,
-                Compression::ZStd { level: 1 },
-                HMAC::Blake2b,
-                Encryption::new_aes256ctr(),
-                &key,
-            );
 
             let mut archive = Archive::new("test");
 
@@ -252,17 +296,7 @@ mod tests {
         let chunker = Chunker::new(8, 12, 0);
         let key: [u8; 32] = [0u8; 32];
 
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-
-        let backend = Box::new(FileSystem::new_test(&root_path));
-        let mut repo = Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            &key,
-        );
+        let mut repo = get_repo(&key);
 
         let mut obj1 = Cursor::new([1_u8; 32]);
         let mut obj2 = Cursor::new([2_u8; 32]);
@@ -291,6 +325,38 @@ mod tests {
 
         assert_eq!(&obj1[..], &restore1[..]);
         assert_eq!(&obj2[..], &restore2[..]);
+    }
+
+    #[test]
+    fn commit_and_load() {
+        let chunker = Chunker::new(8, 12, 0);
+        let key: [u8; 32] = [0u8; 32];
+
+        let mut repo = get_repo(&key);
+        let mut obj1 = [0_u8; 32];
+        for i in 0..obj1.len() {
+            obj1[i] = i as u8;
+        }
+
+        let mut obj1 = Cursor::new(obj1);
+
+        let mut archive = Archive::new("test");
+        archive
+            .put_object(&chunker, &mut repo, "1", &mut obj1)
+            .expect("Unable to put object in archive");
+
+        let stored_archive = archive.store(&mut repo);
+
+        let archive = stored_archive
+            .load(&repo)
+            .expect("Unable to load archive from repository");
+
+        let mut obj_restore = Cursor::new(Vec::new());
+        archive
+            .get_object(&repo, "1", &mut obj_restore)
+            .expect("Unable to restore object from archive");
+
+        assert_eq!(&obj1.into_inner()[..], &obj_restore.into_inner()[..]);
     }
 
 }
