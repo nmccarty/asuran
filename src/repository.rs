@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
 
-use crate::repository::backend::*;
-use crate::repository::compression::*;
-use crate::repository::encryption::*;
-use crate::repository::hmac::*;
+pub use crate::repository::backend::filesystem::FileSystem;
+pub use crate::repository::backend::Backend;
+pub use crate::repository::compression::Compression;
+pub use crate::repository::encryption::Encryption;
+pub use crate::repository::hmac::HMAC;
 
 #[cfg(feature = "profile")]
 use flamer::*;
