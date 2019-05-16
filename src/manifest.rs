@@ -1,4 +1,4 @@
-//! This module provides the root object of the object graph of a repository.Option
+//! This module provides the root object of the object graph of a repository.
 //!
 //! The manifest contains a list of all the archives in the repository, as well
 //! default chunk settings, and a time stamp for preventing replay attacks.
