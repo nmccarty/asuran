@@ -96,4 +96,11 @@ impl Manifest {
 
         self.commit(repo);
     }
+
+    /// Returns a copy of the list of archives in this repository
+    ///
+    /// Theses can be converted into full archives with StoredArchive::load
+    pub fn archives(&self) -> Vec<StoredArchive> {
+        self.archives.clone()
+    }
 }
