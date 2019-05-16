@@ -226,6 +226,11 @@ impl Key {
             equal
         }
     }
+
+    /// Returns the special all-zero key used for the manifest
+    pub fn mainfest_key() -> Key {
+        Key { key: [0_u8; 32] }
+    }
 }
 
 /// Chunk Settings
