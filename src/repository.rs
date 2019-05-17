@@ -34,9 +34,9 @@
 //! The deduplication strategy in asuran is straight foward. Each chunk is
 //! stored in the repository with the hash of its plaintext as its key.
 //! As the hash function used is a cryptographically secure HMAC, we can be
-//! sure within the limits of reason that if two chunkgs have the same key,
-//! they have the same data, and therefore, if they have the same data they
-//! have the same key.
+//! sure within the limits of reason that if two chunks have the same key,
+//! they have the same data, and if they have the same data, then they have the
+//! same key.
 //!
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
