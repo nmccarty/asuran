@@ -8,7 +8,7 @@ use flamer::*;
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// HMAC Algorithim
+/// Tag for the HMAC algorithim used by a particular chunk
 #[derive(Deserialize, Serialize, Copy, Clone, Debug)]
 pub enum HMAC {
     SHA256,
@@ -17,7 +17,8 @@ pub enum HMAC {
 
 impl HMAC {
     #[cfg_attr(feature = "profile", flame)]
-    /// Produces a MAC for the given data with the given key
+    /// Produces a MAC for the given data with the given key, using the
+    /// algorthim specified in the tag.
     pub fn mac(self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
             HMAC::SHA256 => {
@@ -34,7 +35,8 @@ impl HMAC {
     }
 
     #[cfg_attr(feature = "profile", flame)]
-    /// Verifies the data given the data, a MAC, and a key
+    /// Produces a MAC for the data using the algorthim specified in the tag,
+    /// and verfies it against the supplied MAC
     pub fn verify(self, input_mac: &[u8], data: &[u8], key: &[u8]) -> bool {
         match self {
             HMAC::SHA256 => {

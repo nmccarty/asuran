@@ -1,14 +1,36 @@
+//! The chunker is responsible for dividing objects into chunks for
+//! deduplication and storage
+//!
+//! The chunker uses a rolling hash (currently a derivitive of buszhash) to
+//! perform content based slicing. Any single byte change in the object should,
+//! ideally, only result in having to re-write the chunk it is in, and maybe the
+//! one after it. It should not affect deduplication for the rest of the file.
+//! In practice, this can sometimes get confounded by the minimum and maxiumum
+//! chunk sizes.
+//!
+//! The file is sliced by rolling each slice through the hasher, and generating
+//! splits when the last mask_bits of the resulting hash are all zero.
+//!
+//! This results in a 2^mask_bits byte statistical slice length, minimum and
+//! maximum chunk sizes are set at 2^(mask_bits-2) bytes and 2^(mask_bits+2)
+//! bytes, respectivly, to prevent overly large or small slices, and to provide
+//! some measure of predictibility.
 use std::io::Read;
 
 #[cfg(feature = "profile")]
 use flamer::*;
 
+/// Stores the data in a slice/chunk, as well as providing information about
+/// the location of the slice in the file.
 pub struct Slice {
     pub data: Vec<u8>,
     pub start: u64,
     pub end: u64,
 }
 
+/// Apply content based slicing over a Read, and iterate throught the slices
+///
+/// Slicing is applied as the iteration proceeds, so each byte is only read once
 pub struct IteratedReader<R: Read> {
     /// Internal Reader
     reader: R,
@@ -89,6 +111,7 @@ impl<R: Read> Iterator for IteratedReader<R> {
     }
 }
 
+/// Stores chunker settings for easy reuse
 #[derive(Clone)]
 pub struct Chunker {
     /// Hash Mask
@@ -110,6 +133,8 @@ impl Chunker {
     }
 
     /// Produces an iterator over the slices in a file
+    ///
+    /// Will make a copy of the internal hashser
     pub fn chunked_iterator<R: Read>(&self, reader: R) -> IteratedReader<R> {
         IteratedReader {
             reader,
@@ -127,6 +152,14 @@ impl Chunker {
 }
 
 /// Buzhash implemtation
+///
+/// This version is in need of a rustification, as it was roughly transcribed
+/// from a go implementation: https://github.com/silvasur/buzhash
+///
+/// The nonce value is generated randomly once per repository, and is XORed
+/// into the buzhash table at creation. This changes the output of the
+/// hasher in a somewhat unpredictible way. This serves to provide some measure
+/// of protection against chunk-size based fingerprinting attacks.
 #[derive(Clone)]
 struct BuzHash {
     state: u32,
@@ -140,6 +173,9 @@ struct BuzHash {
 }
 
 impl BuzHash {
+    /// Creates a new buzhahser
+    ///
+    /// Creates a copy of the BUZTABLE and XORs the nonce into each posiiton
     fn new(nonce: u32, size: u32) -> BuzHash {
         let mut table = BUZTABLE.to_vec();
         for val in table.iter_mut() {
@@ -161,6 +197,9 @@ impl BuzHash {
         }
     }
 
+    /// Rolls a byte into the hasher.
+    ///
+    /// If the hasher's buffer is full, this will also roll the oldest byte out
     fn hash_byte(&mut self, byte: u8) -> u32 {
         if self.bufpos == self.size {
             self.overflow = true;
@@ -183,6 +222,7 @@ impl BuzHash {
         state
     }
 
+    /// Resets the internal state of the hasher, making it ready for reuse.
     fn reset(&mut self) {
         self.state = 0;
         self.bufpos = 0;

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "profile")]
 use flamer::*;
 
-/// Compression algorithim
+/// Marker for the type of compression used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Compression {
     NoCompression,
@@ -12,9 +12,11 @@ pub enum Compression {
 
 impl Compression {
     #[cfg_attr(feature = "profile", flame)]
-    /// Will compress the given data
+    /// Will compress the data with the algorithim indicated by the marker
     ///
-    /// Panics if compression fails
+    /// # Panics
+    ///
+    /// Will panic if compression fails
     pub fn compress(self, data: &[u8]) -> Vec<u8> {
         match self {
             Compression::NoCompression => data.to_vec(),

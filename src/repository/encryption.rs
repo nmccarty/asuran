@@ -8,7 +8,7 @@ use zeroize::Zeroize;
 #[cfg(feature = "profile")]
 use flamer::*;
 
-/// Encryption Algorithim
+/// Tag for the encryption algorthim and IV used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
@@ -41,7 +41,8 @@ impl Encryption {
     }
 
     #[cfg_attr(feature = "profile", flame)]
-    /// Encrypts a bytestring with the appropiate algortihim with the given key
+    /// Encrypts a bytestring using the algrothim specified in the tag, and the
+    /// given key.
     ///
     /// Still requires a key in the event of no encryption, but it does not read this
     /// key, so any value can be used. Will pad key with zeros if it is too short
@@ -182,6 +183,8 @@ impl Encryption {
         }
     }
 
+    /// Conviencence function to get a new tag from an old one, specifying the
+    /// same algorithim, but with a new, securely generated IV
     pub fn new_iv(self) -> Encryption {
         match self {
             Encryption::NoEncryption => Encryption::NoEncryption,

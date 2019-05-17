@@ -1,3 +1,46 @@
+//! The repository imeplements a low-level key-value store, upon which all
+//! higher level structures in asuran are built.
+//!
+//! The repository stores individual chunks, arrays of bytes, that can be
+//! compressed and encrypted. Chunks are addressed by their key, which,
+//! with the exception of the repository manifest, is derived from an HMAC of
+//! the plain text of the chunk.
+//!
+//! Asuran repositories currently only operate in append only mode
+//!
+//! # Encryption and Compression
+//!
+//! Encryption and compression algorthims can be swapped out on a chunk by
+//! chunk basis, with Encryption::NoEncryption and Compression::NoCompression
+//! providing pass through modes for those who do not wish to use those
+//! features.
+//!
+//! # Authentication
+//!
+//! Asuran uses Hash based Method Authentication Codes (HMAC), with swappable
+//! hash algorithims, for both deduplicating and ensuring data integrety.
+//!
+//! The hash algorhtim used for the HMAC can also be changed out on a chunk by
+//! chunk basis, though this would not be wise to do. As deduplication is
+//! perfomed based on plaintext HMAC, this would severely compromise the
+//! effectiveness of deduplicaiton.
+//!
+//! While the hash algrorithim used for HMAC can be swapped out, unlike the
+//! ones for encryption and compression, it can not be turned off. Asuran
+//! always verifies the intergety of the data.
+//!
+//! # Deduplication
+//!
+//! The deduplication strategy in asuran is straight foward. Each chunk is
+//! stored in the repository with the hash of its plaintext as its key.
+//! As the hash function used is a cryptographically secure HMAC, we can be
+//! sure within the limits of reason that if two chunkgs have the same key,
+//! they have the same data, and therefore, if they have the same data they
+//! have the same key.
+//!
+//! Asuran will not write a chunk whose key already exists in the repository,
+//! effectivly preventing the storage of duplicate chunks.
+
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -17,6 +60,11 @@ pub mod compression;
 pub mod encryption;
 pub mod hmac;
 
+/// Provides an interface to the storage-backed key value store
+///
+/// File access is abstracted behind a swappable backend, all backends should
+/// use roughly the same format, but leeway is made for cases such as S3 having
+/// a flat directory structure
 pub struct Repository {
     backend: Box<dyn Backend>,
     index: HashMap<Key, (u64, u64, u64)>,
@@ -60,7 +108,10 @@ impl Repository {
     }
 
     #[cfg_attr(feature = "profile", flame)]
-    /// Commits the index
+    /// Commits the index to storage
+    ///
+    /// This should be called every time an archive or manifest is written, at
+    /// the very least
     pub fn commit_index(&self) {
         let mut buff = Vec::<u8>::new();
         let mut se = Serializer::new(&mut buff);

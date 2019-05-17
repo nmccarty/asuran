@@ -1,7 +1,16 @@
+//! The backend provides abstract IO access to the real location of the data in
+//! the repository.
 use std::io::Result;
 
 pub mod filesystem;
 
+/// Segments are abstract blocks of chunks
+///
+/// Backends are free to arrange chunks within segements any way they wish,
+/// as long as they only ever append to existing segments.
+///
+/// Segement compaction must happen through writing new segments and deleting
+/// the old ones
 pub trait Segment {
     /// Returns the free bytes in this segment
     fn free_bytes(&self) -> u64;
@@ -17,6 +26,10 @@ pub trait Segment {
     fn write_chunk(&mut self, chunk: &[u8]) -> Option<(u64, u64)>;
 }
 
+/// Repository backend
+///
+/// The backend handles the heavy lifiting of the IO, abstracting the repository
+/// struct itself away from the details of the system used to store the repository.
 pub trait Backend {
     /// Gets a particular segment
     ///
