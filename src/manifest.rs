@@ -60,7 +60,7 @@ impl Manifest {
         self.serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize manifest.");
 
-        repo.write_chunk_with_id(&bytes, Key::mainfest_key())
+        repo.write_chunk_with_id(bytes, Key::mainfest_key())
             .expect("Unable to write manifest");
 
         repo.commit_index();

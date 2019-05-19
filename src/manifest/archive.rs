@@ -106,7 +106,7 @@ impl Archive {
         flame::start("Packing chunks");
         let slices = chunker.chunked_iterator(from_reader);
         for Slice { data, start, end } in slices {
-            let id = repository.write_chunk(&data)?;
+            let id = repository.write_chunk(data)?;
             locations.push(ChunkLocation {
                 id,
                 start,
@@ -187,7 +187,7 @@ impl Archive {
             .expect("Unable to serialize archive.");
 
         let id = repo
-            .write_chunk(&bytes)
+            .write_chunk(bytes)
             .expect("Unable to write archive metatdata to repository.");
 
         StoredArchive {

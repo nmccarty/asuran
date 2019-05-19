@@ -165,7 +165,7 @@ impl Repository {
     ///
     /// Will return None if writing the chunk fails.
     /// Will not write the chunk if it already exists.
-    pub fn write_chunk(&mut self, data: &[u8]) -> Option<Key> {
+    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<Key> {
         let chunk = Chunk::pack(
             data,
             self.compression,
@@ -189,7 +189,7 @@ impl Repository {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&mut self, data: &[u8], id: Key) -> Option<Key> {
+    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: Key) -> Option<Key> {
         let chunk = Chunk::pack_with_id(
             data,
             self.compression,
@@ -321,7 +321,7 @@ impl Chunk {
     #[cfg_attr(feature = "profile", flame)]
     /// Will Pack the data into a chunk with the given compression and encryption
     pub fn pack(
-        data: &[u8],
+        data: Vec<u8>,
         compression: Compression,
         encryption: Encryption,
         hmac: HMAC,
@@ -347,7 +347,7 @@ impl Chunk {
     ///
     /// This function should be used carefully, as it has potentiall to do major damage to the repository
     pub fn pack_with_id(
-        data: &[u8],
+        data: Vec<u8>,
         compression: Compression,
         encryption: Encryption,
         hmac: HMAC,
@@ -376,7 +376,7 @@ impl Chunk {
     pub fn unpack(&self, key: &[u8]) -> Option<Vec<u8>> {
         if self.hmac.verify(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
-            let decompressed_data = self.compression.decompress(&decrypted_data)?;
+            let decompressed_data = self.compression.decompress(decrypted_data)?;
             if self.id.verfiy(&self.hmac.mac(&decompressed_data, &key)) {
                 Some(decompressed_data)
             } else {
@@ -452,13 +452,13 @@ mod tests {
         let data_string =
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
-        let data_bytes = data_string.as_bytes();
+        let data_bytes = data_string.as_bytes().to_vec();
         println!("Data: \n:{:X?}", data_bytes);
 
         let mut key: [u8; 32] = [0; 32];
         thread_rng().fill_bytes(&mut key);
 
-        let packed = Chunk::pack(&data_bytes, compression, encryption, hmac, &key);
+        let packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
 
         let output_bytes = packed.unpack(&key);
 
@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn detect_bad_data() {
         let data_string = "I am but a humble test string";
-        let data_bytes = data_string.as_bytes();
+        let data_bytes = data_string.as_bytes().to_vec();
         let compression = Compression::NoCompression;
         let encryption = Encryption::NoEncryption;
         let hmac = HMAC::SHA256;
@@ -500,7 +500,7 @@ mod tests {
         let mut key: [u8; 32] = [0; 32];
         thread_rng().fill_bytes(&mut key);
 
-        let mut packed = Chunk::pack(&data_bytes, compression, encryption, hmac, &key);
+        let mut packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
         packed.break_data(5);
 
         let result = packed.unpack(&key);
@@ -535,9 +535,9 @@ mod tests {
         );
 
         println!("Adding Chunks");
-        let key1 = repo.write_chunk(&data1).unwrap();
-        let key2 = repo.write_chunk(&data2).unwrap();
-        let key3 = repo.write_chunk(&data3).unwrap();
+        let key1 = repo.write_chunk(data1.clone()).unwrap();
+        let key2 = repo.write_chunk(data2.clone()).unwrap();
+        let key3 = repo.write_chunk(data3.clone()).unwrap();
 
         println!("Reading Chunks");
         let out1 = repo.read_chunk(key1).unwrap();
@@ -581,9 +581,9 @@ mod tests {
             );
 
             println!("Adding Chunks");
-            key1 = repo.write_chunk(&data1).unwrap();
-            key2 = repo.write_chunk(&data2).unwrap();
-            key3 = repo.write_chunk(&data3).unwrap();
+            key1 = repo.write_chunk(data1.clone()).unwrap();
+            key2 = repo.write_chunk(data2.clone()).unwrap();
+            key3 = repo.write_chunk(data3.clone()).unwrap();
         }
 
         let backend = Box::new(FileSystem::new_test(&root_path));

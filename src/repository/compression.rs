@@ -17,12 +17,12 @@ impl Compression {
     /// # Panics
     ///
     /// Will panic if compression fails
-    pub fn compress(self, data: &[u8]) -> Vec<u8> {
+    pub fn compress(self, data: Vec<u8>) -> Vec<u8> {
         match self {
-            Compression::NoCompression => data.to_vec(),
+            Compression::NoCompression => data,
             Compression::ZStd { level } => {
-                let mut output = Vec::<u8>::new();
-                zstd::stream::copy_encode(data, &mut output, level).unwrap();
+                let mut output = Vec::<u8>::with_capacity(data.len());
+                zstd::stream::copy_encode(data.as_slice(), &mut output, level).unwrap();
                 output
             }
         }
@@ -32,12 +32,12 @@ impl Compression {
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails
-    pub fn decompress(self, data: &[u8]) -> Option<Vec<u8>> {
+    pub fn decompress(self, data: Vec<u8>) -> Option<Vec<u8>> {
         match self {
-            Compression::NoCompression => Some(data.to_vec()),
+            Compression::NoCompression => Some(data),
             Compression::ZStd { .. } => {
                 let mut output = Vec::<u8>::new();
-                let result = zstd::stream::copy_decode(data, &mut output);
+                let result = zstd::stream::copy_decode(data.as_slice(), &mut output);
                 if result.is_err() {
                     None
                 } else {
@@ -60,7 +60,7 @@ mod tests {
         let data_string =
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
         let data_bytes = data_string.as_bytes();
-        let compressed_bytes = compression.compress(data_bytes);
+        let compressed_bytes = compression.compress(data_bytes.to_vec());
         let decompressed_bytes = compression.decompress(&compressed_bytes).unwrap();
         let decompressed_string = str::from_utf8(&decompressed_bytes).unwrap();
 
