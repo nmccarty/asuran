@@ -236,6 +236,11 @@ impl Repository {
             None
         }
     }
+
+    /// Provides a count of the number of chunks in the repository
+    pub fn count_chunk(&self) -> usize {
+        self.index.len()
+    }
 }
 
 impl Drop for Repository {
