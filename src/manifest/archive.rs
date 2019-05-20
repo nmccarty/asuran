@@ -191,6 +191,8 @@ impl Archive {
             .expect("Unable to write archive metatdata to repository.")
             .0;
 
+        repo.commit_index();
+
         StoredArchive {
             id,
             name: self.name,
