@@ -452,10 +452,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::backend::filesystem::*;
-    use crate::repository::backend::*;
     use rand::prelude::*;
-    use std::str;
     use tempfile::tempdir;
 
     fn chunk_with_settings(compression: Compression, encryption: Encryption, hmac: HMAC) {
@@ -473,6 +470,20 @@ mod tests {
         let output_bytes = packed.unpack(&key);
 
         assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
+    }
+
+    fn get_repo(key: &[u8; 32]) -> Repository {
+        let root_dir = tempdir().unwrap();
+        let root_path = root_dir.path().display().to_string();
+
+        let backend = Box::new(FileSystem::new_test(&root_path));
+        Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            key,
+        )
     }
 
     #[test]
@@ -531,18 +542,7 @@ mod tests {
         let mut data3 = vec![0_u8; size as usize];
         thread_rng().fill_bytes(&mut data3);
 
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-        println!("Repo root dir: {}", root_path);
-
-        let backend = Box::new(FileSystem::new_test(&root_path));
-        let mut repo = Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::SHA256,
-            Encryption::new_aes256cbc(),
-            &key,
-        );
+        let mut repo = get_repo(&key);
 
         println!("Adding Chunks");
         let key1 = repo.write_chunk(data1.clone()).unwrap().0;
@@ -614,6 +614,23 @@ mod tests {
         assert_eq!(data1, out1);
         assert_eq!(data2, out2);
         assert_eq!(data3, out3);
+    }
+
+    #[test]
+    fn double_add() {
+        // Adding the same chunk to the repository twice shouldn't result in
+        // two chunks in the repository
+        let mut repo = get_repo(&[0_u8; 32]);
+        assert_eq!(repo.count_chunk(), 0);
+        let data = [1_u8; 8192];
+
+        let (key_1, unique_1) = repo.write_chunk(data.to_vec()).unwrap();
+        assert_eq!(unique_1, false);
+        assert_eq!(repo.count_chunk(), 1);
+        let (key_2, unique_2) = repo.write_chunk(data.to_vec()).unwrap();
+        assert_eq!(repo.count_chunk(), 1);
+        assert_eq!(unique_2, true);
+        assert_eq!(key_1, key_2);
     }
 
 }
