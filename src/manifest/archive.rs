@@ -142,7 +142,7 @@ impl Archive {
         let mut locations = objects.get(&path.to_string())?.clone();
         locations.sort_unstable();
         let mut last_index = locations[0].start;
-        for (i, location) in locations.iter().enumerate() {
+        for location in locations.iter() {
             let id = location.id;
             // If a chunk is not included, fill the space inbween it and the last with zeros
             let start = location.start;
