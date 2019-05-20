@@ -1,4 +1,4 @@
-use blake2::Blake2b;
+use blake2b_simd::Params;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -26,11 +26,12 @@ impl HMAC {
                 mac.input(data);
                 mac.result().code().to_vec()
             }
-            HMAC::Blake2b => {
-                let mut mac = Blake2b::new_varkey(key).unwrap();
-                mac.input(data);
-                mac.result().code().to_vec()
-            }
+            HMAC::Blake2b => Params::new()
+                .hash_length(64)
+                .key(key)
+                .hash(data)
+                .as_bytes()
+                .to_vec(),
         }
     }
 
@@ -46,10 +47,8 @@ impl HMAC {
                 result.is_ok()
             }
             HMAC::Blake2b => {
-                let mut mac = Blake2b::new_varkey(key).unwrap();
-                mac.input(data);
-                let result = mac.verify(input_mac);
-                result.is_ok()
+                let hash = Params::new().hash_length(64).key(key).hash(data);
+                hash.eq(input_mac)
             }
         }
     }

@@ -35,7 +35,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3.0.7"
 flame = {version = "0.2.0", optional = true}
 flamer = {version = "0.3", optional = true}
-blake2 = "0.8.0"
+blake2b_simd = "0.5.0"
 
 [dev-dependencies]
 quickcheck = "0.8"

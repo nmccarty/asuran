@@ -61,7 +61,7 @@ mod tests {
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
         let data_bytes = data_string.as_bytes();
         let compressed_bytes = compression.compress(data_bytes.to_vec());
-        let decompressed_bytes = compression.decompress(&compressed_bytes).unwrap();
+        let decompressed_bytes = compression.decompress(compressed_bytes.clone()).unwrap();
         let decompressed_string = str::from_utf8(&decompressed_bytes).unwrap();
 
         println!("Input string: {}", data_string);
