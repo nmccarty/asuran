@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "asuran"
-path = "src/bin.rs"
+path = "src/main.rs"
 
 [features]
 profile = ["flame", "flamer"]
