@@ -1,3 +1,7 @@
+pub mod filesystem;
+
+pub use filesystem::FileSystem;
+
 use std::io::{Read, Seek, Write};
 
 /// A hole in a sparse object
