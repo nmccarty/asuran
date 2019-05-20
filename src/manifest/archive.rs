@@ -14,7 +14,7 @@ use flame::*;
 use flamer::flame;
 
 /// Pointer to an archive in a repository
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StoredArchive {
     /// The name of the archive
     name: String,
@@ -57,7 +57,7 @@ impl Ord for ChunkLocation {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// An active Archive
 pub struct Archive {
     /// The name of this archive
@@ -142,7 +142,7 @@ impl Archive {
         let mut locations = objects.get(&path.to_string())?.clone();
         locations.sort_unstable();
         let mut last_index = locations[0].start;
-        for location in locations.iter() {
+        for (i, location) in locations.iter().enumerate() {
             let id = location.id;
             // If a chunk is not included, fill the space inbween it and the last with zeros
             let start = location.start;

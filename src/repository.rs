@@ -132,7 +132,7 @@ impl Repository {
         let id = chunk.get_id();
 
         // Check if chunk exists
-        if self.has_chunk(id) {
+        if self.has_chunk(id) && id != Key::mainfest_key() {
             Some((id, true))
         } else {
             let mut buff = Vec::<u8>::new();
@@ -241,6 +241,15 @@ impl Repository {
     pub fn count_chunk(&self) -> usize {
         self.index.len()
     }
+
+    /// Returns the current default chunk settings for this repository
+    pub fn chunk_settings(&self) -> ChunkSettings {
+        ChunkSettings {
+            encryption: self.encryption,
+            compression: self.compression,
+            hmac: self.hmac,
+        }
+    }
 }
 
 impl Drop for Repository {
@@ -300,7 +309,7 @@ impl Key {
 /// Chunk Settings
 ///
 /// Encapsulates the Encryption, Compression, and HMAC tags for a chunk
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChunkSettings {
     pub compression: Compression,
     pub encryption: Encryption,

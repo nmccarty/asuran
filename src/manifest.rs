@@ -23,7 +23,7 @@ pub use self::archive::{Archive, StoredArchive};
 ///
 /// This is the root object of the repository, all objects that are active can
 /// be reached through the Mainfest.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Manifest {
     /// Time stamp the manifiest was commited at. This is updated every time commit() is called
     ///
@@ -71,7 +71,7 @@ impl Manifest {
     /// # Panics
     ///
     /// Will panic if loading the manifest fails
-    pub fn load(repo: Repository) -> Manifest {
+    pub fn load(repo: &Repository) -> Manifest {
         let bytes = repo
             .read_chunk(Key::mainfest_key())
             .expect("Unable to read manifest from repo");
