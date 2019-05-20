@@ -78,6 +78,9 @@ pub trait BackupTarget {
 
     /// Runs any custom logic the target requires, should be called on each
     /// object after putting it into an archive
+    ///
+    /// Storing metadata, or anything else ancillariy to the actual data should
+    /// be done here.
     fn backup_finalize(&self, path: &str);
 
     /// Should Be called when all objects have been backed up
@@ -92,5 +95,7 @@ pub trait RestoreTarget {
 
     /// Runs any custom logic the target requires, should be called on each
     /// object after restoring it
+    ///
+    /// Minor after-the-fact IO such as writing file metadata should be done here
     fn restore_finalize(&self, path: &str);
 }
