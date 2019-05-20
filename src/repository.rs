@@ -123,12 +123,17 @@ impl Repository {
 
     #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk directly to the repository
-    pub fn write_raw(&mut self, chunk: Chunk) -> Option<Key> {
+    ///
+    /// Will return (Chunk_Id, Already_Present)
+    ///
+    /// Already_Present will be true if the chunk already exists in the
+    /// repository.
+    pub fn write_raw(&mut self, chunk: Chunk) -> Option<(Key, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
         if self.has_chunk(id) {
-            Some(id)
+            Some((id, true))
         } else {
             let mut buff = Vec::<u8>::new();
             chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
@@ -154,7 +159,7 @@ impl Repository {
             let (start, length) = segment.write_chunk(&buff)?;
             self.index.insert(id, (seg_id, start, length));
 
-            Some(id)
+            Some((id, false))
         }
     }
 
@@ -165,7 +170,10 @@ impl Repository {
     ///
     /// Will return None if writing the chunk fails.
     /// Will not write the chunk if it already exists.
-    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<Key> {
+
+    /// Bool in return value will be true if the chunk already existed in the
+    /// Repository, and false otherwise
+    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<(Key, bool)> {
         let chunk = Chunk::pack(
             data,
             self.compression,
@@ -189,7 +197,7 @@ impl Repository {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: Key) -> Option<Key> {
+    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: Key) -> Option<(Key, bool)> {
         let chunk = Chunk::pack_with_id(
             data,
             self.compression,
@@ -532,9 +540,9 @@ mod tests {
         );
 
         println!("Adding Chunks");
-        let key1 = repo.write_chunk(data1.clone()).unwrap();
-        let key2 = repo.write_chunk(data2.clone()).unwrap();
-        let key3 = repo.write_chunk(data3.clone()).unwrap();
+        let key1 = repo.write_chunk(data1.clone()).unwrap().0;
+        let key2 = repo.write_chunk(data2.clone()).unwrap().0;
+        let key3 = repo.write_chunk(data3.clone()).unwrap().0;
 
         println!("Reading Chunks");
         let out1 = repo.read_chunk(key1).unwrap();
@@ -578,9 +586,9 @@ mod tests {
             );
 
             println!("Adding Chunks");
-            key1 = repo.write_chunk(data1.clone()).unwrap();
-            key2 = repo.write_chunk(data2.clone()).unwrap();
-            key3 = repo.write_chunk(data3.clone()).unwrap();
+            key1 = repo.write_chunk(data1.clone()).unwrap().0;
+            key2 = repo.write_chunk(data2.clone()).unwrap().0;
+            key3 = repo.write_chunk(data3.clone()).unwrap().0;
         }
 
         let backend = Box::new(FileSystem::new_test(&root_path));
