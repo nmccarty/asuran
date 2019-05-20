@@ -377,11 +377,8 @@ impl Chunk {
         if self.hmac.verify(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
             let decompressed_data = self.compression.decompress(decrypted_data)?;
-            if self.id.verfiy(&self.hmac.mac(&decompressed_data, &key)) {
-                Some(decompressed_data)
-            } else {
-                None
-            }
+
+            Some(decompressed_data)
         } else {
             None
         }
