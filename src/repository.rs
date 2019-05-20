@@ -291,8 +291,8 @@ impl Key {
             false
         } else {
             let mut equal = true;
-            for i in 0..self.key.len() {
-                if self.key[i] != slice[i] {
+            for (i, val) in self.key.iter().enumerate() {
+                if *val != slice[i] {
                     equal = false;
                 }
             }

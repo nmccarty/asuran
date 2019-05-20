@@ -166,9 +166,8 @@ impl BuzHash {
     pub fn new(nonce: u64, window_size: u32) -> BuzHash {
         let mut table = [0_u64; 256];
         let mut rand = SmallRng::seed_from_u64(nonce);
-        for i in 0..256 {
-            let value: u64 = rand.gen();
-            table[i] = value;
+        for i in table.iter_mut() {
+            *i = rand.gen();
         }
         BuzHash {
             hash: 0,
