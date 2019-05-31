@@ -30,7 +30,10 @@ pub trait Segment {
 ///
 /// The backend handles the heavy lifiting of the IO, abstracting the repository
 /// struct itself away from the details of the system used to store the repository.
-pub trait Backend {
+///
+/// Cloning a backend should result in a new view over the same storage, and clones
+/// should play nice with multithreaded access.
+pub trait Backend: Send + Sync + Clone {
     /// Gets a particular segment
     ///
     /// Returns None if it does not exist or can not be found

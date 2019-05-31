@@ -1,5 +1,5 @@
 use crate::chunker::{Chunker, Slice};
-use crate::repository::{Key, Repository};
+use crate::repository::{Backend, Key, Repository};
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ pub struct StoredArchive {
 
 impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
-    pub fn load(&self, repo: &Repository) -> Option<Archive> {
+    pub fn load(&self, repo: &Repository<impl Backend>) -> Option<Archive> {
         let bytes = repo.read_chunk(self.id)?;
         let mut de = Deserializer::new(&bytes[..]);
         let archive: Archive =
@@ -95,7 +95,7 @@ impl Archive {
     pub fn put_object(
         &mut self,
         chunker: &Chunker,
-        repository: &mut Repository,
+        repository: &mut Repository<impl Backend>,
         path: &str,
         from_reader: &mut Read,
     ) -> Option<()> {
@@ -129,7 +129,7 @@ impl Archive {
     #[cfg_attr(feature = "profile", flame)]
     pub fn get_object(
         &self,
-        repository: &Repository,
+        repository: &Repository<impl Backend>,
         path: &str,
         restore_to: &mut Write,
     ) -> Option<()> {
@@ -181,7 +181,7 @@ impl Archive {
     ///  object, and consuming the Archive in the process.
     ///
     /// Returns the key of the serialized archive in the repository
-    pub fn store(self, repo: &mut Repository) -> StoredArchive {
+    pub fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
         let mut bytes = Vec::<u8>::new();
         self.serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize archive.");
@@ -215,11 +215,11 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
-    fn get_repo(key: &[u8; 32]) -> Repository {
+    fn get_repo(key: &[u8; 32]) -> Repository<impl Backend> {
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
 
-        let backend = Box::new(FileSystem::new_test(&root_path));
+        let backend = FileSystem::new_test(&root_path);
         Repository::new(
             backend,
             Compression::ZStd { level: 1 },

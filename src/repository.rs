@@ -45,6 +45,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 pub use crate::repository::backend::filesystem::FileSystem;
 pub use crate::repository::backend::Backend;
@@ -65,9 +66,10 @@ pub mod hmac;
 /// File access is abstracted behind a swappable backend, all backends should
 /// use roughly the same format, but leeway is made for cases such as S3 having
 /// a flat directory structure
-pub struct Repository {
-    backend: Box<dyn Backend>,
-    index: HashMap<Key, (u64, u64, u64)>,
+#[derive(Clone)]
+pub struct Repository<T: Backend> {
+    backend: T,
+    index: Arc<RwLock<HashMap<Key, (u64, u64, u64)>>>,
     /// Default compression for new chunks
     compression: Compression,
     /// Default MAC algorthim for new chunks
@@ -78,22 +80,24 @@ pub struct Repository {
     key: Vec<u8>,
 }
 
-impl Repository {
+impl<T: Backend> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
     pub fn new(
-        backend: Box<dyn Backend>,
+        backend: T,
         compression: Compression,
         hmac: HMAC,
         encryption: Encryption,
         key: &[u8],
-    ) -> Repository {
+    ) -> Repository<T> {
         // Check for index, create a new one if it doesnt exist
         let index_vec = backend.get_index();
         let index = if index_vec.is_empty() {
-            HashMap::new()
+            Arc::new(RwLock::new(HashMap::new()))
         } else {
             let mut de = Deserializer::new(index_vec.as_slice());
-            Deserialize::deserialize(&mut de).expect("Unable to parse index")
+            Arc::new(RwLock::new(
+                Deserialize::deserialize(&mut de).expect("Unable to parse index"),
+            ))
         };
         let key = key.to_vec();
 
@@ -157,7 +161,10 @@ impl Repository {
             };
 
             let (start, length) = segment.write_chunk(&buff)?;
-            self.index.insert(id, (seg_id, start, length));
+            self.index
+                .write()
+                .unwrap()
+                .insert(id, (seg_id, start, length));
 
             Some((id, false))
         }
@@ -212,7 +219,7 @@ impl Repository {
 
     /// Determines if a chunk exists in the index
     pub fn has_chunk(&self, id: Key) -> bool {
-        self.index.contains_key(&id)
+        self.index.read().unwrap().contains_key(&id)
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -222,7 +229,8 @@ impl Repository {
     pub fn read_chunk(&self, id: Key) -> Option<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
-            let (seg_id, start, length) = *self.index.get(&id)?;
+            let index = self.index.read().unwrap();
+            let (seg_id, start, length) = *index.get(&id)?;
             let mut segment = self.backend.get_segment(seg_id)?;
             let chunk_bytes = segment.read_chunk(start, length)?;
 
@@ -239,7 +247,7 @@ impl Repository {
 
     /// Provides a count of the number of chunks in the repository
     pub fn count_chunk(&self) -> usize {
-        self.index.len()
+        self.index.read().unwrap().len()
     }
 
     /// Returns the current default chunk settings for this repository
@@ -252,7 +260,7 @@ impl Repository {
     }
 }
 
-impl Drop for Repository {
+impl<T: Backend> Drop for Repository<T> {
     fn drop(&mut self) {
         self.commit_index();
     }
@@ -481,11 +489,11 @@ mod tests {
         assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
     }
 
-    fn get_repo(key: &[u8; 32]) -> Repository {
+    fn get_repo(key: &[u8; 32]) -> Repository<FileSystem> {
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
 
-        let backend = Box::new(FileSystem::new_test(&root_path));
+        let backend = FileSystem::new_test(&root_path);
         Repository::new(
             backend,
             Compression::ZStd { level: 1 },
@@ -585,7 +593,7 @@ mod tests {
         let root_path = root_dir.path().display().to_string();
         println!("Repo root dir: {}", root_path);
 
-        let backend = Box::new(FileSystem::new_test(&root_path));
+        let backend = FileSystem::new_test(&root_path);
         let key1;
         let key2;
         let key3;
@@ -605,7 +613,7 @@ mod tests {
             key3 = repo.write_chunk(data3.clone()).unwrap().0;
         }
 
-        let backend = Box::new(FileSystem::new_test(&root_path));
+        let backend = FileSystem::new_test(&root_path);
 
         let repo = Repository::new(
             backend,
@@ -641,5 +649,8 @@ mod tests {
         assert_eq!(unique_2, true);
         assert_eq!(key_1, key_2);
     }
+
+    #[test]
+    fn repo_send_sync() {}
 
 }

@@ -5,6 +5,7 @@ use walkdir::WalkDir;
 
 use crate::repository::backend::*;
 
+#[derive(Clone)]
 pub struct FileSystem {
     root_directory: String,
     segments_per_folder: u64,

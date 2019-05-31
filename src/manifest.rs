@@ -9,7 +9,7 @@
 pub mod archive;
 pub mod target;
 
-use crate::repository::{ChunkSettings, Key, Repository};
+use crate::repository::{Backend, ChunkSettings, Key, Repository};
 
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
@@ -53,7 +53,7 @@ impl Manifest {
     /// # Panics
     ///  
     /// Will panic if the write to the repository fails
-    pub fn commit(&mut self, repo: &mut Repository) {
+    pub fn commit(&mut self, repo: &mut Repository<impl Backend>) {
         self.timestamp = Local::now().with_timezone(Local::now().offset());
 
         let mut bytes = Vec::<u8>::new();
@@ -71,7 +71,7 @@ impl Manifest {
     /// # Panics
     ///
     /// Will panic if loading the manifest fails
-    pub fn load(repo: &Repository) -> Manifest {
+    pub fn load(repo: &Repository<impl Backend>) -> Manifest {
         let bytes = repo
             .read_chunk(Key::mainfest_key())
             .expect("Unable to read manifest from repo");
@@ -90,7 +90,7 @@ impl Manifest {
     /// # Panics
     ///
     /// Will panic if commiting the archive to the repository fails
-    pub fn commit_archive(&mut self, repo: &mut Repository, archive: Archive) {
+    pub fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
         let stored_archive = archive.store(repo);
         self.archives.push(stored_archive);
 
