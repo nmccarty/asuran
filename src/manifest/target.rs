@@ -1,7 +1,8 @@
 pub mod filesystem;
 
-pub use filesystem::FileSystem;
+pub use filesystem::FileSystemTarget;
 
+use std::collections::HashMap;
 use std::io::{Read, Seek, Write};
 
 /// A hole in a sparse object
@@ -64,34 +65,53 @@ pub enum RestoreObject {
     },
 }
 
-pub trait BackupTarget {
+/// Collection of methods that a backup driver has to implement in order for a
+/// generic backup driver to be able to commit its objects to a repository
+///
+/// As the work of commiting objects to an archive may be split among several
+/// threads, it is important that the target use a shared state among clones
+/// and be tread safe
+pub trait BackupTarget: Clone + Send + Sync {
     /// Returns a list of object paths in the backend
     ///
     /// Paths are plaintext, "/" or "\" delimited strings of form "/path/to/object"
     /// These paths are treated like file paths, and usually will be filepaths, but
     /// are not required to represent actual file locations, instead they simply define
     /// a hierarchy of objects.
-    fn backup_paths(&self) -> &[String];
+    fn backup_paths(&self) -> Vec<String>;
 
     /// Takes a path and returns a reader for the path this object represents
-    fn backup_object(&self, path: &str) -> BackupObject;
+    ///
+    /// Returns a hash-map of namespaces and Objects to be inserted in each namespace
+    ///
+    /// The "raw data" for a backup target shuold be stored in the root
+    /// namespace, represented here as the empty string. This is to allow
+    /// almost any coherent data to be restored directly onto the filesystem
+    ///
+    /// Additional pieces of metatdata, such as filesystem permissions
+    /// should be stored in a namespace roughly matching the path of the
+    /// datastructure that represents them, e.g. filesystem:permissions:
+    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject>;
 
     /// Runs any custom logic the target requires, should be called on each
     /// object after putting it into an archive
-    ///
-    /// Storing metadata, or anything else ancillariy to the actual data should
-    /// be done here.
     fn backup_finalize(&self, path: &str);
 
     /// Should Be called when all objects have been backed up
     ///
     /// Does the work of cleaning up, like comitting the manifest
     fn backup_complete(&self);
+
+    /// Returns a serialized listing that should be stored in an archive at
+    /// archive:listing
+    fn backup_listing(&self) -> Vec<u8>;
 }
 
 pub trait RestoreTarget {
-    /// Takes an object path, and returns a writer to it
-    fn restore_object(&self, path: &str) -> RestoreObject;
+    /// Takes an object path
+    ///
+    /// Returns a hashmap, keyed by namespace, of the various parts of this object
+    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject>;
 
     /// Runs any custom logic the target requires, should be called on each
     /// object after restoring it
