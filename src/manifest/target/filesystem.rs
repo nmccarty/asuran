@@ -51,21 +51,28 @@ impl BackupTarget for FileSystemTarget {
         output.insert(
             "".to_string(),
             BackupObject::Dense {
-                object: Box::new(File::open(path).expect("Unable to open file")),
+                object: Box::new(File::open(path.clone()).expect("Unable to open file")),
             },
         );
+        self.listing
+            .lock()
+            .unwrap()
+            .push(path.to_str().unwrap().to_string());
         output
     }
 
-    fn backup_finalize(&self, path: &str) {
-        unimplemented!();
-    }
+    /// This method doesn't do anything with this target
+    fn backup_finalize(&self, _path: &str) {}
 
-    fn backup_complete(&self) {
-        unimplemented!();
-    }
+    /// This method doesn't do anything with this target
+    fn backup_complete(&self) {}
 
     fn backup_listing(&self) -> Vec<u8> {
-        unimplemented!();
+        let mut buff = Vec::<u8>::new();
+        let listing = self.listing.lock().unwrap();
+        let listing = Vec::clone(&listing);
+        listing.serialize(&mut Serializer::new(&mut buff)).unwrap();
+
+        buff
     }
 }
