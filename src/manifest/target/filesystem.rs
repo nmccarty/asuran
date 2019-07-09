@@ -23,6 +23,10 @@ impl FileSystemTarget {
             listing: Arc::new(Mutex::new(Vec::new())),
         }
     }
+
+    pub fn set_root_directory(&mut self, new_root: &str) {
+        self.root_directory = new_root.to_string();
+    }
 }
 
 impl BackupTarget for FileSystemTarget {
@@ -73,7 +77,12 @@ impl BackupTarget for FileSystemTarget {
 
 impl RestoreTarget for FileSystemTarget {
     fn load_listing(listing: &[u8]) -> Option<FileSystemTarget> {
-        unimplemented!()
+        let mut de = Deserializer::new(listing);
+        let listing: Vec<String> = Deserialize::deserialize(&mut de).ok()?;
+        Some(FileSystemTarget {
+            root_directory: "".to_string(),
+            listing: Arc::new(Mutex::new(listing)),
+        })
     }
 
     fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject> {
