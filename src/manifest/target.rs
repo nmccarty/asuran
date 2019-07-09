@@ -98,9 +98,23 @@ pub trait BackupTarget: Clone + Send + Sync {
     fn backup_listing(&self) -> Vec<u8>;
 }
 
-pub trait RestoreTarget {
+/// Collection of methods that a restore target has to implement in order for a
+/// generic restore driver to be able to load and properly restore its objects
+/// from a repository.
+///
+/// As the work of restoring an archive should be split among serveral threads,
+/// it is important that targets be thread-aware and thread safe.Into
+pub trait RestoreTarget: Clone + Send + Sync {
+    /// Loads an object listing and creates a new restore target from it
+    ///
+    /// Will return None if deserializing the listing fails.
+    fn load_listing(listing: &[u8]) -> Option<Self>;
+
     /// Takes an object path
     ///
     /// Returns a hashmap, keyed by namespace, of the various parts of this object
     fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject>;
+
+    /// Provides an interator over the path strings
+    fn list_paths<I: Iterator<Item = String>>(&self) -> I;
 }
