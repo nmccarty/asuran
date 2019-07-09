@@ -61,12 +61,6 @@ impl BackupTarget for FileSystemTarget {
         output
     }
 
-    /// This method doesn't do anything with this target
-    fn backup_finalize(&self, _path: &str) {}
-
-    /// This method doesn't do anything with this target
-    fn backup_complete(&self) {}
-
     fn backup_listing(&self) -> Vec<u8> {
         let mut buff = Vec::<u8>::new();
         let listing = self.listing.lock().unwrap();

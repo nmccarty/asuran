@@ -93,15 +93,6 @@ pub trait BackupTarget: Clone + Send + Sync {
     /// datastructure that represents them, e.g. filesystem:permissions:
     fn backup_object(&self, path: &str) -> HashMap<String, BackupObject>;
 
-    /// Runs any custom logic the target requires, should be called on each
-    /// object after putting it into an archive
-    fn backup_finalize(&self, path: &str);
-
-    /// Should Be called when all objects have been backed up
-    ///
-    /// Does the work of cleaning up, like comitting the manifest
-    fn backup_complete(&self);
-
     /// Returns a serialized listing that should be stored in an archive at
     /// archive:listing
     fn backup_listing(&self) -> Vec<u8>;
@@ -112,10 +103,4 @@ pub trait RestoreTarget {
     ///
     /// Returns a hashmap, keyed by namespace, of the various parts of this object
     fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject>;
-
-    /// Runs any custom logic the target requires, should be called on each
-    /// object after restoring it
-    ///
-    /// Minor after-the-fact IO such as writing file metadata should be done here
-    fn restore_finalize(&self, path: &str);
 }
