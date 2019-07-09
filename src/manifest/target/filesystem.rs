@@ -70,3 +70,17 @@ impl BackupTarget for FileSystemTarget {
         buff
     }
 }
+
+impl RestoreTarget for FileSystemTarget {
+    fn load_listing(listing: &[u8]) -> Option<FileSystemTarget> {
+        unimplemented!()
+    }
+
+    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject> {
+        unimplemented!()
+    }
+
+    fn list_paths<I: Iterator<Item = String>>(&self) -> I {
+        unimplemented!()
+    }
+}
