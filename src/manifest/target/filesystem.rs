@@ -5,7 +5,7 @@ pub use metadata::*;
 use super::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
@@ -91,9 +91,11 @@ impl RestoreTarget for FileSystemTarget {
         let root_path = Path::new(&self.root_directory);
         let rel_path = Path::new(path);
         let path = root_path.join(rel_path);
-        // provide the actual data
-        //
-        // todo: add support for sparse files
+        // Create the directory if it does not exist
+        let parent = path.parent().unwrap();
+        create_dir_all(parent).unwrap();
+
+        // Return a writer to the file
         output.insert(
             "".to_string(),
             RestoreObject::Dense {
@@ -109,5 +111,45 @@ impl RestoreTarget for FileSystemTarget {
 
     fn restore_listing(&self) -> Vec<String> {
         self.listing.lock().unwrap().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::{create_dir, File};
+    use tempfile::{tempdir, TempDir};
+
+    /// Create a testing directory structure that looks like so:
+    ///
+    /// ```
+    /// root:
+    ///     1
+    ///     2
+    ///     3
+    ///     A:
+    ///         4
+    ///     B:
+    ///         5
+    ///         C:
+    ///             6
+    ///     
+    /// ```
+    fn mk_tmp_dir() -> TempDir {
+        let root = tempdir().unwrap();
+        let root_path = root.path();
+
+        create_dir(root_path.join("A")).unwrap();
+        create_dir(root_path.join("B")).unwrap();
+        create_dir(root_path.join("B").join("C")).unwrap();
+
+        File::create(root_path.join("1")).unwrap();
+        File::create(root_path.join("2")).unwrap();
+        File::create(root_path.join("3")).unwrap();
+        File::create(root_path.join("A").join("4")).unwrap();
+        File::create(root_path.join("B").join("5")).unwrap();
+        File::create(root_path.join("C").join("6")).unwrap();
+
+        root
     }
 }
