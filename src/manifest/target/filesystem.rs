@@ -117,25 +117,13 @@ impl RestoreTarget for FileSystemTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dir_diff;
     use std::fs::{create_dir, File};
+    use std::process::Command;
+    use std::str;
     use tempfile::{tempdir, TempDir};
 
-    /// Create a testing directory structure that looks like so:
-    ///
-    /// ```
-    /// root:
-    ///     1
-    ///     2
-    ///     3
-    ///     A:
-    ///         4
-    ///     B:
-    ///         5
-    ///         C:
-    ///             6
-    ///     
-    /// ```
-    fn mk_tmp_dir() -> TempDir {
+    fn make_test_directory() -> TempDir {
         let root = tempdir().unwrap();
         let root_path = root.path();
 
@@ -148,8 +136,63 @@ mod tests {
         File::create(root_path.join("3")).unwrap();
         File::create(root_path.join("A").join("4")).unwrap();
         File::create(root_path.join("B").join("5")).unwrap();
-        File::create(root_path.join("C").join("6")).unwrap();
+        File::create(root_path.join("B").join("C").join("6")).unwrap();
 
         root
     }
+
+    #[test]
+    fn backup_restore_structure() {
+        let input_dir = make_test_directory();
+        let root_path = input_dir.path().to_owned();
+
+        let input_target = FileSystemTarget::new(&root_path.display().to_string());
+
+        for item in WalkDir::new(&root_path)
+            .into_iter()
+            .filter_entry(|e| e.file_type().is_file())
+        {
+            let item = item.unwrap();
+            let rel_path = item
+                .path()
+                .strip_prefix(&root_path)
+                .unwrap()
+                .display()
+                .to_string();
+            input_target.backup_object(&rel_path);
+        }
+
+        let listing = input_target.backup_listing();
+
+        let output_dir = tempdir().unwrap();
+
+        let mut output_target =
+            FileSystemTarget::load_listing(&listing).expect("Failed to unwrap packed listing");
+        output_target.set_root_directory(&output_dir.path().display().to_string());
+
+        let output_listing = output_target.restore_listing();
+        for entry in output_listing {
+            output_target.restore_object(&entry);
+        }
+
+        let input_path = input_dir.path().display().to_string();
+        let output_path = output_dir.path().display().to_string();
+
+        println!("Contents of input directory ({}):", input_path);
+        let output = Command::new("/usr/bin/tree")
+            .arg(input_path)
+            .output()
+            .unwrap();
+        println!("{}", str::from_utf8(&output.stdout).unwrap());
+
+        println!("Contents of output directory ({}):", output_path);
+        let output = Command::new("/usr/bin/tree")
+            .arg(output_path)
+            .output()
+            .unwrap();
+        println!("{}", str::from_utf8(&output.stdout).unwrap());
+
+        assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
+    }
+
 }
