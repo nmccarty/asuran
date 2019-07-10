@@ -61,7 +61,7 @@ impl BackupTarget for FileSystemTarget {
         self.listing
             .lock()
             .unwrap()
-            .push(path.to_str().unwrap().to_string());
+            .push(rel_path.to_str().unwrap().to_string());
         output
     }
 
@@ -102,10 +102,6 @@ impl RestoreTarget for FileSystemTarget {
                 object: Box::new(File::create(path.clone()).expect("Unable to open file")),
             },
         );
-        self.listing
-            .lock()
-            .unwrap()
-            .push(path.to_str().unwrap().to_string());
         output
     }
 
