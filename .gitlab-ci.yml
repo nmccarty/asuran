@@ -4,6 +4,7 @@ before_script:
   - apt-get update -yqq
   - apt-get install -yqq --no-install-recommends build-essential
   - apt-get install -yqq clang
+  - apt-get install -yqq tree
 
 cache:
   paths:
