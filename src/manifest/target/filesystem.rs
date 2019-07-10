@@ -150,15 +150,16 @@ mod tests {
 
         for item in WalkDir::new(&root_path)
             .into_iter()
-            .filter_entry(|e| e.file_type().is_file())
+            .map(|e| e.unwrap())
+            .filter(|e| e.file_type().is_file())
         {
-            let item = item.unwrap();
             let rel_path = item
                 .path()
                 .strip_prefix(&root_path)
                 .unwrap()
                 .display()
                 .to_string();
+            println!("Backing up: {}", &rel_path);
             input_target.backup_object(&rel_path);
         }
 
@@ -172,6 +173,9 @@ mod tests {
 
         let output_listing = output_target.restore_listing();
         for entry in output_listing {
+            println!();
+            println!("Restore listing:");
+            println!(" - {}", &entry);
             output_target.restore_object(&entry);
         }
 
