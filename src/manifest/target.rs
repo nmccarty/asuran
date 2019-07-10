@@ -115,6 +115,6 @@ pub trait RestoreTarget: Clone + Send + Sync {
     /// Returns a hashmap, keyed by namespace, of the various parts of this object
     fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject>;
 
-    /// Provides an interator over the path strings
-    fn list_paths<I: Iterator<Item = String>>(&self) -> I;
+    /// Provides a list of the path strings
+    fn restore_listing(&self) -> Vec<String>;
 }

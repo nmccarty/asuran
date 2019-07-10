@@ -86,10 +86,28 @@ impl RestoreTarget for FileSystemTarget {
     }
 
     fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject> {
-        unimplemented!()
+        let mut output = HashMap::new();
+        // Get the actual path on the filesystem this refers to
+        let root_path = Path::new(&self.root_directory);
+        let rel_path = Path::new(path);
+        let path = root_path.join(rel_path);
+        // provide the actual data
+        //
+        // todo: add support for sparse files
+        output.insert(
+            "".to_string(),
+            RestoreObject::Dense {
+                object: Box::new(File::create(path.clone()).expect("Unable to open file")),
+            },
+        );
+        self.listing
+            .lock()
+            .unwrap()
+            .push(path.to_str().unwrap().to_string());
+        output
     }
 
-    fn list_paths<I: Iterator<Item = String>>(&self) -> I {
-        unimplemented!()
+    fn restore_listing(&self) -> Vec<String> {
+        self.listing.lock().unwrap().clone()
     }
 }
