@@ -37,7 +37,9 @@ impl BackupTarget for FileSystemTarget {
             .filter_map(Result::ok)
         {
             let rel_path = entry.path().strip_prefix(&self.root_directory).unwrap();
-            output.push(rel_path.to_str().unwrap().to_string());
+            if rel_path.exists() {
+                output.push(rel_path.to_str().unwrap().to_string());
+            }
         }
 
         output
