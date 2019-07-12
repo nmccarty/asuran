@@ -10,3 +10,22 @@ pub fn get_repo(root_path: &str, key: &[u8; 32]) -> Repository<impl Backend> {
         key,
     )
 }
+
+pub fn get_repo_bare(root_path: &str, key: &[u8; 32]) -> Repository<impl Backend> {
+    let backend = FileSystem::new_test_1k(&root_path);
+    Repository::new(
+        backend,
+        Compression::NoCompression,
+        HMAC::Blake2b,
+        Encryption::NoEncryption,
+        key,
+    )
+}
+
+pub fn get_bare_settings() -> ChunkSettings {
+    ChunkSettings {
+        compression: Compression::NoCompression,
+        hmac: HMAC::Blake2b,
+        encryption: Encryption::NoEncryption,
+    }
+}
