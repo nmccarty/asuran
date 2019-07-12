@@ -28,12 +28,22 @@ impl FileSystem {
         }
     }
 
-    //    #[cfg(test)]
-    /// Testing only constructor that has a much smaller segment size (16KB) and
-    /// segements per folder (2)
     pub fn new_test(root_directory: &str) -> FileSystem {
         let segments_per_folder: u64 = 2;
         let segment_size: u64 = 16 * 10_u64.pow(3);
+        // Create the directory if it doesn't exist
+        fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
+
+        FileSystem {
+            root_directory: root_directory.to_string(),
+            segments_per_folder,
+            segment_size,
+        }
+    }
+
+    pub fn new_test_1k(root_directory: &str) -> FileSystem {
+        let segments_per_folder: u64 = 2;
+        let segment_size: u64 = 10_u64.pow(3);
         // Create the directory if it doesn't exist
         fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
 
