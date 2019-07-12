@@ -35,11 +35,10 @@ impl BackupTarget for FileSystemTarget {
         for entry in WalkDir::new(&self.root_directory)
             .into_iter()
             .filter_map(Result::ok)
+            .skip(1)
         {
             let rel_path = entry.path().strip_prefix(&self.root_directory).unwrap();
-            if rel_path.exists() {
-                output.push(rel_path.to_str().unwrap().to_string());
-            }
+            output.push(rel_path.to_str().unwrap().to_string());
         }
 
         output
