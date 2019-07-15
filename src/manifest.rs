@@ -9,7 +9,7 @@
 pub mod archive;
 pub mod target;
 
-use crate::repository::{Backend, ChunkSettings, Key, Repository};
+use crate::repository::{Backend, ChunkSettings, ChunkID, Repository};
 
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
@@ -60,7 +60,7 @@ impl Manifest {
         self.serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize manifest.");
 
-        repo.write_chunk_with_id(bytes, Key::mainfest_key())
+        repo.write_chunk_with_id(bytes, ChunkID::manifest_id())
             .expect("Unable to write manifest");
 
         repo.commit_index();
@@ -73,7 +73,7 @@ impl Manifest {
     /// Will panic if loading the manifest fails
     pub fn load(repo: &Repository<impl Backend>) -> Manifest {
         let bytes = repo
-            .read_chunk(Key::mainfest_key())
+            .read_chunk(ChunkID::manifest_id())
             .expect("Unable to read manifest from repo");
 
         let mut de = Deserializer::new(&bytes[..]);

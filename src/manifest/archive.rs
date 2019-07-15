@@ -1,5 +1,5 @@
 use crate::chunker::{Chunker, Slice};
-use crate::repository::{Backend, Key, Repository};
+use crate::repository::{Backend, ChunkID, Repository};
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub struct StoredArchive {
     /// The name of the archive
     name: String,
     /// Pointer the the archive metadata in the repository
-    id: Key,
+    id: ChunkID,
     /// Time the archive was started it
     ///
     /// Used to prevent replay attackts
@@ -40,7 +40,7 @@ impl StoredArchive {
 /// Location of a chunk in a file
 #[derive(Serialize, Deserialize, Copy, Clone, Eq, PartialEq, Debug)]
 pub struct ChunkLocation {
-    id: Key,
+    id: ChunkID,
     start: u64,
     length: u64,
 }

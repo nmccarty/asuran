@@ -69,7 +69,7 @@ pub mod hmac;
 #[derive(Clone)]
 pub struct Repository<T: Backend> {
     backend: T,
-    index: Arc<RwLock<HashMap<Key, (u64, u64, u64)>>>,
+    index: Arc<RwLock<HashMap<ChunkID, (u64, u64, u64)>>>,
     /// Default compression for new chunks
     compression: Compression,
     /// Default MAC algorthim for new chunks
@@ -132,11 +132,11 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&mut self, chunk: Chunk) -> Option<(Key, bool)> {
+    pub fn write_raw(&mut self, chunk: Chunk) -> Option<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
-        if self.has_chunk(id) && id != Key::mainfest_key() {
+        if self.has_chunk(id) && id != ChunkID::manifest_id() {
             Some((id, true))
         } else {
             let mut buff = Vec::<u8>::new();
@@ -180,7 +180,7 @@ impl<T: Backend> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<(Key, bool)> {
+    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<(ChunkID, bool)> {
         let chunk = Chunk::pack(
             data,
             self.compression,
@@ -204,7 +204,7 @@ impl<T: Backend> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: Key) -> Option<(Key, bool)> {
+    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: ChunkID) -> Option<(ChunkID, bool)> {
         let chunk = Chunk::pack_with_id(
             data,
             self.compression,
@@ -218,7 +218,7 @@ impl<T: Backend> Repository<T> {
     }
 
     /// Determines if a chunk exists in the index
-    pub fn has_chunk(&self, id: Key) -> bool {
+    pub fn has_chunk(&self, id: ChunkID) -> bool {
         self.index.read().unwrap().contains_key(&id)
     }
 
@@ -226,7 +226,7 @@ impl<T: Backend> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
-    pub fn read_chunk(&self, id: Key) -> Option<Vec<u8>> {
+    pub fn read_chunk(&self, id: ChunkID) -> Option<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
             let index = self.index.read().unwrap();
@@ -268,38 +268,38 @@ impl<T: Backend> Drop for Repository<T> {
 
 /// Key for an object in a repository
 #[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash, Debug)]
-pub struct Key {
+pub struct ChunkID {
     /// Keys are a bytestring of length 32
     ///
     /// This lines up well with SHA256 and other 256 bit hashes.
     /// Longer hashes will be truncated and shorter ones (not reccomended) will be padded.
-    key: [u8; 32],
+    id: [u8; 32],
 }
 
-impl Key {
+impl ChunkID {
     /// Will create a new key from a slice.
     ///
     /// Keys longer than 32 bytes will be truncated.
     /// Keys shorter than 32 bytes will be padded at the end with zeros.
-    pub fn new(input_key: &[u8]) -> Key {
-        let mut key: [u8; 32] = [0; 32];
-        key[..cmp::min(32, input_key.len())]
-            .clone_from_slice(&input_key[..cmp::min(32, input_key.len())]);
-        Key { key }
+    pub fn new(input_id: &[u8]) -> ChunkID {
+        let mut id: [u8; 32] = [0; 32];
+        id[..cmp::min(32, input_id.len())]
+            .clone_from_slice(&input_id[..cmp::min(32, input_id.len())]);
+        ChunkID { id }
     }
 
     /// Returns an immutable refrence to the key in bytestring form
-    pub fn get_key(&self) -> &[u8] {
-        &self.key
+    pub fn get_id(&self) -> &[u8] {
+        &self.id
     }
 
     /// Verifies equaliy of this key with the first 32 bytes of a slice
     pub fn verfiy(&self, slice: &[u8]) -> bool {
-        if slice.len() < self.key.len() {
+        if slice.len() < self.id.len() {
             false
         } else {
             let mut equal = true;
-            for (i, val) in self.key.iter().enumerate() {
+            for (i, val) in self.id.iter().enumerate() {
                 if *val != slice[i] {
                     equal = false;
                 }
@@ -309,8 +309,8 @@ impl Key {
     }
 
     /// Returns the special all-zero key used for the manifest
-    pub fn mainfest_key() -> Key {
-        Key { key: [0_u8; 32] }
+    pub fn manifest_id() -> ChunkID {
+        ChunkID { id: [0_u8; 32] }
     }
 }
 
@@ -344,7 +344,7 @@ pub struct Chunk {
     #[serde(with = "serde_bytes")]
     mac: Vec<u8>,
     /// Chunk ID, generated from the HMAC
-    id: Key,
+    id: ChunkID,
 }
 
 impl Chunk {
@@ -360,7 +360,7 @@ impl Chunk {
         let id_mac = hmac.mac(&data, key);
         let compressed_data = compression.compress(data);
         let data = encryption.encrypt(&compressed_data, key);
-        let id = Key::new(&id_mac);
+        let id = ChunkID::new(&id_mac);
         let mac = hmac.mac(&data, key);
         Chunk {
             data,
@@ -382,7 +382,7 @@ impl Chunk {
         encryption: Encryption,
         hmac: HMAC,
         key: &[u8],
-        id: Key,
+        id: ChunkID,
     ) -> Chunk {
         let compressed_data = compression.compress(data);
         let data = encryption.encrypt(&compressed_data, key);
@@ -422,7 +422,7 @@ impl Chunk {
         encryption: Encryption,
         hmac: HMAC,
         mac: &[u8],
-        id: Key,
+        id: ChunkID,
     ) -> Chunk {
         Chunk {
             data: data.to_vec(),
@@ -450,7 +450,7 @@ impl Chunk {
     }
 
     /// Gets the key for this block
-    pub fn get_id(&self) -> Key {
+    pub fn get_id(&self) -> ChunkID {
         self.id
     }
 
