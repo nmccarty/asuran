@@ -26,10 +26,10 @@ build_job:
   stage: build
   script:
     - cargo build --release
-    - mv target/release/asuran .
+    - mv target/release/libasuran .
   artifacts:
     paths:
-      - asuran
+      - libasuran
 
 pages:
   stage: doc
