@@ -19,7 +19,8 @@ fn backup_restore_no_empty_dirs() {
 
     let repo_root = tempdir().unwrap();
     let repo_root_path = repo_root.path().to_str().unwrap();
-    let mut repo = common::get_repo_bare(repo_root_path, &[0_u8; 32]);
+    let key = Key::random(32);
+    let mut repo = common::get_repo_bare(repo_root_path, key);
     let chunker = Chunker::new(6, 8, 0);
 
     let mut archive = Archive::new("test");

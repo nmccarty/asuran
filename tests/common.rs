@@ -1,6 +1,6 @@
 use libasuran::repository::*;
 
-pub fn get_repo(root_path: &str, key: &[u8; 32]) -> Repository<impl Backend> {
+pub fn get_repo(root_path: &str, key: Key) -> Repository<impl Backend> {
     let backend = FileSystem::new(&root_path);
     Repository::new(
         backend,
@@ -11,7 +11,7 @@ pub fn get_repo(root_path: &str, key: &[u8; 32]) -> Repository<impl Backend> {
     )
 }
 
-pub fn get_repo_bare(root_path: &str, key: &[u8; 32]) -> Repository<impl Backend> {
+pub fn get_repo_bare(root_path: &str, key: Key) -> Repository<impl Backend> {
     let backend = FileSystem::new_test_1k(&root_path);
     Repository::new(
         backend,

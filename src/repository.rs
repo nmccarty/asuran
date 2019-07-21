@@ -79,7 +79,7 @@ pub struct Repository<T: Backend> {
     /// Default encryption algorthim for new chunks
     encryption: Encryption,
     /// Encryption key for this repo
-    key: Vec<u8>,
+    key: Key,
 }
 
 impl<T: Backend> Repository<T> {
@@ -89,7 +89,7 @@ impl<T: Backend> Repository<T> {
         compression: Compression,
         hmac: HMAC,
         encryption: Encryption,
-        key: &[u8],
+        key: Key,
     ) -> Repository<T> {
         // Check for index, create a new one if it doesnt exist
         let index_vec = backend.get_index();
@@ -101,7 +101,6 @@ impl<T: Backend> Repository<T> {
                 Deserialize::deserialize(&mut de).expect("Unable to parse index"),
             ))
         };
-        let key = key.to_vec();
 
         Repository {
             backend,
@@ -188,7 +187,7 @@ impl<T: Backend> Repository<T> {
             self.compression,
             self.encryption.new_iv(),
             self.hmac,
-            &self.key,
+            self.key.key(),
         );
 
         self.write_raw(chunk)
@@ -212,7 +211,7 @@ impl<T: Backend> Repository<T> {
             self.compression,
             self.encryption.new_iv(),
             self.hmac,
-            &self.key,
+            self.key.key(),
             id,
         );
 
@@ -239,7 +238,7 @@ impl<T: Backend> Repository<T> {
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
 
-            let data = chunk.unpack(&self.key)?;
+            let data = chunk.unpack(self.key.key())?;
 
             Some(data)
         } else {
@@ -491,7 +490,7 @@ mod tests {
         assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
     }
 
-    fn get_repo(key: &[u8; 32]) -> Repository<FileSystem> {
+    fn get_repo(key: Key) -> Repository<FileSystem> {
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
 
@@ -550,8 +549,7 @@ mod tests {
 
     #[test]
     fn repository_add_read() {
-        let mut key: [u8; 32] = [0; 32];
-        thread_rng().fill_bytes(&mut key);
+        let key = Key::random(32);
 
         let size = 7 * 10_u64.pow(3);
         let mut data1 = vec![0_u8; size as usize];
@@ -561,7 +559,7 @@ mod tests {
         let mut data3 = vec![0_u8; size as usize];
         thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo(&key);
+        let mut repo = get_repo(key);
 
         println!("Adding Chunks");
         let key1 = repo.write_chunk(data1.clone()).unwrap().0;
@@ -580,8 +578,7 @@ mod tests {
 
     #[test]
     fn repository_add_drop_read() {
-        let mut key: [u8; 32] = [0; 32];
-        thread_rng().fill_bytes(&mut key);
+        let key = Key::random(32);
 
         let size = 7 * 10_u64.pow(3);
         let mut data1 = vec![0_u8; size as usize];
@@ -606,7 +603,7 @@ mod tests {
                 Compression::ZStd { level: 1 },
                 HMAC::SHA256,
                 Encryption::new_aes256cbc(),
-                &key,
+                key.clone(),
             );
 
             println!("Adding Chunks");
@@ -622,7 +619,7 @@ mod tests {
             Compression::ZStd { level: 1 },
             HMAC::SHA256,
             Encryption::new_aes256cbc(),
-            &key,
+            key.clone(),
         );
 
         println!("Reading Chunks");
@@ -639,7 +636,7 @@ mod tests {
     fn double_add() {
         // Adding the same chunk to the repository twice shouldn't result in
         // two chunks in the repository
-        let mut repo = get_repo(&[0_u8; 32]);
+        let mut repo = get_repo(Key::random(32));
         assert_eq!(repo.count_chunk(), 0);
         let data = [1_u8; 8192];
 

@@ -208,6 +208,7 @@ mod tests {
     use crate::repository::compression::Compression;
     use crate::repository::encryption::Encryption;
     use crate::repository::hmac::HMAC;
+    use crate::repository::Key;
     use quickcheck::quickcheck;
     use rand::prelude::*;
     use std::fs;
@@ -215,7 +216,7 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
-    fn get_repo(key: &[u8; 32]) -> Repository<impl Backend> {
+    fn get_repo(key: Key) -> Repository<impl Backend> {
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
 
@@ -234,12 +235,12 @@ mod tests {
             println!("Seed: {}", seed);
             let chunker = Chunker::new(8, 12, 0);
 
-            let key: [u8; 32] = [0u8; 32];
+            let key = Key::random(32);
             let size = 2 * 2_usize.pow(14);
             let mut data = vec![0_u8; size];
             let mut rand = SmallRng::seed_from_u64(seed);
             rand.fill_bytes(&mut data);
-            let mut repo = get_repo(&key);
+            let mut repo = get_repo(key);
 
 
             let mut archive = Archive::new("test");
@@ -297,9 +298,9 @@ mod tests {
     #[test]
     fn namespaced_insertions() {
         let chunker = Chunker::new(8, 12, 0);
-        let key: [u8; 32] = [0u8; 32];
+        let key = Key::random(32);
 
-        let mut repo = get_repo(&key);
+        let mut repo = get_repo(key);
 
         let mut obj1 = Cursor::new([1_u8; 32]);
         let mut obj2 = Cursor::new([2_u8; 32]);
@@ -333,9 +334,9 @@ mod tests {
     #[test]
     fn commit_and_load() {
         let chunker = Chunker::new(8, 12, 0);
-        let key: [u8; 32] = [0u8; 32];
+        let key = Key::random(32);
 
-        let mut repo = get_repo(&key);
+        let mut repo = get_repo(key);
         let mut obj1 = [0_u8; 32];
         for i in 0..obj1.len() {
             obj1[i] = i as u8;

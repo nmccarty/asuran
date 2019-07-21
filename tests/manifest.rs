@@ -11,7 +11,8 @@ mod common;
 fn put_drop_get() {
     let tempdir = tempdir().unwrap();
     let root_path = tempdir.path().to_str().unwrap();
-    let mut repo = common::get_repo(root_path, &[0_u8; 32]);
+    let key = Key::random(32);
+    let mut repo = common::get_repo(root_path, key);
     let chunker = Chunker::new(48, 12, 0);
 
     let mut objects: Vec<Vec<u8>> = Vec::new();
