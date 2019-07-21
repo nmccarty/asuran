@@ -3,3 +3,4 @@
 .vscode/launch.json
 kcov*
 .cargo
+Cargo.lock
