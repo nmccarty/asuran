@@ -2,8 +2,9 @@ use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use walkdir::WalkDir;
-
+use rmp_serde::{to_vec,from_read};
 use crate::repository::backend::*;
+use crate::repository::EncryptedKey;
 
 #[derive(Clone)]
 pub struct FileSystem {
@@ -117,7 +118,21 @@ impl Backend for FileSystem {
         file.write_all(index)?;
         Ok(())
     }
-}
+
+    fn write_key(&self, key: &EncryptedKey) -> Result<()> {
+        let path = Path::new(&self.root_directory).join(Path::new("keyfile"));
+        let mut file = fs::File::create(path)?;
+        let bytes = to_vec(key).unwrap();
+        file.write_all(&bytes)?;
+        Ok(())
+    }
+
+    fn read_key(&self) -> Option<EncryptedKey> {
+        let path = Path::new(&self.root_directory).join(Path::new("keyfile"));
+        let file = fs::File::open(path).ok()?;
+        from_read(&file).ok()
+    }
+ }
 
 pub struct FileSystemSegment {
     file: fs::File,
@@ -147,5 +162,30 @@ impl Segment for FileSystemSegment {
         self.file.write_all(chunk).unwrap();
 
         Some((location, length))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::{Key,Encryption};
+    use tempfile::tempdir;
+
+    #[test]
+    fn key_store_restore() {
+        let test_dir = tempdir().unwrap();
+        let backend = FileSystem::new(&test_dir.path().display().to_string());
+        let encryption = Encryption::new_aes256ctr();
+
+        let input_key = Key::random(32);
+        let user_key = "A sercure password".as_bytes();
+        let enc_input_key = EncryptedKey::encrypt_defaults(&input_key, encryption, user_key);
+
+        backend.write_key(&enc_input_key).unwrap();
+
+        let enc_output_key = backend.read_key().unwrap();
+        let output_key = enc_output_key.decrypt(user_key).unwrap();
+
+        assert_eq!(input_key,output_key);
     }
 }
