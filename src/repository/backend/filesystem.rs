@@ -1,10 +1,10 @@
+use crate::repository::backend::*;
+use crate::repository::EncryptedKey;
+use rmp_serde::{from_read, to_vec};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use walkdir::WalkDir;
-use rmp_serde::{to_vec,from_read};
-use crate::repository::backend::*;
-use crate::repository::EncryptedKey;
 
 #[derive(Clone)]
 pub struct FileSystem {
@@ -132,7 +132,7 @@ impl Backend for FileSystem {
         let file = fs::File::open(path).ok()?;
         from_read(&file).ok()
     }
- }
+}
 
 pub struct FileSystemSegment {
     file: fs::File,
@@ -168,7 +168,7 @@ impl Segment for FileSystemSegment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::{Key,Encryption};
+    use crate::repository::{Encryption, Key};
     use tempfile::tempdir;
 
     #[test]
@@ -186,6 +186,6 @@ mod tests {
         let enc_output_key = backend.read_key().unwrap();
         let output_key = enc_output_key.decrypt(user_key).unwrap();
 
-        assert_eq!(input_key,output_key);
+        assert_eq!(input_key, output_key);
     }
 }

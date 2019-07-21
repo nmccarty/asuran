@@ -52,7 +52,7 @@ pub use crate::repository::backend::Backend;
 pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
-pub use crate::repository::key::{Key,EncryptedKey};
+pub use crate::repository::key::{EncryptedKey, Key};
 
 #[cfg(feature = "profile")]
 use flamer::*;

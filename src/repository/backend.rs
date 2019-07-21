@@ -1,7 +1,7 @@
 //! The backend provides abstract IO access to the real location of the data in
 //! the repository.
-use std::io::Result;
 use crate::repository::EncryptedKey;
+use std::io::Result;
 
 pub mod filesystem;
 
@@ -57,9 +57,9 @@ pub trait Backend: Send + Sync + Clone {
     /// Returns Err if the index could not be written.
     fn write_index(&self, index: &[u8]) -> Result<()>;
     /// Writes the specified encrypted key to the backend
-    /// 
+    ///
     /// Returns Err if the key could not be written
     fn write_key(&self, key: &EncryptedKey) -> Result<()>;
-    /// Attempts to read the encrypted key from the backend. 
+    /// Attempts to read the encrypted key from the backend.
     fn read_key(&self) -> Option<EncryptedKey>;
 }

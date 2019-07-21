@@ -9,7 +9,7 @@
 pub mod archive;
 pub mod target;
 
-use crate::repository::{Backend, ChunkSettings, ChunkID, Repository};
+use crate::repository::{Backend, ChunkID, ChunkSettings, Repository};
 
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
