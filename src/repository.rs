@@ -52,6 +52,7 @@ pub use crate::repository::backend::Backend;
 pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
+pub use crate::repository::key::Key;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -60,6 +61,7 @@ pub mod backend;
 pub mod compression;
 pub mod encryption;
 pub mod hmac;
+pub mod key;
 
 /// Provides an interface to the storage-backed key value store
 ///
