@@ -3,9 +3,11 @@ use crypto::scrypt::*;
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 /// Stores the encryption key used by the archive
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug,Zeroize)]
+#[zeroize(drop)]
 pub struct Key {
     // TODO: Store multiple keys for various processes that require them
     key: Vec<u8>,

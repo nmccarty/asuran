@@ -259,6 +259,11 @@ impl<T: Backend> Repository<T> {
             hmac: self.hmac,
         }
     }
+
+    /// Gets a refrence to the repository's key
+    pub fn key(&self) -> &Key {
+        &self.key
+    }
 }
 
 impl<T: Backend> Drop for Repository<T> {
