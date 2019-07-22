@@ -199,6 +199,16 @@ impl Archive {
             timestamp: self.timestamp,
         }
     }
+
+    /// Provides the name of the archive
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Provides the timestamp of the archive
+    pub fn timestamp(&self) -> &DateTime<FixedOffset> {
+        &self.timestamp
+    }
 }
 
 #[cfg(test)]
