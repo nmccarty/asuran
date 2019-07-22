@@ -37,6 +37,11 @@ impl Key {
     pub fn key(&self) -> &[u8] {
         &self.key
     }
+
+    /// Obtains the chunker nonce
+    pub fn chunker_nonce(&self) -> u64 {
+        self.chunker_nonce
+    }
 }
 
 /// Stores the key, encrypted with another key dervied from the user specified
