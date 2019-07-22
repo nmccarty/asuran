@@ -103,4 +103,9 @@ impl Manifest {
     pub fn archives(&self) -> Vec<StoredArchive> {
         self.archives.clone()
     }
+
+    /// Provides the timestamp of the manifest's last modification
+    pub fn timestamp(&self) -> &DateTime<FixedOffset> {
+        &self.timestamp
+    }
 }
