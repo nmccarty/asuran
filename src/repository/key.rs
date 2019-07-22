@@ -9,13 +9,15 @@ use serde::{Deserialize, Serialize};
 pub struct Key {
     // TODO: Store multiple keys for various processes that require them
     key: Vec<u8>,
+    chunker_nonce: u64,
 }
 
 impl Key {
     /// Creates a key from the given array of bytes
-    pub fn from_bytes(bytes: &[u8]) -> Key {
+    pub fn from_bytes(bytes: &[u8], chunker_nonce: u64) -> Key {
         Key {
             key: bytes.to_vec(),
+            chunker_nonce,
         }
     }
 
@@ -25,7 +27,10 @@ impl Key {
     pub fn random(length: usize) -> Key {
         let mut buffer = vec![0; length];
         thread_rng().fill_bytes(&mut buffer);
-        Key { key: buffer }
+        Key {
+            key: buffer,
+            chunker_nonce: thread_rng().next_u64(),
+        }
     }
 
     /// Obtains a refrence to the key bytes
