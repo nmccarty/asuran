@@ -1,6 +1,6 @@
 [package]
 name = "libasuran"
-description = "Deduplicating, secure archive format"
+description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "MIT"
 version = "0.0.0"
 repository = "https://gitlab.asuran.rs/asuran/libasuran"
