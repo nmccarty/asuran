@@ -3,6 +3,7 @@ name = "libasuran"
 description = "Deduplicating, secure archive format"
 license = "MIT"
 version = "0.0.0"
+repository = "https://gitlab.asuran.rs/asuran/libasuran"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 
