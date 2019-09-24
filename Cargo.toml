@@ -15,22 +15,22 @@ profile = ["flame", "flamer"]
 base64 = "0.10.1"
 zstd = "0.4"
 rust-crypto = "0.2.36"
-bcrypt = "0.4"
-rand = "0.6.5"
-zeroize = "0.9.2"
-hmac = "0.7.0"
-sha2 = "0.8.0"
-digest = "0.8.0"
-walkdir = "2.2.7"
-serde = { version = "1.0.90", features = ["derive", "rc"]}
-rmp-serde = "0.13.7"
+bcrypt = "0.6"
+rand = {version = "0.7", features=["small_rng"]}
+zeroize = { version  = "0.10", features = ["zeroize_derive"]}
+hmac = "0.7"
+sha2 = "0.8"
+digest = "0.8"
+walkdir = "2.2"
+serde = { version = "1.0", features = ["derive", "rc"]}
+rmp-serde = "0.14"
 serde_bytes = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
-tempfile = "3.0.7"
-flame = {version = "0.2.0", optional = true}
-flamer = {version = "0.3", optional = true}
-blake2b_simd = "0.5.0"
+tempfile = "3.1"
+flame = {version = "0.2", optional = true}
+flamer = {version = "0.4", optional = true}
+blake2b_simd = "0.5"
 
 [dev-dependencies]
-quickcheck = "0.8"
-dir-diff = "0.3.1"
+quickcheck = "0.9"
+dir-diff = "0.3"
