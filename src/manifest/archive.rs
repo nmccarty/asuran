@@ -97,7 +97,7 @@ impl Archive {
         chunker: &Chunker,
         repository: &mut Repository<impl Backend>,
         path: &str,
-        from_reader: &mut Read,
+        from_reader: &mut dyn Read,
     ) -> Option<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
         let path = self.canonical_namespace() + path;
@@ -131,7 +131,7 @@ impl Archive {
         &self,
         repository: &Repository<impl Backend>,
         path: &str,
-        restore_to: &mut Write,
+        restore_to: &mut dyn Write,
     ) -> Option<()> {
         let path = self.canonical_namespace() + path;
         // Get chunk locations

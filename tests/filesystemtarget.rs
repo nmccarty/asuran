@@ -3,9 +3,7 @@ use libasuran::manifest::target::filesystem::*;
 use libasuran::manifest::target::*;
 use libasuran::manifest::*;
 use libasuran::repository::*;
-use rand::prelude::*;
 use std::fs;
-use std::io::Cursor;
 use std::path::Path;
 use tempfile::tempdir;
 
