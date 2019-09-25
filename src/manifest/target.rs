@@ -52,6 +52,15 @@ impl<T: Read> BackupObject<T> {
     pub fn ranges(self) -> Vec<ByteRange<T>> {
         self.ranges
     }
+
+    /// Adds a range without the caller needing to construct the objec themself
+    pub fn direct_add_range(&mut self, start: usize, end: usize, read: T) {
+        self.add_range(ByteRange {
+            start,
+            end,
+            object: read,
+        });
+    }
 }
 
 /// A collection of writers and byte ranges associated with them, used for restoring
@@ -93,6 +102,15 @@ impl<T: Write> RestoreObject<T> {
     /// Returns the ranges in the object, consuming this struct
     pub fn ranges(self) -> Vec<ByteRange<T>> {
         self.ranges
+    }
+
+    /// Adds a range without the caller needing to construct the objec themself
+    pub fn direct_add_range(&mut self, start: usize, end: usize, write: T) {
+        self.add_range(ByteRange {
+            start,
+            end,
+            object: write,
+        });
     }
 }
 

@@ -5,7 +5,7 @@ pub use metadata::*;
 use super::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, metadata, File};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
@@ -29,7 +29,7 @@ impl FileSystemTarget {
     }
 }
 
-impl BackupTarget for FileSystemTarget {
+impl BackupTarget<File> for FileSystemTarget {
     fn backup_paths(&self) -> Vec<String> {
         let mut output = Vec::new();
         for entry in WalkDir::new(&self.root_directory)
@@ -44,7 +44,7 @@ impl BackupTarget for FileSystemTarget {
         output
     }
 
-    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject> {
+    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<File>> {
         let mut output = HashMap::new();
         // Get the actual path on the filesystem this refers to
         let root_path = Path::new(&self.root_directory);
@@ -53,12 +53,16 @@ impl BackupTarget for FileSystemTarget {
         // provide the actual data
         //
         // todo: add support for sparse files
-        output.insert(
-            "".to_string(),
-            BackupObject::Dense {
-                object: Box::new(File::open(path.clone()).expect("Unable to open file")),
-            },
+
+        // Get the size of the file
+        let meta = metadata(path.clone()).expect("Unable to read file metatdata");
+        let mut file_object = BackupObject::new(meta.len() as usize);
+        file_object.direct_add_range(
+            0,
+            (meta.len() - 1) as usize,
+            File::open(path.clone()).expect("Unable to open file"),
         );
+        output.insert("".to_string(), file_object);
         self.listing
             .lock()
             .unwrap()
@@ -76,7 +80,7 @@ impl BackupTarget for FileSystemTarget {
     }
 }
 
-impl RestoreTarget for FileSystemTarget {
+impl RestoreTarget<File> for FileSystemTarget {
     fn load_listing(listing: &[u8]) -> Option<FileSystemTarget> {
         let mut de = Deserializer::new(listing);
         let listing: Vec<String> = Deserialize::deserialize(&mut de).ok()?;
@@ -86,7 +90,7 @@ impl RestoreTarget for FileSystemTarget {
         })
     }
 
-    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject> {
+    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<File>> {
         let mut output = HashMap::new();
         // Get the actual path on the filesystem this refers to
         let root_path = Path::new(&self.root_directory);
@@ -97,12 +101,16 @@ impl RestoreTarget for FileSystemTarget {
         create_dir_all(parent).unwrap();
 
         // Return a writer to the file
-        output.insert(
-            "".to_string(),
-            RestoreObject::Dense {
-                object: Box::new(File::create(path.clone()).expect("Unable to open file")),
-            },
+        // TODO: Support for sparse file
+        // TODO: Filesize support
+        let mut file_object = RestoreObject::new(0);
+        // FIXME: Currently does not have filesize info
+        file_object.direct_add_range(
+            0,
+            0,
+            File::create(path.clone()).expect("Unable to open file"),
         );
+        output.insert("".to_string(), file_object);
         output
     }
 
