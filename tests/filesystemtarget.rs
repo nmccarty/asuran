@@ -35,9 +35,11 @@ fn backup_restore_no_empty_dirs() {
             let mut map = input_target.backup_object(&path);
             let object = map.remove("").unwrap();
             let mut ranges = object.ranges();
-            // File is known to be dense, should only contain one range
-            assert_eq!(1, ranges.len());
-            archive.put_object(&chunker, &mut repo, &path, &mut ranges[0].object);
+            // File is known to be dense, should only contain zero or one range
+            assert!(ranges.len() == 1 || ranges.is_empty());
+            if ranges.len() == 1 {
+                archive.put_object(&chunker, &mut repo, &path, &mut ranges[0].object);
+            }
         }
     }
 
