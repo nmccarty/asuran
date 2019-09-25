@@ -11,26 +11,49 @@ use zeroize::Zeroize;
 pub struct Key {
     // TODO: Store multiple keys for various processes that require them
     key: Vec<u8>,
+    hmac_key: Vec<u8>,
+    id_key: Vec<u8>,
     chunker_nonce: u64,
 }
 
 impl Key {
     /// Creates a key from the given array of bytes
+    ///
+    /// Will split the key stream into thirds
     pub fn from_bytes(bytes: &[u8], chunker_nonce: u64) -> Key {
+        let mut buffer1 = Vec::new();
+        let mut buffer2 = Vec::new();
+        let mut buffer3 = Vec::new();
+        for (i, byte) in bytes.iter().enumerate(){
+            match i % 3 {
+                0 => buffer1.push(*byte),
+                1 => buffer2.push(*byte),
+                3 => buffer3.push(*byte),
+                _ => unreachable!(),
+            };
+        }
         Key {
-            key: bytes.to_vec(),
+            key: buffer1,
+            hmac_key: buffer2,
+            id_key: buffer3,
             chunker_nonce,
         }
     }
 
     /// Securely generates a random key
     ///
-    /// accepts the length in bytes they key should be
+    /// Takes the desired length in bytes of each individual key
     pub fn random(length: usize) -> Key {
-        let mut buffer = vec![0; length];
-        thread_rng().fill_bytes(&mut buffer);
+        let mut buffer1 = vec![0; length];
+        thread_rng().fill_bytes(&mut buffer1);
+        let mut buffer2 = vec![0; length];
+        thread_rng().fill_bytes(&mut buffer2);
+        let mut buffer3 = vec![0; length];
+        thread_rng().fill_bytes(&mut buffer3);
         Key {
-            key: buffer,
+            key: buffer1,
+            hmac_key: buffer2,
+            id_key: buffer3,
             chunker_nonce: thread_rng().next_u64(),
         }
     }
