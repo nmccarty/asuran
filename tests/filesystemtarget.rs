@@ -33,12 +33,11 @@ fn backup_restore_no_empty_dirs() {
         {
             println!("Backing up {}", &path);
             let mut map = input_target.backup_object(&path);
-            let object = map.get_mut("").unwrap();
-            if let BackupObject::Dense { object: reader } = object {
-                archive.put_object(&chunker, &mut repo, &path, reader);
-            } else {
-                panic!("Application currently does not support sparse files");
-            }
+            let object = map.remove("").unwrap();
+            let mut ranges = object.ranges();
+            // File is known to be dense, should only contain one range
+            assert_eq!(1, ranges.len());
+            archive.put_object(&chunker, &mut repo, &path, &mut ranges[0].object);
         }
     }
 
@@ -59,12 +58,12 @@ fn backup_restore_no_empty_dirs() {
     for path in paths {
         println!("Restoring: {}", path);
         let mut map = output_target.restore_object(&path);
-        let object = map.get_mut("").unwrap();
-        if let RestoreObject::Dense { object: writer } = object {
-            archive.get_object(&repo, &path, writer);
-        } else {
-            panic!("Application currently does not support spares files");
-        }
+        let object = map.remove("").unwrap();
+        let mut ranges = object.ranges();
+        // File is known to be flat, due to nature of test
+        // Should only contain one range
+        assert_eq!(1, ranges.len());
+        archive.get_object(&repo, &path, &mut ranges[0].object);
     }
 
     assert!(!dir_diff::is_different(&input_dir, &output_dir).unwrap())
