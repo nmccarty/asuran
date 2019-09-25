@@ -3,66 +3,31 @@ pub mod filesystem;
 pub use filesystem::FileSystemTarget;
 
 use std::collections::HashMap;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Write};
 
-/// A hole in a sparse object
-pub struct Hole {
-    /// The start of the hole in an object.
-    ///
-    /// This is the offset from the start of the object where the first sparse
-    /// byte in this sparse section of the object occurs.
-    ///
-    /// Calling seek(SeekFrom::Start(start)) should  place the cursor so the
-    /// next byte read will be the first sparse byte.
-    pub start: u64,
-    /// The end of the hole in an object
-    ///
-    /// This is the offset from the start of the object where the last sparse
-    /// byte in this sparse section of the object occurs.ReadSeek
-    ///
-    /// Calling seek(SeekFrom::Start(end)) should place the cursor so that the
-    /// next byte read will be the last sparse byte.
-    pub end: u64,
+/// Struct represening and object and a range of bytes it is responsible for
+pub struct ByteRange<T> {
+    pub start: usize,
+    pub end: usize,
+    pub object: T,
 }
 
-/// Combination trait of read+seek
-pub trait ReadSeek: Read + Seek {}
-
-/// Combination trait of write+seek
-pub trait WriteSeek: Write + Seek {}
-
-/// BackupTarget::backup_object can return either a Read
-/// or a Read + Seek.
+/// A collection of readers and byte ranges associated with them, used for reading objects
+/// into the repository.
 ///
-/// BackupTargets should only return Read + Seek if the object
-/// that backs them implements a sparse format. The reader will
-/// be packaged next to information about the objects holes
-pub enum BackupObject {
-    Dense {
-        object: Box<dyn Read>,
-    },
-    Sparse {
-        object: Box<dyn ReadSeek>,
-        holes: Vec<Hole>,
-    },
+/// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
+/// a dense file, or a sparse file, respectivly
+pub struct BackupObject<T: Read> {
+    ranges: Vec<ByteRange<T>>,
 }
 
-/// RestoreTarget::restore_object can write either densely or sparsely
+/// A collection of writers and byte ranges associated with them, used for restoring
+/// objects from the repository.
 ///
-/// The target should be able to determine which is approipiate for the given
-/// situation. The Target is assumed to have access to the archive/respoistory
-/// for this purpose.
-///
-/// RestoreTargets should only return Sparse when the data to be written
-/// contains holes.
-pub enum RestoreObject {
-    Dense {
-        object: Box<dyn Write>,
-    },
-    Sparse {
-        object: Box<dyn WriteSeek>,
-        holes: Vec<Hole>,
-    },
+/// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
+/// a dense file, or a sparse file, respectivly
+pub struct RestoreObject<T: Write> {
+    ranges: Vec<ByteRange<T>>,
 }
 
 /// Collection of methods that a backup driver has to implement in order for a
@@ -71,7 +36,7 @@ pub enum RestoreObject {
 /// As the work of commiting objects to an archive may be split among several
 /// threads, it is important that the target use a shared state among clones
 /// and be tread safe
-pub trait BackupTarget: Clone + Send + Sync {
+pub trait BackupTarget<T: Read>: Clone + Send + Sync {
     /// Returns a list of object paths in the backend
     ///
     /// Paths are plaintext, "/" or "\" delimited strings of form "/path/to/object"
@@ -91,7 +56,7 @@ pub trait BackupTarget: Clone + Send + Sync {
     /// Additional pieces of metatdata, such as filesystem permissions
     /// should be stored in a namespace roughly matching the path of the
     /// datastructure that represents them, e.g. filesystem:permissions:
-    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject>;
+    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<T>>;
 
     /// Returns a serialized listing that should be stored in an archive at
     /// archive:listing
@@ -104,7 +69,7 @@ pub trait BackupTarget: Clone + Send + Sync {
 ///
 /// As the work of restoring an archive should be split among serveral threads,
 /// it is important that targets be thread-aware and thread safe.Into
-pub trait RestoreTarget: Clone + Send + Sync {
+pub trait RestoreTarget<T: Write>: Clone + Send + Sync {
     /// Loads an object listing and creates a new restore target from it
     ///
     /// Will return None if deserializing the listing fails.
@@ -113,7 +78,7 @@ pub trait RestoreTarget: Clone + Send + Sync {
     /// Takes an object path
     ///
     /// Returns a hashmap, keyed by namespace, of the various parts of this object
-    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject>;
+    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<T>>;
 
     /// Provides a list of the path strings
     fn restore_listing(&self) -> Vec<String>;
