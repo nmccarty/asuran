@@ -57,11 +57,14 @@ impl BackupTarget<File> for FileSystemTarget {
         // Get the size of the file
         let meta = metadata(path.clone()).expect("Unable to read file metatdata");
         let mut file_object = BackupObject::new(meta.len() as usize);
-        file_object.direct_add_range(
-            0,
-            (meta.len() - 1) as usize,
-            File::open(path.clone()).expect("Unable to open file"),
-        );
+        // An empty file has no extents
+        if meta.len() > 0 {
+            file_object.direct_add_range(
+                0,
+                (meta.len() - 1) as usize,
+                File::open(path.clone()).expect("Unable to open file"),
+            );
+        }
         output.insert("".to_string(), file_object);
         self.listing
             .lock()
@@ -105,6 +108,7 @@ impl RestoreTarget<File> for FileSystemTarget {
         // TODO: Filesize support
         let mut file_object = RestoreObject::new(0);
         // FIXME: Currently does not have filesize info
+        // FIXME: Currently misbehaves and still returns a range for a zero sized file
         file_object.direct_add_range(
             0,
             0,
