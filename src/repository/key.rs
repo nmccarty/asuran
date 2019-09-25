@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 /// Stores the encryption key used by the archive
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug,Zeroize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Zeroize)]
 #[zeroize(drop)]
 pub struct Key {
     // TODO: Store multiple keys for various processes that require them
@@ -24,7 +24,7 @@ impl Key {
         let mut buffer1 = Vec::new();
         let mut buffer2 = Vec::new();
         let mut buffer3 = Vec::new();
-        for (i, byte) in bytes.iter().enumerate(){
+        for (i, byte) in bytes.iter().enumerate() {
             match i % 3 {
                 0 => buffer1.push(*byte),
                 1 => buffer2.push(*byte),
@@ -61,6 +61,16 @@ impl Key {
     /// Obtains a refrence to the key bytes
     pub fn key(&self) -> &[u8] {
         &self.key
+    }
+
+    /// Obtains a refrence to the HMAC key bytes
+    pub fn hmac_key(&self) -> &[u8] {
+        &self.hmac_key
+    }
+
+    /// Obtains a refrence to the ID key bytes
+    pub fn id_key(&self) -> &[u8] {
+        &self.id_key
     }
 
     /// Obtains the chunker nonce
@@ -109,7 +119,7 @@ impl EncryptedKey {
         let mut generated_key_bytes = vec![0; encryption.key_length()];
         scrypt(user_key, &salt, &params, &mut generated_key_bytes);
         // Encrypt the key using the derived key
-        let encrypted_bytes = encryption.encrypt(&key_buffer, &generated_key_bytes);
+        let encrypted_bytes = encryption.encrypt_bytes(&key_buffer, &generated_key_bytes);
 
         EncryptedKey {
             encrypted_bytes,
@@ -145,7 +155,7 @@ impl EncryptedKey {
         // Decrypt the key
         let key_bytes = self
             .encryption
-            .decrypt(&self.encrypted_bytes, &generated_key_bytes)?;
+            .decrypt_bytes(&self.encrypted_bytes, &generated_key_bytes)?;
         // Deserialize the key
         let mut de = Deserializer::new(&key_bytes[..]);
         let key: Key = Deserialize::deserialize(&mut de).ok()?;

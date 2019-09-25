@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 use zeroize::Zeroize;
 
+use crate::repository::Key;
+
 #[cfg(feature = "profile")]
 use flamer::*;
 
@@ -48,7 +50,13 @@ impl Encryption {
     /// key, so any value can be used. Will pad key with zeros if it is too short
     ///
     /// Will panic on encryption failure
-    pub fn encrypt(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
+    pub fn encrypt(&self, data: &[u8], key: &Key) -> Vec<u8> {
+        self.encrypt_bytes(data, key.key())
+    }
+
+    /// Internal method that does the actual encryption, please use the encrypt method
+    /// to avoid key confusion
+    pub fn encrypt_bytes(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
             Encryption::NoEncryption => data.to_vec(),
             Encryption::AES256CBC { iv } => {
@@ -115,7 +123,11 @@ impl Encryption {
     /// so any value can be used. Will pad key with zeros if it is too short.
     ///
     /// Will return None on encryption failure
-    pub fn decrypt(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+    pub fn decrypt(&self, data: &[u8], key: &Key) -> Option<Vec<u8>> {
+        self.decrypt_bytes(data, key.key())
+    }
+
+    pub fn decrypt_bytes(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
         match self {
             Encryption::NoEncryption => Some(data.to_vec()),
             Encryption::AES256CBC { iv } => {
@@ -205,8 +217,8 @@ mod tests {
 
         let data_string =
             "The quick brown fox jumps over the lazy dog. Jackdaws love my big sphinx of quartz.";
-        let encrypted_string = enc.encrypt(data_string.as_bytes(), &key);
-        let decrypted_bytes = enc.decrypt(&encrypted_string, &key).unwrap();
+        let encrypted_string = enc.encrypt_bytes(data_string.as_bytes(), &key);
+        let decrypted_bytes = enc.decrypt_bytes(&encrypted_string, &key).unwrap();
         let decrypted_string = str::from_utf8(&decrypted_bytes).unwrap();;
 
         println!("Input string: {}", data_string);

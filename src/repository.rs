@@ -187,7 +187,7 @@ impl<T: Backend> Repository<T> {
             self.compression,
             self.encryption.new_iv(),
             self.hmac,
-            self.key.key(),
+            &self.key,
         );
 
         self.write_raw(chunk)
@@ -211,7 +211,7 @@ impl<T: Backend> Repository<T> {
             self.compression,
             self.encryption.new_iv(),
             self.hmac,
-            self.key.key(),
+            &self.key,
             id,
         );
 
@@ -238,7 +238,7 @@ impl<T: Backend> Repository<T> {
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
 
-            let data = chunk.unpack(self.key.key())?;
+            let data = chunk.unpack(&self.key)?;
 
             Some(data)
         } else {
@@ -361,9 +361,9 @@ impl Chunk {
         compression: Compression,
         encryption: Encryption,
         hmac: HMAC,
-        key: &[u8],
+        key: &Key,
     ) -> Chunk {
-        let id_mac = hmac.mac(&data, key);
+        let id_mac = hmac.id(&data, key);
         let compressed_data = compression.compress(data);
         let data = encryption.encrypt(&compressed_data, key);
         let id = ChunkID::new(&id_mac);
@@ -387,7 +387,7 @@ impl Chunk {
         compression: Compression,
         encryption: Encryption,
         hmac: HMAC,
-        key: &[u8],
+        key: &Key,
         id: ChunkID,
     ) -> Chunk {
         let compressed_data = compression.compress(data);
@@ -409,8 +409,8 @@ impl Chunk {
     /// Will return none if either the decompression or the decryption fail
     ///
     /// Will also return none if the HMAC verification fails
-    pub fn unpack(&self, key: &[u8]) -> Option<Vec<u8>> {
-        if self.hmac.verify(&self.mac, &self.data, key) {
+    pub fn unpack(&self, key: &Key) -> Option<Vec<u8>> {
+        if self.hmac.verify_hmac(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
             let decompressed_data = self.compression.decompress(decrypted_data)?;
 
@@ -485,9 +485,7 @@ mod tests {
         let data_bytes = data_string.as_bytes().to_vec();
         println!("Data: \n:{:X?}", data_bytes);
 
-        let mut key: [u8; 32] = [0; 32];
-        thread_rng().fill_bytes(&mut key);
-
+        let key = Key::random(32);
         let packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
 
         let output_bytes = packed.unpack(&key);
@@ -541,8 +539,7 @@ mod tests {
         let encryption = Encryption::NoEncryption;
         let hmac = HMAC::SHA256;
 
-        let mut key: [u8; 32] = [0; 32];
-        thread_rng().fill_bytes(&mut key);
+        let key = Key::random(32);
 
         let mut packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
         packed.break_data(5);
