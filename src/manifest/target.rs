@@ -18,7 +18,40 @@ pub struct ByteRange<T> {
 /// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
 /// a dense file, or a sparse file, respectivly
 pub struct BackupObject<T: Read> {
+    /// The ranges of bytes that compose this object
     ranges: Vec<ByteRange<T>>,
+    /// Total size of the object in bytes, including any holes
+    total_size: usize,
+}
+
+impl<T: Read> BackupObject<T> {
+    /// Create a new, empty BackupObject with a defined size
+    pub fn new(total_size: usize) -> BackupObject<T> {
+        let ranges = Vec::new();
+        BackupObject { ranges, total_size }
+    }
+
+    /// Add a new range to the list
+    ///
+    /// TODO: Store the ranges in sorted order
+    pub fn add_range(&mut self, range: ByteRange<T>) {
+        self.ranges.push(range);
+    }
+
+    /// Returns the total_size of the object
+    pub fn total_size(&self) -> usize {
+        self.total_size
+    }
+
+    /// Sets the total size of the object
+    pub fn set_total_size(&mut self, total_size: usize) {
+        self.total_size = total_size;
+    }
+
+    /// Returns the ranges in the object, consuming this struct
+    pub fn ranges(self) -> Vec<ByteRange<T>> {
+        self.ranges
+    }
 }
 
 /// A collection of writers and byte ranges associated with them, used for restoring
@@ -27,7 +60,40 @@ pub struct BackupObject<T: Read> {
 /// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
 /// a dense file, or a sparse file, respectivly
 pub struct RestoreObject<T: Write> {
+    /// The list of writers and extents used to restore an object
     ranges: Vec<ByteRange<T>>,
+    /// Total size of the resulting object, including any holes
+    total_size: usize,
+}
+
+impl<T: Write> RestoreObject<T> {
+    /// Create a new, empty RestorepObject with a defined size
+    pub fn new(total_size: usize) -> RestoreObject<T> {
+        let ranges = Vec::new();
+        RestoreObject { ranges, total_size }
+    }
+
+    /// Add a new range to the list
+    ///
+    /// TODO: Store the ranges in sorted order
+    pub fn add_range(&mut self, range: ByteRange<T>) {
+        self.ranges.push(range);
+    }
+
+    /// Returns the total_size of the object
+    pub fn total_size(&self) -> usize {
+        self.total_size
+    }
+
+    /// Sets the total size of the object
+    pub fn set_total_size(&mut self, total_size: usize) {
+        self.total_size = total_size;
+    }
+
+    /// Returns the ranges in the object, consuming this struct
+    pub fn ranges(self) -> Vec<ByteRange<T>> {
+        self.ranges
+    }
 }
 
 /// Collection of methods that a backup driver has to implement in order for a
