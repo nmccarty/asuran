@@ -100,6 +100,9 @@ impl Archive {
         }
     }
 
+    /// Places an object into a archive, as a whole, without regard to sparsity
+    ///
+    /// Will read holes as 0s
     #[cfg_attr(feature = "profile", flame)]
     pub fn put_object(
         &mut self,
@@ -135,6 +138,9 @@ impl Archive {
         Some(())
     }
 
+    /// Retreives an object from the archive, without regard to sparsity.
+    ///
+    /// Will fill in holes with zeros.
     #[cfg_attr(feature = "profile", flame)]
     pub fn get_object(
         &self,
