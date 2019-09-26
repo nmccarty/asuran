@@ -13,6 +13,15 @@ use flame::*;
 #[cfg(feature = "profile")]
 use flamer::flame;
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+/// Extent range
+///
+/// Values are 0 indexed
+pub struct Extent {
+    pub start: u64,
+    pub end: u64,
+}
+
 /// Pointer to an archive in a repository
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StoredArchive {
