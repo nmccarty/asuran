@@ -13,7 +13,7 @@ use flame::*;
 #[cfg(feature = "profile")]
 use flamer::flame;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 /// Extent range
 ///
 /// Values are 0 indexed
@@ -138,6 +138,41 @@ impl Archive {
         Some(())
     }
 
+    /// Inserts a sparse object into the archive
+    ///
+    /// Requires that the object be pre-split into extents
+    pub fn put_sparse_object(
+        &mut self,
+        chunker: &Chunker,
+        repository: &mut Repository<impl Backend>,
+        path: &str,
+        from_readers: Vec<(Extent, impl Read)>,
+    ) -> Option<()> {
+        let mut locations: Vec<ChunkLocation> = Vec::new();
+        let path = self.canonical_namespace() + path;
+
+        for (extent, read) in from_readers {
+            let slices = chunker.chunked_iterator(read);
+            for Slice { data, start, end } in slices {
+                let id = repository.write_chunk(data)?.0;
+                // This math works becasue extents are 0 indexed
+                locations.push(ChunkLocation {
+                    id,
+                    start: start + extent.start,
+                    length: end - start + 1,
+                });
+            }
+        }
+
+        let mut objects = self
+            .objects
+            .write()
+            .expect("Lock on Archive::objects is posioned");
+        objects.insert(path.to_string(), locations);
+
+        Some(())
+    }
+
     /// Retreives an object from the archive, without regard to sparsity.
     ///
     /// Will fill in holes with zeros.
@@ -173,6 +208,64 @@ impl Archive {
             last_index = start + location.length - 1;
         }
 
+        Some(())
+    }
+
+    /// Retrieve a single extent of an object from the repository
+    ///
+    /// Will write past the end of the last chunk ends after the extent
+    pub fn get_extent(
+        &self,
+        repository: &Repository<impl Backend>,
+        path: &str,
+        extent: Extent,
+        mut restore_to: impl Write,
+    ) -> Option<()> {
+        let path = self.canonical_namespace() + path;
+        let objects = self
+            .objects
+            .read()
+            .expect("Lock on Archive::objects is posioned.");
+
+        let mut locations = objects.get(&path.to_string())?.clone();
+        locations.sort_unstable();
+        let locations = locations
+            .iter()
+            .filter(|x| x.start >= extent.start && x.start <= extent.end);
+        // If there are any holes in the extent, fill them in with zeros
+        let mut last_index = extent.start;
+        for location in locations {
+            let id = location.id;
+            // Perform filling if needed
+            let start = location.start;
+            if start > last_index + 1 {
+                let zero = [0_u8];
+                for _ in last_index + 1..start {
+                    restore_to.write(&zero).ok()?;
+                }
+            }
+            let bytes = repository.read_chunk(id)?;
+            restore_to.write_all(&bytes).ok()?;
+            last_index = start + location.length - 1;
+        }
+
+        Some(())
+    }
+
+    /// Retrieves a sparse object from the repository
+    ///
+    /// Will skip over holes
+    ///
+    /// Will not write to extents that are not specified
+    pub fn get_sparse_object(
+        &self,
+        repository: &Repository<impl Backend>,
+        path: &str,
+        mut to_writers: Vec<(Extent, impl Write)>,
+    ) -> Option<()> {
+        for (extent, restore_to) in to_writers.iter_mut() {
+            self.get_extent(repository, path, *extent, restore_to)?;
+        }
         Some(())
     }
 
