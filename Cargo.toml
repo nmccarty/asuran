@@ -33,4 +33,5 @@ blake2b_simd = "0.5"
 
 [dev-dependencies]
 quickcheck = "0.9"
+quickcheck_macros = "0.8"
 dir-diff = "0.3"

@@ -327,10 +327,10 @@ mod tests {
     use crate::repository::encryption::Encryption;
     use crate::repository::hmac::HMAC;
     use crate::repository::Key;
-    use quickcheck::quickcheck;
+    use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use std::fs;
-    use std::io::{BufReader, Cursor};
+    use std::io::{BufReader, Cursor, Seek, SeekFrom};
     use std::path::Path;
     use tempfile::tempdir;
 
@@ -348,52 +348,143 @@ mod tests {
         )
     }
 
-    quickcheck! {
-        fn single_add_get(seed: u64) -> bool {
-            println!("Seed: {}", seed);
-            let chunker = Chunker::new(8, 12, 0);
+    #[quickcheck]
+    fn single_add_get(seed: u64) -> bool {
+        println!("Seed: {}", seed);
+        let chunker = Chunker::new(8, 12, 0);
 
-            let key = Key::random(32);
-            let size = 2 * 2_usize.pow(14);
-            let mut data = vec![0_u8; size];
-            let mut rand = SmallRng::seed_from_u64(seed);
-            rand.fill_bytes(&mut data);
-            let mut repo = get_repo(key);
+        let key = Key::random(32);
+        let size = 2 * 2_usize.pow(14);
+        let mut data = vec![0_u8; size];
+        let mut rand = SmallRng::seed_from_u64(seed);
+        rand.fill_bytes(&mut data);
+        let mut repo = get_repo(key);
 
+        let mut archive = Archive::new("test");
 
-            let mut archive = Archive::new("test");
-
-            let testdir = tempdir().unwrap();
-            let input_file_path = testdir.path().join(Path::new("file1"));
-            {
-                let mut input_file = fs::File::create(input_file_path.clone()).unwrap();
-                input_file.write_all(&data).unwrap();
-            }
-            let mut input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
-
-            archive.put_object(&chunker, &mut repo, "FileOne", &mut input_file);
-
-            let mut buf = Cursor::new(Vec::<u8>::new());
-            archive.get_object(&mut repo, "FileOne", &mut buf);
-
-            let output = buf.into_inner();
-            println!("Input length: {}", data.len());
-            println!("Output length: {}", output.len());
-
-            let mut mismatch = false;
-            for i in 0..data.len() {
-                if data[i] != output[i] {
-                    println!(
-                        "Byte {} was different in output. Input val: {:X?} Output val {:X?}",
-                        i, data[i], output[i]
-                    );
-
-                    mismatch = true;
-                }
-            }
-
-            !mismatch
+        let testdir = tempdir().unwrap();
+        let input_file_path = testdir.path().join(Path::new("file1"));
+        {
+            let mut input_file = fs::File::create(input_file_path.clone()).unwrap();
+            input_file.write_all(&data).unwrap();
         }
+        let mut input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
+
+        archive.put_object(&chunker, &mut repo, "FileOne", &mut input_file);
+
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        archive.get_object(&mut repo, "FileOne", &mut buf);
+
+        let output = buf.into_inner();
+        println!("Input length: {}", data.len());
+        println!("Output length: {}", output.len());
+
+        let mut mismatch = false;
+        for i in 0..data.len() {
+            if data[i] != output[i] {
+                println!(
+                    "Byte {} was different in output. Input val: {:X?} Output val {:X?}",
+                    i, data[i], output[i]
+                );
+
+                mismatch = true;
+            }
+        }
+
+        !mismatch
+    }
+
+    #[quickcheck]
+    fn sparse_add_get(seed: u64) -> bool {
+        let chunker = Chunker::new(8, 12, 0);
+        let key = Key::random(32);
+        let root_dir = tempdir().unwrap();
+        let root_path = root_dir.path().display().to_string();
+
+        let backend = FileSystem::new_test(&root_path);
+        let mut repo = Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            key,
+        );
+        repo.commit_index();
+
+        let mut archive = Archive::new("test");
+
+        let mut rng = SmallRng::seed_from_u64(seed);
+        // Generate a random number of extents from one to ten
+        let mut extents: Vec<Extent> = Vec::new();
+        let extent_count: usize = rng.gen_range(1, 10);
+        let mut next_start: u64 = 0;
+        let mut final_size: usize = 0;
+        for _ in 0..extent_count {
+            // Each extent can be between 256 bytes and 16384 bytes long
+            let extent_length = rng.gen_range(256, 16384);
+            let extent = Extent {
+                start: next_start,
+                end: next_start + extent_length,
+            };
+            // Keep track of final size as we grow
+            final_size = (next_start + extent_length) as usize;
+            extents.push(extent);
+            // Each extent can be between 256 and 16384 bytes appart
+            let jump = rng.gen_range(256, 16384);
+            next_start = next_start + extent_length + jump;
+        }
+
+        // Create the test data
+        let mut test_input = vec![0_u8; final_size];
+        // Fill the test vector with random data
+        for Extent { start, end } in extents.clone() {
+            for i in start..end {
+                test_input[i as usize] = rng.gen();
+            }
+        }
+
+        // Make the extent list
+        let mut extent_list = Vec::new();
+        for extent in extents.clone() {
+            extent_list.push((
+                extent,
+                &test_input[extent.start as usize..extent.end as usize],
+            ));
+        }
+
+        // println!("Extent list: {:?}", extent_list);
+        // Load data into archive
+        archive
+            .put_sparse_object(&chunker, &mut repo, "test", extent_list)
+            .expect("Archive Put Failed");
+
+        // Create output vec
+        let test_output = Vec::new();
+        println!("Output is a buffer of {} bytes.", final_size);
+        let mut cursor = Cursor::new(test_output);
+        for (i, extent) in extents.clone().iter().enumerate() {
+            println!("Getting extent #{} : {:?}", i, extent);
+            cursor
+                .seek(SeekFrom::Start(extent.start))
+                .expect("Out of bounds");
+            archive
+                .get_extent(&repo, "test", *extent, &mut cursor)
+                .expect("Archive Get Failed");
+        }
+        let test_output = cursor.into_inner();
+        println!("Input is now a buffer of {} bytes.", test_input.len());
+        println!("Output is now a buffer of {} bytes.", test_output.len());
+
+        for i in 0..test_input.len() {
+            if test_output[i] != test_input[i] {
+                println!("Difference at {}", i);
+                break;
+            }
+        }
+
+        std::mem::drop(repo);
+
+        test_input == test_output
     }
 
     #[test]
@@ -480,5 +571,4 @@ mod tests {
 
         assert_eq!(&obj1.into_inner()[..], &obj_restore.into_inner()[..]);
     }
-
 }
