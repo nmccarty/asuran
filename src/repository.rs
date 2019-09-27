@@ -476,7 +476,7 @@ impl Chunk {
 mod tests {
     use super::*;
     use rand::prelude::*;
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     fn chunk_with_settings(compression: Compression, encryption: Encryption, hmac: HMAC) {
         let data_string =
@@ -493,17 +493,20 @@ mod tests {
         assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
     }
 
-    fn get_repo(key: Key) -> Repository<FileSystem> {
+    fn get_repo(key: Key) -> (Repository<FileSystem>, TempDir) {
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
 
         let backend = FileSystem::new_test(&root_path);
-        Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
+        (
+            Repository::new(
+                backend,
+                Compression::ZStd { level: 1 },
+                HMAC::Blake2b,
+                Encryption::new_aes256ctr(),
+                key,
+            ),
+            root_dir,
         )
     }
 
@@ -561,7 +564,7 @@ mod tests {
         let mut data3 = vec![0_u8; size as usize];
         thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo(key);
+        let (mut repo, root_dir) = get_repo(key);
 
         println!("Adding Chunks");
         let key1 = repo.write_chunk(data1.clone()).unwrap().0;
@@ -576,6 +579,7 @@ mod tests {
         assert_eq!(data1, out1);
         assert_eq!(data2, out2);
         assert_eq!(data3, out3);
+        std::mem::drop(repo);
     }
 
     #[test]
@@ -638,7 +642,7 @@ mod tests {
     fn double_add() {
         // Adding the same chunk to the repository twice shouldn't result in
         // two chunks in the repository
-        let mut repo = get_repo(Key::random(32));
+        let (mut repo, root_dir) = get_repo(Key::random(32));
         assert_eq!(repo.count_chunk(), 0);
         let data = [1_u8; 8192];
 
@@ -649,9 +653,19 @@ mod tests {
         assert_eq!(repo.count_chunk(), 1);
         assert_eq!(unique_2, true);
         assert_eq!(key_1, key_2);
+        std::mem::drop(repo);
     }
 
     #[test]
     fn repo_send_sync() {}
-
+    #[test]
+    fn immediate_drop() {
+        // This was resulting in a SIG
+        let key = Key::random(32);
+        let (mut repo, root_dir) = get_repo(key);
+        repo.commit_index();
+        println!("Index comiitted!");
+        std::mem::drop(repo);
+        assert!(true);
+    }
 }
