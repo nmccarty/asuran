@@ -1,0 +1,280 @@
+
+#+TITLE: Asuran
+#+INFOJS_OPT: view:t toc:t ltoc:t mouse:underline buttons:0 path:http://thomasf.github.io/solarized-css/org-info.min.js
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
+* Overview
+  Asuran is a new archive format, and an implementation (in rust) of both a read/write library as
+  well as a command line tool.
+* Features Overview
+** Deduplication
+   Deduplication is achieved through a combination of content defined slicing and content
+   addressable storage. The CAS backend will only store each chunk submitted to it once. The content
+   defined slicing provides a reasonable assurance that objects will be broken up into chunks in
+   shuch a way that duplicate chunks will occur, if possible, and not be stored twice.
+** Encryption
+   The encryption backend is plugable and can be changed on a chunk-by-chunk basis. Changing the
+   default encryption will only change the encryption method for new chunks.
+   
+   Each chunk is encrypted and then put in an Object along side a tag indicating the encrytion
+   algorthim used, as well as the IV if the algorthim requires one.
+*** TODO Supported Encryption types
+    The supported encryption types are as follows. All types are authenticated with an HMAC tag,
+    weither or not the algorthim includes auth entication.
+
+    1. [X] No Encryption (Passthrough cipher)
+    2. [X] AES256-CBC
+    3. [X] AES256-CTR
+    4. [X] AES256-GCM
+    5. [ ] chacha20-poly1305
+    6. [ ] Twofish
+    7. [ ] Serpent
+** Compression
+   The compression backend is pluggable and supports a vareity of compression
+   algorithims. Compression takes place before encryption, and each chunk is tagged with the
+   compression algorithim used to compress it[fn:4].
+*** TODO Supported Compression types
+    Supported Compression types are as follows
+    
+    1. [X] No Compression
+    2. [X] ZStd
+    3. [ ] Zlib
+    4. [ ] LZO
+    5. [ ] LZ4
+    6. [ ] BZip
+    7. [ ] LZMA
+** Authentication
+   All data in the repository accessible through the manifest is authenticated using an HMAC
+   mechanisim, where items are pointed to through their HMAC, which is verified upon retrival.
+   
+   In addition, each chunk is HMACed after encryption, and this seperate HMAC is verified before the
+   decryption happens. The HMACs should use two seperate keys, but currently do not.
+
+   Blake2b is currenly the default HMAC algorthim, as it is far faster in software than most of the
+   competition, and proviedes a quite reasonable assurance of security.
+*** TODO Supported Hashes for HMAC
+    The supported HMAC algorthims are as follows
+
+    1. [X] SHA256
+    2. [X] Blake2b
+    3. [ ] SHA3
+    4. [ ] Blake2s
+    5. [ ] Whirlpool
+    6. [ ] MD6
+* Internals Overview
+** Repository
+   The repository is a low level key-value store that is commited to disk. All values (refered to
+   as "chunks") in the repository are encrypted, compressed, and HMACed with algorithims
+   configurable on a per-value basis.
+
+   The repository only understands keys and values, and effectivly operates as content addressable
+   storage, all other data structures are implemented on top of the repository.
+
+   The repository structure itself is storage-independent. The repository object itself simply views
+   the world as list of segmenets, which themselves are lists of sized cells containing values.
+
+   Repositories are not strictly required to have multiple segements, and segments are not strictly
+   required to contain multiple chunks. This allows simple mapping of any random access storage as
+   (possibly) a single segment, or an object type store (such as S3) as a number of segments each
+   containing one or many chunks.
+
+   The repository has special methods for pulling the manfiest and index out of itself, and it may
+   or may not treat these pieces of data as speical, depending ont the backend implementation in
+   use. Typically, the manifest will be stored as a normal Chunk with a special key that is all
+   zero.
+*** Chunks
+    A chunk is the represenation of a value in the repository.
+
+    It is a compressed and encrypted sequence of bytes, along with a set of tags describing the
+    encryption, compression, and HMAC algorthims used, as well as any IVs those algrothims require.
+
+    Chunks contain two HMAC values, id and hmac.
+
+    Compression and encryption are swappable on a per chunk basis.
+**** TODO ID
+     The ID of the Chunk is the HMAC of its plain text content, ideally using a different key than
+     hmac, but currently uses the same key. (Will be changed in a future version).
+     
+     ID is used for deduplication, and is the key used to refrence the chunk in the repository.
+**** HMAC
+     The HMAC of the chunk is, as the name implies, an HMAC of the chunk's encrypted contents. This
+     is used for authentication and data intregity verification.
+*** Repository Backend
+    The repository backend is responsible for translating the reposistory's "list of lists"
+    segement/chunk view onto whatever storage backend is desired.  The backend is additionally
+    responsible for providing a map from keys to (Semgement, Offset) pairs.
+
+    Segments are stored as the concatination of the bytes making up the MessagePack representation
+    of their chunks.
+
+    As long as the methods return what they should, Asuran places no restrictions on how the
+    underlying mapping occurs, or what side effects the methods should perform.
+    
+    These methods are extremely likely to be side effect prone in any implementation, and,
+    generally, should not be called directly by the consumer, and instead used indirectly through
+    the repository API.
+**** Filesystem Backend
+     The filesystem back end uses a configurable segment size[fn:1], storing segements in folders
+     with a configurable limit on the number of segments in a folder[fn:2] (to avoid filesystem
+     operations bogging down).
+** Manifest
+   The manifest is the root of the repository's object graph, and is the primary object through
+   which repository access is managed.
+   
+   The manifest contains a list of refrence to Archive objects within the repository, as well as
+   methods for manging them. The manfiest also contains utility methods, that when paired with a
+   Target driver, can be used to backup objects to and restore objects from a repository.
+
+   The manifest additionally contains a timestamp of its last modification, as well as the ability
+   to load and commit itself from/to the repository.
+*** Archive
+    An archive is conceptually a collection of objects stored in a repository.  This is the most
+    common entry and exit point for data.
+
+    An archive object contains a name[fn:3], a list of the objects in the archive (stored as a
+    HashMap mapping the path of the object to a list of its chunks and the offsets of the chunk
+    within the object), as well as the timestamp of the archive's creation.
+
+    The timestamp is primarly intended to prevent replay attacks, but also serves to provide the
+    user with additional information, as well as allowing the user to distinguish multiple archives
+    with identical names.
+
+    Object paths are unix-path style "/" delimited lists of tokens, and while they usually will map
+    directly to paths, they are not required to, thus the individual tokens are allowed to contain
+    any unicode character except "/".  The intrepetation of the paths is left up to the target
+    driver.
+
+    Archives are commited to a manfisest by MessagePacking them and storing the result as a Chunk in
+    the repository. The resulting ID is then wrapped in a StoredArchive object alongside the
+    metadata (name, creation date, etc...), and the StoredArchive is then added to the manifest
+    list.
+**** Namespaces
+     Archives are namespaced, allowing multiple objects with the same path to be contained in the
+     same archive, so long as they are in diffrent namespaces.
+     
+     Namespaces are described as colon delimited lists of tokens with a trailing colon, in order of
+     increasing specificty (e.g. 1:2: would describe a namspace named "2" inside of a namespace
+     named "1").
+
+     The complete path of a specific object in a repository is described by appending the path of
+     the object to its namespace string. For example, a file "/usr/share/example" stored in the root
+     namespace of an arcuhive would be refrenced by the string ":/usr/share/example", where as the
+     file's metatdata might be refrenced by "metadata:/usr/share/example", and auditing information
+     might be refrenced by "metadata:audit:/user/share/example".
+*** Targets
+    Targets abstract the operation of creating and restoring archive to/from various types of
+    storage. The API is written primarly to cater to the typical "files stored on a filesystem" use
+    case, but is by no means limited to it.
+
+    As long as the target storage has objects, that can be serialized into a byte stream, and the
+    "location" of those objects can be mapped to unix path style strings, then a valid target
+    implementation can be written for the storage.
+**** BackupTarget and RestoreTarget
+     BackupTarget and RestoreTarget are the traits that targets must be able to implement in order
+     to backup data to and restore data from an archive, respectivly. Most, if not all, targets will
+     implement both traits.
+***** BackupTarget
+      BackupTarget contains the following methods:
+      1. Paths
+	 Returns a list of objects to be stored, as well as their paths
+      2. Object
+	 Returns a reader for the object given its path (from the Paths method)
+      3. Listing
+	 Returns a serialized listing of all the objects stored. Typically
+	 stored in the archive at "archive:listing"
+***** RestoreTarget
+      RestoreTarget contains the following methods:
+      1. Load listing
+	 Parses the listing produced by BackupTarget::Paths
+      2. Object
+	 Returns a writer to the object's real location on the storage
+      3. Listing
+	 Provides a list of all paths to be restore.
+**** TODO Sparse Data
+     The target API is written to support the concept of sparse data, but currently no targets
+     actually have support for sparse data.
+
+     Once complete, dense data will just be handled as the degenerate case of sparese data that has
+     only one contiguous chunk. This will be implemented through describing BackupObjects and
+     RestoreObjects as lists of pre-seeked readers and writers, and dense data will simply be the
+     case where those lists only have one element.
+*** TODO Target Drivers
+    The target driver trait specifices a collection of methods for writing objects to and reading
+    objects from stroage. The driver should handle the process of reading and writing the objects in
+    their entirety, with the consumer only having to supply the repository, the archive, the root
+    path to restore releative too, and the target object path.
+** Chunker
+   The chunker is responsible for dividing objects into chunks of bytes, using some well-defined
+   method.
+
+   The chunker framework is pluggable, and while support is planned for several chunkers, both
+   special and general purpose, is planned, currently Asuran only implements one, a content defined
+   chunker based on the BuzHash algorithim.
+*** BuzHash
+    The buzhash chunker used a modification of the buzhash rolling hash algorthim to perform content
+    defined slicing.
+
+    It runs a rolling hash down the data, and slices it when the last /n/ bits of the hash are 0, as
+    long as other requirements are met.
+
+    This chunker has three settings:
+    1. Window Size
+       Adjusts the sizof the data window considered by the rolling hash
+    2. Mask Bits
+       How many bits of the hash have to be 0 to determine a slice.
+
+       With a Mask Bits value of /n/, the chunker will not split the data if it would result in a
+       chunk less than 2^{/n/ - 2} bytes in size, and will always split the data if the chunk is
+       about to exceed 2^{/n/ + 2} in size
+    3. Nonce 
+       This implementation randomizes the buzhash table to help prevent chunk size based
+       fingerprinting attacks. The Nonce is the seed used for the random number generator that fills
+       the table.
+*** TODO Static SIze
+    The static size chunker will always may the chunks the same, configurable, size
+*** TODO Disk Image Chunker
+    The disk image chunker will understand disk image formats, and chunk them in an intelegent way.
+**** TODO Raw Image Chunker
+     The raw image chunker will attempt to detect raw disk images (e.g. iso, img, etc..) and put any
+     metadata in its own chunks, and then attempt to make the chunk size match up with the block
+     size of the image.
+**** TODO VMA Chunker
+     This chunker should understand the Proxmox VMA format and be able to chunk it intelegently to
+     maximize dedeuplication.
+* Development Process 
+  As it is only me developing at the moment, the current development model isn't very structured. In
+  the future it will consist of a branch-per-featured model with branches being required to past a
+  minimium set of tests before being merged into master.
+** Roadmap
+*** 0.1.0 
+    Release 0.1.0 should be a somewhat usable product. It will still only operate in append only
+    mode, but will have support for an array of encryption, compression, and HMAC algorthim
+    types. It will additionally have a tentatively stabalized on-disk format. The repository should
+    be able to verfiy itself as a dedicated operation. The filessystem target should handle sparse
+    data correctly.
+**** TODO libasuran
+     libasuran 0.1.0 should have the following features:
+
+     - [ ] Somewhat stable on disk format
+     - [ ] Support for zlib, lzma, and lz4 compression
+     - [ ] Support for chacha20-poly1305 encryption
+     - [ ] Should have cargo benchmarks
+     - [ ] Should have a working sparse data API
+     - [ ] Should have a method for verifiying the integreity of the repo
+**** TODO asuran
+     asuran 0.1.0 should have the following features:
+
+     - [ ] Support for setting compression type/level
+     - [ ] Support for setting encryption type
+     - [ ] Support for setting HMAC algorthim
+     - [ ] Runtime tests/benchmarks
+     - [ ] Repository verification command
+*** 0.2.0
+* Footnotes
+
+[fn:4] The compression level used is also included in this tag, regardless of if it is needed or not.
+
+[fn:3] A name can be any arbitray string, and does not need to be unique.
+
+[fn:2] Currently 250 segements per folder by default
+
+[fn:1] Currently 250kB by default
