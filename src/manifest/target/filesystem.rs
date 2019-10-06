@@ -3,6 +3,7 @@ pub mod metadata;
 pub use metadata::*;
 
 use super::*;
+use crate::manifest::driver::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, metadata, File};
@@ -123,6 +124,8 @@ impl RestoreTarget<File> for FileSystemTarget {
     }
 }
 
+impl BackupDriver<File> for FileSystemTarget {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,5 +210,4 @@ mod tests {
 
         assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
     }
-
 }

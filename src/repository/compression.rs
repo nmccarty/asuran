@@ -74,5 +74,4 @@ mod tests {
 
         assert_eq!(data_string, decompressed_string);
     }
-
 }

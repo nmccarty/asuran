@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 
 /// Struct represening and object and a range of bytes it is responsible for
+///
+/// BUG: these need to be refactored into u64
 pub struct ByteRange<T> {
     pub start: usize,
     pub end: usize,

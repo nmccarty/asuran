@@ -7,9 +7,9 @@
 //! The repository is not encapsulated in the manifest because the manifest needs
 //! to be triviallly serializeable and deserilazeable.
 pub mod archive;
-pub mod target;
-pub mod listing;
 pub mod driver;
+pub mod listing;
+pub mod target;
 
 use crate::repository::{Backend, ChunkID, ChunkSettings, Repository};
 

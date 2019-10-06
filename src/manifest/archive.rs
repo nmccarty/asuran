@@ -173,6 +173,16 @@ impl Archive {
         Some(())
     }
 
+    /// Inserts an object into the archive without writing any bytes
+    pub fn put_empty(&mut self, path: &str) {
+        let locations: Vec<ChunkLocation> = Vec::new();
+        let mut objects = self
+            .objects
+            .write()
+            .expect("Lock on Archive::objects is posioned");
+        objects.insert(path.to_string(), locations);
+    }
+
     /// Retreives an object from the archive, without regard to sparsity.
     ///
     /// Will fill in holes with zeros.
