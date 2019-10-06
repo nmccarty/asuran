@@ -9,6 +9,7 @@
 pub mod archive;
 pub mod target;
 pub mod listing;
+pub mod driver;
 
 use crate::repository::{Backend, ChunkID, ChunkSettings, Repository};
 
