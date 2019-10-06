@@ -28,6 +28,11 @@
     5. [ ] chacha20-poly1305
     6. [ ] Twofish
     7. [ ] Serpent
+*** Key generation and storage
+    They keys used by the encryption and HMAC are generated randomly at repository creation, and are
+    stored on disk encrypted with a key derived from a user supplied passphrase. The current KDF
+    used is bcrypt, however this will be swapped out for a more modern one in the near future, most
+    likely argon2id.
 ** Compression
    The compression backend is pluggable and supports a variety of compression
    algorithms. Compression takes place before encryption, and each chunk is tagged with the
@@ -42,15 +47,18 @@
     5. [ ] LZ4
     6. [ ] BZip
     7. [ ] LZMA
+*** TODO Intelligent Compression 
+    Asuran will support (but currently does not) intelligent encrypt on, where it will do a trial
+    compression of the first chunk or chunks of a file with lz4, and if reasonable compression is
+    detected, use the selected compression algorithm too compress the chunks of the file, otherwise
+    applying no compression.
 ** Authentication
-   All data in the repository accessible through the manifest is authenticated using an HMAC
-   mechanism, where items are pointed to through their HMAC, which is verified upon retrieval.
-   
-   In addition, each chunk is HMACed after encryption, and this seperate HMAC is verified before the
-   decryption happens. The HMACs should use two seperate keys, but currently do not.
+   All data stored in the repository is authenticated through an encrypt-then-mac construction, with
+   HMAC-SHA256 and Blake2b currently supported. Asuran will sternly refuse to unpack a chunk if the
+   HMAC does not pass verification.
 
-   Blake2b is currently the default HMAC algorithm, as it is far faster in software than most of the
-   competition, and provides a quite reasonable assurance of security.
+   Content keys used by the CAS are generated with an HMAC of the plain text, using a different key
+   than the HMAC used for verification. These are currently not verified.
 *** TODO Supported Hashes for HMAC
     The supported HMAC algorithms are as follows
 
@@ -240,10 +248,13 @@
 **** TODO VMA Chunker
      This chunker should understand the Proxmox VMA format and be able to chunk it intelligently to
      maximize dedeuplication.
-* Development Process
+* Development Process / Contributing
   As it is only me developing at the moment, the current development model isn't very structured. In
   the future it will consist of a branch-per-featured model with branches being required to past a
   minimum set of tests before being merged into master.
+
+  Pull requests and issues are welcome, and by contributing to this project you agree to license
+  your work under the MIT license.
 ** Roadmap
 *** 0.1.0 
     Release 0.1.0 should be a somewhat usable product. It will still only operate in append only
@@ -299,6 +310,7 @@
      repository decreases deduplication by an extremely large factor and is just generally not good.
 ** Features I want that neither has
    - Tar import and export
+
      This isn't entirely true, borg has tar export and is working on tar import, but it lacks one
      feature that is critical to my workflow, reproducing the same tar file. My work flow involves a
      program that produces backups as tar files, and when restoring them looks for a special file
@@ -306,8 +318,36 @@
      the metadata of the tar the same, while still being able to take the tar apart and deduplciate
      the individual files within it, and use the compression defined by the repository.
    - Good multithreading
+
      While borg is python based and doesn't really used threads, restic has multithreading, but in
      my opinion, doesn't use it well
+** Comparison with [[https://github.com/dpc/rdedup][rdedup]]
+   rdedup is a very good tool, but falls sort in several areas for me. 
+
+   - No built in directory traversal
+     
+     rdedup depends on external tools like tar to make backups. In my experience this makes for a
+     poor deduplication rate compared to borg in my workflow.
+
+   - No current support for cloud backends
+     
+     This one is almost cheating because asuran does not currently have support for cloud backends,
+     but asuran was designed from the ground up to be storage-agnostic.
+
+   - No intelligent chunking
+
+     rdedup has good support for choosing from a few good content defined slicers, but lacks the
+     framework for intelligent slicing of known data types, such as disk images that can be sliced
+     blockwise, or intelligent picking apart of backups emitted by other applications in a way to
+     maximize deduplication.
+
+   - Little/no integration support
+
+     This complaint also somewhat applies to borg and restic, but to a lesser extent. libasuran is
+     designed to be called into from other applications, such as a carbonite style automatic backup
+     utility, allowing the easy creation of end user friendly applications that support the full
+     suite of asuran features.
+
 * Footnotes
 
 [fn:4] The compression level used is also included in this tag, regardless of if it is needed or not.
