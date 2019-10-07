@@ -63,8 +63,65 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
         path: &str,
     ) -> Option<()> {
         let objects = self.backup_object(path);
-        self.raw_store_object(repo, chunker, archive, path, objects)?;
+        self.raw_store_object(repo, chunker, archive, path, objects)
+    }
+}
 
+/// Collection of abstract methods for moving data from a storage target to a reposiotry
+///
+/// This trait provides resasonable default versions for you
+pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
+    /// Retrives an object from the repository using the output from RestoreTarget::restore_object
+    ///
+    /// This method should really only be used directly when you want to change the data in route,
+    /// otherwise use retrive_object.
+    ///
+    /// Retrives objects from the stub-namespaces of the namespace of the object provided
+    fn raw_retrive_object(
+        &self,
+        repo: &Repository<impl Backend>,
+        archive: &Archive,
+        path: &str,
+        objects: HashMap<String, RestoreObject<T>>,
+    ) -> Option<()> {
+        for (namespace, restore_object) in objects {
+            // TODO: get total size and do something with it
+            // Get a new archive with the specified namespace
+            let archive = archive.namespace_append(&namespace);
+            // Pull ranges out of object and determine sparsity
+            let mut ranges = restore_object.ranges();
+            // determin sparsity and retrieve object from repository
+            let range_count = ranges.len();
+            // This does not have a case for zero, as the target method should have already created
+            // an empty object
+            if range_count == 1 {
+                let object = ranges.remove(0).object;
+                archive.get_object(repo, path, object)?;
+            } else if range_count > 1 {
+                let mut writers: Vec<(Extent, T)> = Vec::new();
+                for object in ranges.into_iter() {
+                    let extent = Extent {
+                        start: object.start as u64,
+                        end: object.end as u64,
+                    };
+                    let object = object.object;
+                    writers.push((extent, object));
+                }
+                archive.get_sparse_object(repo, path, writers)?;
+            }
+        }
         Some(())
+    }
+
+    /// Retrieves an object, performing the call to BackupTarget::restore_object and raw_retrive_object
+    /// for you.
+    fn retrive_object(
+        &self,
+        repo: &Repository<impl Backend>,
+        archive: &Archive,
+        path: &str,
+    ) -> Option<()> {
+        let objects = self.restore_object(path);
+        self.raw_retrive_object(repo, archive, path, objects)
     }
 }

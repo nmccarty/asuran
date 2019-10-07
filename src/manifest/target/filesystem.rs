@@ -125,6 +125,7 @@ impl RestoreTarget<File> for FileSystemTarget {
 }
 
 impl BackupDriver<File> for FileSystemTarget {}
+impl RestoreDriver<File> for FileSystemTarget {}
 
 #[cfg(test)]
 mod tests {
