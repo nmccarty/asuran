@@ -57,12 +57,12 @@ impl BackupTarget<File> for FileSystemTarget {
 
         // Get the size of the file
         let meta = metadata(path.clone()).expect("Unable to read file metatdata");
-        let mut file_object = BackupObject::new(meta.len() as usize);
+        let mut file_object = BackupObject::new(meta.len());
         // An empty file has no extents
         if meta.len() > 0 {
             file_object.direct_add_range(
                 0,
-                (meta.len() - 1) as usize,
+                meta.len() - 1,
                 File::open(path.clone()).expect("Unable to open file"),
             );
         }

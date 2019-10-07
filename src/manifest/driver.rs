@@ -41,8 +41,8 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                 let mut readers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges.into_iter() {
                     let extent = Extent {
-                        start: object.start as u64,
-                        end: object.end as u64,
+                        start: object.start,
+                        end: object.end,
                     };
                     let object = object.object;
                     readers.push((extent, object));
@@ -101,8 +101,8 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges.into_iter() {
                     let extent = Extent {
-                        start: object.start as u64,
-                        end: object.end as u64,
+                        start: object.start,
+                        end: object.end,
                     };
                     let object = object.object;
                     writers.push((extent, object));

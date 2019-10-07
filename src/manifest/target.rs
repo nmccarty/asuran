@@ -9,8 +9,8 @@ use std::io::{Read, Write};
 ///
 /// BUG: these need to be refactored into u64
 pub struct ByteRange<T> {
-    pub start: usize,
-    pub end: usize,
+    pub start: u64,
+    pub end: u64,
     pub object: T,
 }
 
@@ -23,12 +23,12 @@ pub struct BackupObject<T: Read> {
     /// The ranges of bytes that compose this object
     ranges: Vec<ByteRange<T>>,
     /// Total size of the object in bytes, including any holes
-    total_size: usize,
+    total_size: u64,
 }
 
 impl<T: Read> BackupObject<T> {
     /// Create a new, empty BackupObject with a defined size
-    pub fn new(total_size: usize) -> BackupObject<T> {
+    pub fn new(total_size: u64) -> BackupObject<T> {
         let ranges = Vec::new();
         BackupObject { ranges, total_size }
     }
@@ -41,12 +41,12 @@ impl<T: Read> BackupObject<T> {
     }
 
     /// Returns the total_size of the object
-    pub fn total_size(&self) -> usize {
+    pub fn total_size(&self) -> u64 {
         self.total_size
     }
 
     /// Sets the total size of the object
-    pub fn set_total_size(&mut self, total_size: usize) {
+    pub fn set_total_size(&mut self, total_size: u64) {
         self.total_size = total_size;
     }
 
@@ -56,7 +56,7 @@ impl<T: Read> BackupObject<T> {
     }
 
     /// Adds a range without the caller needing to construct the objec themself
-    pub fn direct_add_range(&mut self, start: usize, end: usize, read: T) {
+    pub fn direct_add_range(&mut self, start: u64, end: u64, read: T) {
         self.add_range(ByteRange {
             start,
             end,
@@ -74,12 +74,12 @@ pub struct RestoreObject<T: Write> {
     /// The list of writers and extents used to restore an object
     ranges: Vec<ByteRange<T>>,
     /// Total size of the resulting object, including any holes
-    total_size: usize,
+    total_size: u64,
 }
 
 impl<T: Write> RestoreObject<T> {
     /// Create a new, empty RestorepObject with a defined size
-    pub fn new(total_size: usize) -> RestoreObject<T> {
+    pub fn new(total_size: u64) -> RestoreObject<T> {
         let ranges = Vec::new();
         RestoreObject { ranges, total_size }
     }
@@ -92,12 +92,12 @@ impl<T: Write> RestoreObject<T> {
     }
 
     /// Returns the total_size of the object
-    pub fn total_size(&self) -> usize {
+    pub fn total_size(&self) -> u64 {
         self.total_size
     }
 
     /// Sets the total size of the object
-    pub fn set_total_size(&mut self, total_size: usize) {
+    pub fn set_total_size(&mut self, total_size: u64) {
         self.total_size = total_size;
     }
 
@@ -107,7 +107,7 @@ impl<T: Write> RestoreObject<T> {
     }
 
     /// Adds a range without the caller needing to construct the objec themself
-    pub fn direct_add_range(&mut self, start: usize, end: usize, write: T) {
+    pub fn direct_add_range(&mut self, start: u64, end: u64, write: T) {
         self.add_range(ByteRange {
             start,
             end,
