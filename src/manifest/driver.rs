@@ -77,7 +77,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
     /// otherwise use retrive_object.
     ///
     /// Retrives objects from the stub-namespaces of the namespace of the object provided
-    fn raw_retrive_object(
+    fn raw_retrieve_object(
         &self,
         repo: &Repository<impl Backend>,
         archive: &Archive,
@@ -115,13 +115,13 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
 
     /// Retrieves an object, performing the call to BackupTarget::restore_object and raw_retrive_object
     /// for you.
-    fn retrive_object(
+    fn retrieve_object(
         &self,
         repo: &Repository<impl Backend>,
         archive: &Archive,
         path: &str,
     ) -> Option<()> {
         let objects = self.restore_object(path);
-        self.raw_retrive_object(repo, archive, path, objects)
+        self.raw_retrieve_object(repo, archive, path, objects)
     }
 }
