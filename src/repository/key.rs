@@ -9,7 +9,6 @@ use zeroize::Zeroize;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Zeroize)]
 #[zeroize(drop)]
 pub struct Key {
-    // TODO: Store multiple keys for various processes that require them
     key: Vec<u8>,
     hmac_key: Vec<u8>,
     id_key: Vec<u8>,
