@@ -1,5 +1,5 @@
 use crate::repository::Encryption;
-use crypto::scrypt::*;
+use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -81,16 +81,17 @@ impl Key {
 /// Stores the key, encrypted with another key dervied from the user specified
 /// password/passphrase
 ///
-/// Uses scrypt to derive the key
+/// Uses argon2 to derive the key
 ///
 /// Uses a 32 byte salt that is randomly generated
+///
+/// Currently uses semi-arbitrary defaults for some values. TODO: allow configuration of this
 #[derive(Serialize, Deserialize, Clone)]
 pub struct EncryptedKey {
     encrypted_bytes: Vec<u8>,
     salt: [u8; 32],
-    scrypt_n: u8,
-    scrypt_r: u32,
-    scrypt_p: u32,
+    mem_cost: u32,
+    time_cost: u32,
     encryption: Encryption,
 }
 
@@ -98,11 +99,10 @@ impl EncryptedKey {
     /// Produces an encrypted key from the specified userkey and encryption method
     pub fn encrypt(
         key: &Key,
+        mem_cost: u32,
+        time_cost: u32,
         encryption: Encryption,
         user_key: &[u8],
-        scrypt_n: u8,
-        scrypt_r: u32,
-        scrypt_p: u32,
     ) -> EncryptedKey {
         // get a fresh IV for the encryption method
         let encryption = encryption.new_iv();
@@ -114,18 +114,26 @@ impl EncryptedKey {
         let mut salt = [0; 32];
         thread_rng().fill_bytes(&mut salt);
         // Produce a key from the user key
-        let params = ScryptParams::new(scrypt_n, scrypt_r, scrypt_p);
-        let mut generated_key_bytes = vec![0; encryption.key_length()];
-        scrypt(user_key, &salt, &params, &mut generated_key_bytes);
-        // Encrypt the key using the derived key
+        let config = Config {
+            variant: Variant::Argon2id,
+            version: Version::Version13,
+            mem_cost,
+            time_cost,
+            thread_mode: ThreadMode::Sequential,
+            lanes: 1,
+            secret: &[],
+            ad: &[],
+            hash_length: encryption.key_length() as u32,
+        };
+
+        let generated_key_bytes = argon2::hash_raw(&user_key, &salt, &config).unwrap();
         let encrypted_bytes = encryption.encrypt_bytes(&key_buffer, &generated_key_bytes);
 
         EncryptedKey {
             encrypted_bytes,
             salt,
-            scrypt_n,
-            scrypt_p,
-            scrypt_r,
+            mem_cost,
+            time_cost,
             encryption,
         }
     }
@@ -140,7 +148,7 @@ impl EncryptedKey {
     ///  - r: 8
     ///  - p: 1
     pub fn encrypt_defaults(key: &Key, encryption: Encryption, user_key: &[u8]) -> EncryptedKey {
-        EncryptedKey::encrypt(key, encryption, user_key, 15, 8, 1)
+        EncryptedKey::encrypt(key, 65536, 10, encryption, user_key)
     }
 
     /// Attempts to decrypt the key using the provided user key
@@ -148,9 +156,18 @@ impl EncryptedKey {
     /// Will return none on failure
     pub fn decrypt(&self, user_key: &[u8]) -> Option<Key> {
         // Derive the key from the user key
-        let params = ScryptParams::new(self.scrypt_n, self.scrypt_r, self.scrypt_p);
-        let mut generated_key_bytes = vec![0; self.encryption.key_length()];
-        scrypt(user_key, &self.salt, &params, &mut generated_key_bytes);
+        let config = Config {
+            variant: Variant::Argon2id,
+            version: Version::Version13,
+            mem_cost: self.mem_cost,
+            time_cost: self.time_cost,
+            thread_mode: ThreadMode::Sequential,
+            lanes: 1,
+            secret: &[],
+            ad: &[],
+            hash_length: self.encryption.key_length() as u32,
+        };
+        let generated_key_bytes = argon2::hash_raw(&user_key, &self.salt, &config).unwrap();
         // Decrypt the key
         let key_bytes = self
             .encryption
