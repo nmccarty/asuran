@@ -12,9 +12,11 @@ edition = "2018"
 profile = ["flame", "flamer"]
 
 [dependencies]
+aes = "0.3.2"
+aes-ctr = "0.3.0"
+block-modes = "0.3.3"
 base64 = "0.10.1"
 zstd = "0.4"
-rust-crypto = "0.2.36"
 rust-argon2 = "0.5"
 rand = {version = "0.7", features=["small_rng"]}
 zeroize = { version  = "0.10", features = ["zeroize_derive"]}

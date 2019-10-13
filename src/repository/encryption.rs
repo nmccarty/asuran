@@ -1,5 +1,9 @@
-use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
-use crypto::{aes, blockmodes, buffer};
+use aes::Aes256;
+use aes_ctr::stream_cipher::generic_array::GenericArray;
+use aes_ctr::stream_cipher::{NewStreamCipher, SyncStreamCipher};
+use aes_ctr::Aes256Ctr;
+use block_modes::block_padding::Pkcs7;
+use block_modes::{BlockMode, Cbc};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -66,36 +70,8 @@ impl Encryption {
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let mut encryptor = aes::cbc_encryptor(
-                    aes::KeySize::KeySize256,
-                    &proper_key,
-                    iv,
-                    blockmodes::PkcsPadding,
-                );
-
-                let mut final_result = Vec::new();
-                let mut read_buffer = buffer::RefReadBuffer::new(data);
-                let mut buffer = [0; 4096];
-                let mut write_buffer = buffer::RefWriteBuffer::new(&mut buffer);
-
-                loop {
-                    let result = encryptor
-                        .encrypt(&mut read_buffer, &mut write_buffer, true)
-                        .unwrap();
-                    final_result.extend(
-                        write_buffer
-                            .take_read_buffer()
-                            .take_remaining()
-                            .iter()
-                            .cloned(),
-                    );
-
-                    match result {
-                        BufferResult::BufferUnderflow => break,
-                        BufferResult::BufferOverflow => {}
-                    }
-                }
-
+                let encryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&proper_key, &iv[..]).unwrap();
+                let final_result = encryptor.encrypt_vec(data);
                 // Zeroize key
                 proper_key.zeroize();
 
@@ -105,10 +81,11 @@ impl Encryption {
                 let mut proper_key: [u8; 32] = [0; 32];
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-
-                let mut encryptor = aes::ctr(aes::KeySize::KeySize256, &proper_key, &iv[..]);
-                let mut final_result = vec![0_u8; data.len()];
-                encryptor.process(&data, &mut final_result);
+                let key = GenericArray::from_slice(&key);
+                let iv = GenericArray::from_slice(&iv[..]);
+                let mut encryptor = Aes256Ctr::new(&key, &iv);
+                let mut final_result = data.to_vec();
+                encryptor.apply_keystream(&mut final_result);
 
                 proper_key.zeroize();
                 final_result
@@ -138,42 +115,8 @@ impl Encryption {
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let mut decryptor = aes::cbc_decryptor(
-                    aes::KeySize::KeySize256,
-                    &proper_key,
-                    iv,
-                    blockmodes::PkcsPadding,
-                );
-
-                let mut final_result = Vec::<u8>::new();
-                let mut read_buffer = buffer::RefReadBuffer::new(data);
-                let mut buffer = [0; 4096];
-                let mut write_buffer = buffer::RefWriteBuffer::new(&mut buffer);
-
-                loop {
-                    let result = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true);
-                    match result {
-                        Err(_) => {
-                            return {
-                                proper_key.zeroize();
-                                None
-                            }
-                        }
-                        Ok(result) => {
-                            final_result.extend(
-                                write_buffer
-                                    .take_read_buffer()
-                                    .take_remaining()
-                                    .iter()
-                                    .cloned(),
-                            );
-                            match result {
-                                BufferResult::BufferUnderflow => break,
-                                BufferResult::BufferOverflow => {}
-                            }
-                        }
-                    }
-                }
+                let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..]).ok()?;
+                let final_result = decryptor.decrypt_vec(data).ok()?;
 
                 // Zeroize key
                 proper_key.zeroize();
@@ -185,9 +128,11 @@ impl Encryption {
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let mut encryptor = aes::ctr(aes::KeySize::KeySize256, &proper_key, &iv[..]);
-                let mut final_result = vec![0_u8; data.len()];
-                encryptor.process(&data, &mut final_result);
+                let key = GenericArray::from_slice(&key);
+                let iv = GenericArray::from_slice(&iv[..]);
+                let mut decryptor = Aes256Ctr::new(&key, &iv);
+                let mut final_result = data.to_vec();
+                decryptor.apply_keystream(&mut final_result);
 
                 proper_key.zeroize();
                 Some(final_result)
