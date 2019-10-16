@@ -89,6 +89,11 @@ impl UnpackedChunk {
         self.id
     }
 
+    /// Returns a refrence to the data
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
     /// Consumes self and returns a real chunk
     pub fn pack(self, settings: &ChunkSettings, key: &Key) -> Chunk {
         Chunk::pack_with_id(
