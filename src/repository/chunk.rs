@@ -64,6 +64,44 @@ pub struct ChunkSettings {
     pub hmac: HMAC,
 }
 
+/// A raw block of data and its associated ChunkID
+///
+/// This data is not encrypted, compressed, or otherwise tampered with, and can not be directly
+/// inserted into the repo.
+pub struct UnpackedChunk {
+    data: Vec<u8>,
+    id: ChunkID,
+}
+
+impl UnpackedChunk {
+    /// Creates a new unpacked chunk
+    ///
+    /// HMAC algorthim used for chunkid is specified by chunksettings
+    ///
+    /// Key used for ChunkID generation is determined by key
+    pub fn new(data: Vec<u8>, settings: &ChunkSettings, key: &Key) -> UnpackedChunk {
+        let id = ChunkID::new(&settings.hmac.id(data.as_slice(), key));
+        UnpackedChunk { data, id }
+    }
+
+    /// Returns the chunkid
+    pub fn id(&self) -> ChunkID {
+        self.id
+    }
+
+    /// Consumes self and returns a real chunk
+    pub fn pack(self, settings: &ChunkSettings, key: &Key) -> Chunk {
+        Chunk::pack_with_id(
+            self.data,
+            settings.compression,
+            settings.encryption,
+            settings.hmac,
+            key,
+            self.id,
+        )
+    }
+}
+
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository

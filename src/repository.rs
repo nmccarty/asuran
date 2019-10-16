@@ -46,7 +46,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-pub use self::chunk::{Chunk, ChunkID, ChunkSettings};
+pub use self::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
 pub use crate::repository::backend::filesystem::FileSystem;
 pub use crate::repository::backend::Backend;
 pub use crate::repository::compression::Compression;
