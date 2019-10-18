@@ -19,6 +19,9 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::io::Read;
 
+pub mod slicer;
+pub use self::slicer::Slicer;
+
 #[cfg(feature = "profile")]
 use flamer::*;
 
