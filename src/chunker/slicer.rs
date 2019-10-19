@@ -12,6 +12,11 @@ use std::io::Read;
 /// Describes something that can slice objects in to chunks in a defined, repeatable manner
 ///
 /// Must store state (including the reader) internally
+///
+/// Slicers must meet three properites:
+/// 1.) Data must be split into one or more chunks
+/// 2.) Data must be identical after as simple reconstruction by concatenation
+/// 3.) The same data and settings must produce the same slices every time
 pub trait Slicer: Sized {
     /// Inserts a reader into the Slicer
     ///
