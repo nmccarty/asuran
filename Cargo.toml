@@ -32,6 +32,7 @@ tempfile = "3.1"
 flame = {version = "0.2", optional = true}
 flamer = {version = "0.4", optional = true}
 blake2b_simd = "0.5"
+fastcdc = "1.0"
 
 [dev-dependencies]
 quickcheck = "0.9"

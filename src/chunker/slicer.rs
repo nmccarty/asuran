@@ -2,18 +2,44 @@
 //!
 //! Most typical is content defined slicing, but format specific methods are also quite useful
 
-use crate::repository::UnpackedChunk;
+pub mod fastcdc;
+
+use crate::repository::chunk::*;
+use crate::repository::Key;
 use std::boxed::Box;
 use std::io::Read;
 
 /// Describes something that can slice objects in to chunks in a defined, repeatable manner
 ///
 /// Must store state (including the reader) internally
-pub trait Slicer {
+pub trait Slicer: Sized {
     /// Inserts a reader into the Slicer
     ///
     /// Should clear state and drop previous reader
     fn add_reader(&mut self, reader: Box<dyn Read>);
-    /// Returns the next slice
-    fn take_slice(&mut self) -> UnpackedChunk;
+    fn take_slice(&mut self) -> Option<Vec<u8>>;
+    fn into_chunk_iter(self, settings: ChunkSettings, key: Key) -> ChunkIterator<Self> {
+        ChunkIterator {
+            slicer: self,
+            settings,
+            key,
+        }
+    }
+}
+
+pub struct ChunkIterator<T> {
+    slicer: T,
+    settings: ChunkSettings,
+    key: Key,
+}
+
+impl<T> Iterator for ChunkIterator<T>
+where
+    T: Slicer,
+{
+    type Item = UnpackedChunk;
+    fn next(&mut self) -> Option<UnpackedChunk> {
+        let slice = self.slicer.take_slice()?;
+        Some(UnpackedChunk::new(slice, &self.settings, &self.key))
+    }
 }
