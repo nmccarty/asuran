@@ -1,5 +1,4 @@
 use super::Slicer;
-use crate::repository::chunk::*;
 use fastcdc;
 use std::boxed::Box;
 use std::io::Read;
@@ -62,6 +61,15 @@ impl Slicer for FastCDC {
             }
         } else {
             None
+        }
+    }
+    fn copy_settings(&self) -> Self {
+        FastCDC {
+            reader: None,
+            min_size: self.min_size,
+            max_size: self.max_size,
+            avg_size: self.avg_size,
+            buffer: Vec::new(),
         }
     }
 }

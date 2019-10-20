@@ -22,7 +22,11 @@ pub trait Slicer: Sized {
     ///
     /// Should clear state and drop previous reader
     fn add_reader(&mut self, reader: Box<dyn Read>);
+    /// Returns the next slice of the data, updating the internal state
     fn take_slice(&mut self) -> Option<Vec<u8>>;
+    /// Returns a slicer with the same settings but not sharing any internal state
+    fn copy_settings(&self) -> Self;
+    /// Creates a ChunkIterator out of the slicer and its loaded data
     fn into_chunk_iter(self, settings: ChunkSettings, key: Key) -> ChunkIterator<Self> {
         ChunkIterator {
             slicer: self,
