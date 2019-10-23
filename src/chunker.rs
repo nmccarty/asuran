@@ -15,12 +15,13 @@
 //! maximum chunk sizes are set at 2^(mask_bits-2) bytes and 2^(mask_bits+2)
 //! bytes, respectivly, to prevent overly large or small slices, and to provide
 //! some measure of predictibility.
+use crate::repository::{ChunkSettings, Key, UnpackedChunk};
 use rand::prelude::*;
 use std::collections::VecDeque;
-use std::io::Read;
+use std::io::{Empty, Read};
 
 pub mod slicer;
-pub use self::slicer::Slicer;
+pub use self::slicer::{ChunkIterator, Slicer, SlicerSettings};
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -28,7 +29,7 @@ use flamer::*;
 /// Stores the data in a slice/chunk, as well as providing information about
 /// the location of the slice in the file.
 pub struct Slice {
-    pub data: Vec<u8>,
+    pub data: UnpackedChunk,
     pub start: u64,
     pub end: u64,
 }
@@ -36,122 +37,59 @@ pub struct Slice {
 /// Apply content based slicing over a Read, and iterate throught the slices
 ///
 /// Slicing is applied as the iteration proceeds, so each byte is only read once
-pub struct IteratedReader<R: Read> {
-    /// Internal Reader
-    reader: R,
-    /// Hasher
-    hasher: BuzHash,
-    /// Hash Mask
-    mask: u64,
-    /// Minimum chunk size
-    min_size: usize,
-    /// Maximum chunk size
-    max_size: usize,
-    /// read buffer
-    buffer: [u8; 8192],
-    /// location of the cursor in the buffer
-    cursor: usize,
-    /// length of the data in the buffer
-    buffer_len: usize,
-    /// location of the cursor in the file
-    location: usize,
-    /// Flag for if end of file reached
-    finished: bool,
+pub struct IteratedReader<R: Read, S: Slicer<R>> {
+    /// Internal chunk iterator
+    chunk_iterator: ChunkIterator<R, S>,
+    /// Offset used for calcuating slice ends
+    offset: u64,
 }
 
-impl<R: Read> Iterator for IteratedReader<R> {
+impl<R: Read, S: Slicer<R>> Iterator for IteratedReader<R, S> {
     type Item = Slice;
 
     #[cfg_attr(feature = "profile", flame)]
     fn next(&mut self) -> Option<Slice> {
-        if self.finished {
-            None
-        } else {
-            let start = self.location;
-            let mut end = self.location;
-            let mut output = Vec::<u8>::new();
-            let hasher = &mut self.hasher;
-            hasher.reset();
-            let mut split = false;
-            while !split {
-                if self.cursor < self.buffer_len {
-                    let byte = self.buffer[self.cursor];
-                    output.push(byte);
-                    let hash = hasher.hash_byte(byte);
-                    let len = output.len();
-                    if (hash & self.mask) == 0 && (len >= self.min_size) && (len <= self.max_size) {
-                        split = true;
-                        end = self.location;
-                    }
+        let data = self.chunk_iterator.next()?;
+        let start = self.offset;
+        self.offset = start + (data.data().len() as u64);
+        let end = self.offset - 1;
 
-                    self.location += 1;
-                    self.cursor += 1;
-                } else {
-                    self.cursor = 0;
-                    let result = self.reader.read(&mut self.buffer);
-                    match result {
-                        Err(_) => {
-                            split = true;
-                            end = self.location;
-                            self.finished = true;
-                        }
-                        Ok(0) => {
-                            split = true;
-                            end = self.location;
-                            self.finished = true;
-                        }
-                        Ok(n) => {
-                            self.buffer_len = n;
-                        }
-                    }
-                }
-            }
-
-            Some(Slice {
-                data: output,
-                start: start as u64,
-                end: end as u64,
-            })
-        }
+        Some(Slice { data, start, end })
     }
 }
 
 /// Stores chunker settings for easy reuse
 #[derive(Clone)]
-pub struct Chunker {
-    /// Hash Mask
-    mask: u64,
-    /// Hasher
-    hasher: BuzHash,
-    /// Mask bits count
-    mask_bits: u32,
+pub struct Chunker<S: SlicerSettings<Empty>> {
+    /// Internal slicer settings
+    settings: S,
 }
 
-impl Chunker {
-    /// Creates a new chunker with the given window and mask bits
-    pub fn new(window: u64, mask_bits: u32, nonce: u64) -> Chunker {
-        Chunker {
-            mask: 2_u64.pow(mask_bits) - 1,
-            hasher: BuzHash::new(nonce, window as u32),
-            mask_bits,
-        }
+impl<S: SlicerSettings<Empty>> Chunker<S> {
+    /// Creates a new chunker with settings of the given slicer
+    pub fn new(settings: S) -> Chunker<S> {
+        Chunker { settings: settings }
     }
 
-    /// Produces an iterator over the slices in a file
+    /// Produces an iterator over the slices in an object
     ///
-    /// Will make a copy of the internal hashser
-    pub fn chunked_iterator<R: Read>(&self, reader: R) -> IteratedReader<R> {
+    /// Requries a reader over the object and the offset, in bytes, from the start of the object,
+    /// as well as the settings and key used for chunk ID generation
+    pub fn chunked_iterator<R: Read>(
+        &self,
+        reader: R,
+        offset: u64,
+        settings: &ChunkSettings,
+        key: &Key,
+    ) -> IteratedReader<R, impl Slicer<R>>
+    where
+        S: SlicerSettings<R>,
+    {
+        let slicer = <S as SlicerSettings<R>>::to_slicer(&self.settings, reader);
+        let chunk_iterator = slicer.into_chunk_iter(settings.clone(), key.clone());
         IteratedReader {
-            reader,
-            hasher: self.hasher.clone(),
-            mask: self.mask,
-            min_size: 2_usize.pow(self.mask_bits - 2),
-            max_size: 2_usize.pow(self.mask_bits + 2),
-            buffer: [0_u8; 8192],
-            cursor: 0,
-            buffer_len: 0,
-            location: 0,
-            finished: false,
+            chunk_iterator,
+            offset,
         }
     }
 }

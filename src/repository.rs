@@ -194,6 +194,16 @@ impl<T: Backend> Repository<T> {
         self.write_raw(chunk)
     }
 
+    /// Writes an unpacked chunk to the repository using all defaults
+    pub fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Option<(ChunkID, bool)> {
+        let id = data.id();
+        if self.has_chunk(id) && id != ChunkID::manifest_id() {
+            Some((id, true))
+        } else {
+            self.write_chunk_with_id(data.consuming_data(), id)
+        }
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///

@@ -105,6 +105,11 @@ impl UnpackedChunk {
             self.id,
         )
     }
+
+    /// Returns the data consuming self
+    pub fn consuming_data(self) -> Vec<u8> {
+        self.data
+    }
 }
 
 /// Data chunk
