@@ -1,9 +1,9 @@
-use crate::chunker::Chunker;
+use crate::chunker::{Chunker, SlicerSettings};
 use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::{Empty, Read, Write};
 
 /// Collection of abstract methods for moving data from a storage target to a repository
 ///
@@ -18,7 +18,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
     fn raw_store_object(
         &self,
         repo: &mut Repository<impl Backend>,
-        chunker: &Chunker,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<T>>,
         archive: &Archive,
         path: &str,
         objects: HashMap<String, BackupObject<T>>,
@@ -58,7 +58,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
     fn store_object(
         &self,
         repo: &mut Repository<impl Backend>,
-        chunker: &Chunker,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<T>>,
         archive: &Archive,
         path: &str,
     ) -> Option<()> {

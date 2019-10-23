@@ -16,8 +16,6 @@
 //! bytes, respectivly, to prevent overly large or small slices, and to provide
 //! some measure of predictibility.
 use crate::repository::{ChunkSettings, Key, UnpackedChunk};
-use rand::prelude::*;
-use std::collections::VecDeque;
 use std::io::{Empty, Read};
 
 pub mod slicer;
@@ -60,7 +58,7 @@ impl<R: Read, S: Slicer<R>> Iterator for IteratedReader<R, S> {
 
 /// Stores chunker settings for easy reuse
 #[derive(Clone)]
-pub struct Chunker<S: SlicerSettings<Empty>> {
+pub struct Chunker<S> {
     /// Internal slicer settings
     settings: S,
 }
@@ -75,14 +73,16 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
     ///
     /// Requries a reader over the object and the offset, in bytes, from the start of the object,
     /// as well as the settings and key used for chunk ID generation
-    pub fn chunked_iterator<R: Read>(
+    pub fn chunked_iterator<R>(
         &self,
+
         reader: R,
         offset: u64,
         settings: &ChunkSettings,
         key: &Key,
     ) -> IteratedReader<R, impl Slicer<R>>
     where
+        R: Read,
         S: SlicerSettings<R>,
     {
         let slicer = <S as SlicerSettings<R>>::to_slicer(&self.settings, reader);
@@ -91,56 +91,5 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
             chunk_iterator,
             offset,
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct BuzHash {
-    hash: u64,
-    table: [u64; 256],
-    window_size: u32,
-    buffer: VecDeque<u8>,
-    count: u32,
-}
-
-impl BuzHash {
-    pub fn new(nonce: u64, window_size: u32) -> BuzHash {
-        let mut table = [0_u64; 256];
-        let mut rand = SmallRng::seed_from_u64(nonce);
-        for i in table.iter_mut() {
-            *i = rand.gen();
-        }
-        BuzHash {
-            hash: 0,
-            table,
-            window_size,
-            buffer: VecDeque::with_capacity(window_size as usize),
-            count: 0,
-        }
-    }
-
-    pub fn hash_byte(&mut self, byte: u8) -> u64 {
-        // Determine if removal is needed
-        if self.count >= self.window_size {
-            let hash = self.hash.rotate_left(1);
-            let head = self.buffer.pop_front().unwrap();
-            let head = self.table[head as usize].rotate_left(self.window_size);
-            let tail = self.table[byte as usize];
-            self.hash = hash ^ head ^ tail;
-        } else {
-            self.count += 1;
-            let hash = self.hash.rotate_left(1);
-            let tail = self.table[byte as usize];
-            self.hash = hash ^ tail;
-        }
-
-        self.buffer.push_back(byte);
-        self.hash
-    }
-
-    pub fn reset(&mut self) {
-        self.hash = 0;
-        self.count = 0;
-        self.buffer.clear();
     }
 }

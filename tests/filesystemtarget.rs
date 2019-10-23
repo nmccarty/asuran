@@ -1,3 +1,4 @@
+use libasuran::chunker::slicer::fastcdc::FastCDC;
 use libasuran::chunker::*;
 use libasuran::manifest::driver::*;
 use libasuran::manifest::target::filesystem::*;
@@ -5,6 +6,7 @@ use libasuran::manifest::target::*;
 use libasuran::manifest::*;
 use libasuran::repository::*;
 use std::fs;
+use std::io::Empty;
 use std::path::Path;
 use tempfile::tempdir;
 
@@ -20,7 +22,8 @@ fn backup_restore_no_empty_dirs() {
     let repo_root_path = repo_root.path().to_str().unwrap();
     let key = Key::random(32);
     let mut repo = common::get_repo_bare(repo_root_path, key);
-    let chunker = Chunker::new(6, 8, 0);
+    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+    let chunker = Chunker::new(slicer.copy_settings());
 
     let mut archive = Archive::new("test");
 

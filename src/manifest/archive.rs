@@ -1,11 +1,11 @@
-use crate::chunker::{Chunker, Slice};
+use crate::chunker::{Chunker, Slice, SlicerSettings};
 use crate::repository::{Backend, ChunkID, Repository};
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::{Empty, Read, Write};
 use std::sync::{Arc, RwLock};
 
 #[cfg(feature = "profile")]
@@ -104,21 +104,23 @@ impl Archive {
     ///
     /// Will read holes as 0s
     #[cfg_attr(feature = "profile", flame)]
-    pub fn put_object(
+    pub fn put_object<R: Read>(
         &mut self,
-        chunker: &Chunker,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
         path: &str,
-        from_reader: impl Read,
+        from_reader: R,
     ) -> Option<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
         let path = self.canonical_namespace() + path;
 
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
-        let slices = chunker.chunked_iterator(from_reader);
+        let settings = repository.chunk_settings();
+        let key = repository.key();
+        let slices = chunker.chunked_iterator(from_reader, 0, &settings, key);
         for Slice { data, start, end } in slices {
-            let id = repository.write_chunk(data)?.0;
+            let id = repository.write_unpacked_chunk(data)?.0;
             locations.push(ChunkLocation {
                 id,
                 start,
@@ -141,20 +143,22 @@ impl Archive {
     /// Inserts a sparse object into the archive
     ///
     /// Requires that the object be pre-split into extents
-    pub fn put_sparse_object(
+    pub fn put_sparse_object<R: Read>(
         &mut self,
-        chunker: &Chunker,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
         path: &str,
-        from_readers: Vec<(Extent, impl Read)>,
+        from_readers: Vec<(Extent, R)>,
     ) -> Option<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
         let path = self.canonical_namespace() + path;
 
         for (extent, read) in from_readers {
-            let slices = chunker.chunked_iterator(read);
+            let settings = repository.chunk_settings();
+            let key = repository.key();
+            let slices = chunker.chunked_iterator(read, 0, &settings, key);
             for Slice { data, start, end } in slices {
-                let id = repository.write_chunk(data)?.0;
+                let id = repository.write_unpacked_chunk(data)?.0;
                 // This math works becasue extents are 0 indexed
                 locations.push(ChunkLocation {
                     id,
@@ -332,6 +336,8 @@ impl Archive {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chunker::slicer::fastcdc::FastCDC;
+    use crate::chunker::*;
     use crate::repository::backend::filesystem::*;
     use crate::repository::compression::Compression;
     use crate::repository::encryption::Encryption;
@@ -340,7 +346,7 @@ mod tests {
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use std::fs;
-    use std::io::{BufReader, Cursor, Seek, SeekFrom};
+    use std::io::{BufReader, Cursor, Empty, Seek, SeekFrom};
     use std::path::Path;
     use tempfile::tempdir;
 
@@ -361,7 +367,8 @@ mod tests {
     #[quickcheck]
     fn single_add_get(seed: u64) -> bool {
         println!("Seed: {}", seed);
-        let chunker = Chunker::new(8, 12, 0);
+        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+        let chunker = Chunker::new(slicer.copy_settings());
 
         let key = Key::random(32);
         let size = 2 * 2_usize.pow(14);
@@ -406,7 +413,8 @@ mod tests {
 
     #[quickcheck]
     fn sparse_add_get(seed: u64) -> bool {
-        let chunker = Chunker::new(8, 12, 0);
+        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+        let chunker = Chunker::new(slicer.copy_settings());
         let key = Key::random(32);
         let root_dir = tempdir().unwrap();
         let root_path = root_dir.path().display().to_string();
@@ -488,6 +496,8 @@ mod tests {
         for i in 0..test_input.len() {
             if test_output[i] != test_input[i] {
                 println!("Difference at {}", i);
+                println!("Orig: {:?}", &test_input[i - 2..i + 3]);
+                println!("New: {:?}", &test_output[i - 2..i + 3]);
                 break;
             }
         }
@@ -516,7 +526,8 @@ mod tests {
 
     #[test]
     fn namespaced_insertions() {
-        let chunker = Chunker::new(8, 12, 0);
+        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+        let chunker = Chunker::new(slicer.copy_settings());
         let key = Key::random(32);
 
         let mut repo = get_repo(key);
@@ -552,7 +563,8 @@ mod tests {
 
     #[test]
     fn commit_and_load() {
-        let chunker = Chunker::new(8, 12, 0);
+        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+        let chunker = Chunker::new(slicer.copy_settings());
         let key = Key::random(32);
 
         let mut repo = get_repo(key);

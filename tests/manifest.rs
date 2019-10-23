@@ -1,8 +1,9 @@
+use libasuran::chunker::slicer::fastcdc::FastCDC;
 use libasuran::chunker::*;
 use libasuran::manifest::*;
 use libasuran::repository::*;
 use rand::prelude::*;
-use std::io::Cursor;
+use std::io::{Cursor, Empty};
 use tempfile::tempdir;
 
 mod common;
@@ -13,7 +14,9 @@ fn put_drop_get() {
     let root_path = tempdir.path().to_str().unwrap();
     let key = Key::random(32);
     let mut repo = common::get_repo(root_path, key);
-    let chunker = Chunker::new(48, 12, 0);
+
+    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
+    let chunker = Chunker::new(slicer.copy_settings());
 
     let mut objects: Vec<Vec<u8>> = Vec::new();
 
