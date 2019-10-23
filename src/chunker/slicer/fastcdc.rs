@@ -1,18 +1,20 @@
-use super::Slicer;
+use super::{Slicer, SlicerSettings};
 use fastcdc;
-use std::boxed::Box;
 use std::io::Read;
 
-pub struct FastCDC {
-    reader: Option<Box<dyn Read>>,
+pub struct FastCDC<R: Read> {
+    reader: Option<R>,
     min_size: usize,
     max_size: usize,
     avg_size: usize,
     buffer: Vec<u8>,
 }
 
-impl FastCDC {
-    pub fn new(min_size: usize, max_size: usize, avg_size: usize) -> FastCDC {
+impl<R> FastCDC<R>
+where
+    R: Read,
+{
+    pub fn new(min_size: usize, max_size: usize, avg_size: usize) -> FastCDC<R> {
         FastCDC {
             reader: None,
             min_size,
@@ -22,13 +24,17 @@ impl FastCDC {
         }
     }
 
-    pub fn new_defaults() -> FastCDC {
+    pub fn new_defaults() -> FastCDC<R> {
         Self::new(16384, 65536, 32768)
     }
 }
 
-impl Slicer for FastCDC {
-    fn add_reader(&mut self, reader: Box<dyn Read>) {
+impl<R> Slicer<R> for FastCDC<R>
+where
+    R: Read,
+{
+    type Settings = FastCDCSettings;
+    fn add_reader(&mut self, reader: R) {
         self.reader = Some(reader);
     }
     fn take_slice(&mut self) -> Option<Vec<u8>> {
@@ -63,9 +69,29 @@ impl Slicer for FastCDC {
             None
         }
     }
-    fn copy_settings(&self) -> Self {
+    fn copy_settings(&self) -> Self::Settings {
+        FastCDCSettings {
+            min_size: self.min_size,
+            max_size: self.max_size,
+            avg_size: self.avg_size,
+        }
+    }
+}
+
+pub struct FastCDCSettings {
+    min_size: usize,
+    max_size: usize,
+    avg_size: usize,
+}
+
+impl<R> SlicerSettings<R> for FastCDCSettings
+where
+    R: Read,
+{
+    type Slicer = FastCDC<R>;
+    fn to_slicer(&self, reader: R) -> Self::Slicer {
         FastCDC {
-            reader: None,
+            reader: Some(reader),
             min_size: self.min_size,
             max_size: self.max_size,
             avg_size: self.avg_size,
@@ -74,7 +100,10 @@ impl Slicer for FastCDC {
     }
 }
 
-impl Iterator for FastCDC {
+impl<R> Iterator for FastCDC<R>
+where
+    R: Read,
+{
     type Item = Vec<u8>;
     fn next(&mut self) -> Option<Vec<u8>> {
         self.take_slice()
@@ -85,7 +114,7 @@ impl Iterator for FastCDC {
 mod tests {
     use super::*;
     use quickcheck::*;
-    use std::io::Cursor;
+    use std::io::{empty, Cursor};
 
     #[test]
     fn one_or_more_chunks() {
@@ -134,5 +163,17 @@ mod tests {
         }
         let mut qc = QuickCheck::with_gen(StdThreadGen::new(1048576)).tests(20);
         qc.quickcheck(prop as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn conversion_test() {
+        // This test is genreally not needed, and only to make sure the type conversion works
+        let mut slicer1 = FastCDC::new_defaults();
+        slicer1.add_reader(empty());
+        let settings = slicer1.copy_settings();
+        let buffer = Cursor::new(Vec::<u8>::new());
+        let _slicer2 = settings.to_slicer(buffer);
+
+        assert!(true);
     }
 }

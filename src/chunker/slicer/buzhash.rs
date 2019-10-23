@@ -1,12 +1,11 @@
-use super::Slicer;
+use super::{Slicer, SlicerSettings};
 use rand::prelude::*;
-use std::boxed::Box;
 use std::collections::VecDeque;
 use std::io::Read;
 
-pub struct BuzHash {
+pub struct BuzHash<R: Read> {
     /// Internal reader
-    reader: Option<Box<dyn Read>>,
+    reader: Option<R>,
     /// BuzHash Table
     table: [u64; 256],
     /// Size of the buzhash window in bytes
@@ -35,8 +34,42 @@ pub struct BuzHash {
     finished: bool,
 }
 
-impl BuzHash {
-    pub fn new(nonce: u64, window_size: u32, mask_bits: u32) -> BuzHash {
+pub struct BuzHashSettings {
+    table: [u64; 256],
+    window_size: u32,
+    mask: u64,
+    mask_bits: u32,
+    min_size: usize,
+    max_size: usize,
+}
+
+impl<R> SlicerSettings<R> for BuzHashSettings
+where
+    R: Read,
+{
+    type Slicer = BuzHash<R>;
+    fn to_slicer(&self, reader: R) -> Self::Slicer {
+        BuzHash {
+            reader: Some(reader),
+            table: self.table,
+            window_size: self.window_size,
+            hash_buffer: VecDeque::with_capacity(self.window_size as usize),
+            buffer: [0_u8; 8192],
+            buffer_len: 0,
+            count: 0,
+            mask_bits: self.mask_bits,
+            min_size: self.min_size,
+            max_size: self.max_size,
+            mask: self.mask,
+            hash: 0,
+            cursor: 0,
+            finished: false,
+        }
+    }
+}
+
+impl<R: Read> BuzHash<R> {
+    pub fn new(nonce: u64, window_size: u32, mask_bits: u32) -> BuzHash<R> {
         let mut table = [0_u64; 256];
         let mut rand = SmallRng::seed_from_u64(nonce);
         for i in table.iter_mut() {
@@ -60,7 +93,7 @@ impl BuzHash {
         }
     }
 
-    pub fn new_defaults(nonce: u64) -> BuzHash {
+    pub fn new_defaults(nonce: u64) -> BuzHash<R> {
         Self::new(nonce, 4095, 21)
     }
 
@@ -90,8 +123,12 @@ impl BuzHash {
     }
 }
 
-impl Slicer for BuzHash {
-    fn add_reader(&mut self, reader: Box<dyn Read>) {
+impl<R> Slicer<R> for BuzHash<R>
+where
+    R: Read,
+{
+    type Settings = BuzHashSettings;
+    fn add_reader(&mut self, reader: R) {
         self.reader = Some(reader);
     }
     fn take_slice(&mut self) -> Option<Vec<u8>> {
@@ -142,27 +179,19 @@ impl Slicer for BuzHash {
             None
         }
     }
-    fn copy_settings(&self) -> Self {
-        BuzHash {
-            reader: None,
+    fn copy_settings(&self) -> Self::Settings {
+        BuzHashSettings {
             table: self.table,
             window_size: self.window_size,
-            hash_buffer: VecDeque::with_capacity(self.window_size as usize),
-            buffer: [0_u8; 8192],
-            buffer_len: 0,
-            count: 0,
             mask_bits: self.mask_bits,
             min_size: self.min_size,
             max_size: self.max_size,
             mask: self.mask,
-            hash: 0,
-            cursor: 0,
-            finished: false,
         }
     }
 }
 
-impl Iterator for BuzHash {
+impl<R: Read> Iterator for BuzHash<R> {
     type Item = Vec<u8>;
     fn next(&mut self) -> Option<Vec<u8>> {
         self.take_slice()
