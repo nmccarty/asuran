@@ -27,8 +27,8 @@ fn put_drop_get() {
     }
 
     {
-        let mut manifest = Manifest::empty_manifest(repo.chunk_settings());
-        manifest.commit(&mut repo);
+        let mut manifest = Manifest::load(&repo);
+        manifest.set_chunk_settings(repo.chunk_settings());
         let mut archive = Archive::new("test");
         for (i, object) in objects.iter().enumerate() {
             archive.put_object(

@@ -42,7 +42,7 @@ fn backup_restore_no_empty_dirs() {
 
     let listing = input_target.backup_listing();
 
-    let mut manifest = Manifest::empty_manifest(common::get_bare_settings());
+    let mut manifest = Manifest::load(&repo);
     manifest.commit_archive(&mut repo, archive);
 
     let manifest = Manifest::load(&repo);

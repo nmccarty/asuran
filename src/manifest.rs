@@ -11,6 +11,7 @@ pub mod driver;
 pub mod listing;
 pub mod target;
 
+use crate::repository::backend::Manifest as BackendManifest;
 use crate::repository::{Backend, ChunkID, ChunkSettings, Repository};
 
 use chrono::prelude::*;
@@ -21,68 +22,35 @@ pub use self::archive::{Archive, StoredArchive};
 
 /// Repository manifest
 ///
-/// Has special all zero key
-///
 /// This is the root object of the repository, all objects that are active can
 /// be reached through the Mainfest.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Manifest {
-    /// Time stamp the manifiest was commited at. This is updated every time commit() is called
-    ///
-    /// This value is primarly for preventing replay attacks
-    timestamp: DateTime<FixedOffset>,
-    /// Default settings for new chunks in this repository
-    chunk_settings: ChunkSettings,
-    /// List of archives in the repository,
-    archives: Vec<StoredArchive>,
+pub struct Manifest<T: Backend> {
+    internal_manifest: T::Manifest,
 }
 
-impl Manifest {
-    /// Creates a new empty manifest with the given chunk settings
-    pub fn empty_manifest(settings: ChunkSettings) -> Manifest {
-        Manifest {
-            timestamp: Local::now().with_timezone(Local::now().offset()),
-            chunk_settings: settings,
-            archives: Vec::new(),
-        }
-    }
-
-    /// Commits the manifest to the repository
-    ///
-    /// Will overwrite existing manifest. Will additionally update the
-    /// timestamp of the mainfest. Commits the index of the repository after it is done
-    ///
-    /// # Panics
-    ///  
-    /// Will panic if the write to the repository fails
-    pub fn commit(&mut self, repo: &mut Repository<impl Backend>) {
-        self.timestamp = Local::now().with_timezone(Local::now().offset());
-
-        let mut bytes = Vec::<u8>::new();
-        self.serialize(&mut Serializer::new(&mut bytes))
-            .expect("Unable to serialize manifest.");
-
-        repo.write_chunk_with_id(bytes, ChunkID::manifest_id())
-            .expect("Unable to write manifest");
-
-        repo.commit_index();
-    }
-
+impl<T: Backend> Manifest<T> {
     /// Loads the manifest from the repository
     ///
     /// # Panics
     ///
     /// Will panic if loading the manifest fails
-    pub fn load(repo: &Repository<impl Backend>) -> Manifest {
-        let bytes = repo
-            .read_chunk(ChunkID::manifest_id())
-            .expect("Unable to read manifest from repo");
+    pub fn load(repo: &Repository<T>) -> Manifest<T>
+    where
+        T: Backend,
+    {
+        let internal_manifest = repo.backend_manifest();
+        Manifest { internal_manifest }
+    }
 
-        let mut de = Deserializer::new(&bytes[..]);
-        let manifest: Manifest =
-            Deserialize::deserialize(&mut de).expect("Unable to deserialze Manifest.");
+    /// Set the Chunk Settings used by the repository
+    pub fn set_chunk_settings(&mut self, settings: ChunkSettings) {
+        self.internal_manifest.write_chunk_settings(settings);
+    }
 
-        manifest
+    /// Gets the default Chunk Settings for the repository
+    pub fn chunk_settings(self) -> ChunkSettings {
+        self.internal_manifest.chunk_settings()
     }
 
     /// Commits an archive to the manifest, then the manifest to the repository
@@ -94,20 +62,19 @@ impl Manifest {
     /// Will panic if commiting the archive to the repository fails
     pub fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
         let stored_archive = archive.store(repo);
-        self.archives.push(stored_archive);
-
-        self.commit(repo);
+        self.internal_manifest.write_archive(stored_archive);
+        repo.commit_index();
     }
 
     /// Returns a copy of the list of archives in this repository
     ///
     /// Theses can be converted into full archives with StoredArchive::load
     pub fn archives(&self) -> Vec<StoredArchive> {
-        self.archives.clone()
+        self.internal_manifest.archive_iterator().collect()
     }
 
     /// Provides the timestamp of the manifest's last modification
-    pub fn timestamp(&self) -> &DateTime<FixedOffset> {
-        &self.timestamp
+    pub fn timestamp(&self) -> DateTime<FixedOffset> {
+        self.internal_manifest.last_modification()
     }
 }
