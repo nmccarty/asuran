@@ -66,7 +66,7 @@ pub struct Chunker<S> {
 impl<S: SlicerSettings<Empty>> Chunker<S> {
     /// Creates a new chunker with settings of the given slicer
     pub fn new(settings: S) -> Chunker<S> {
-        Chunker { settings: settings }
+        Chunker { settings }
     }
 
     /// Produces an iterator over the slices in an object

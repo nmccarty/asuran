@@ -65,6 +65,7 @@ where
                 // in this case the buffer is emtpy and we have no more data
                 None
             }
+            car
         } else {
             None
         }

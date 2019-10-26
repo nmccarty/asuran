@@ -3,7 +3,6 @@ use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
-use rmp_serde::{from_read_ref, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -34,7 +33,7 @@ impl FileSystem {
         // Open the file handle for the manifest, creating it if it doesnt exist.
         let manifest_path = Path::new(root_directory).join("manifest");
         if !manifest_path.exists() {
-            fs::File::create(&manifest_path);
+            fs::File::create(&manifest_path).expect("Unable to create manifest file.");
         }
         let mut manifest_file = fs::OpenOptions::new()
             .read(true)
@@ -73,7 +72,7 @@ impl FileSystem {
         // Open the file handle for the manifest, creating it if it doesnt exist.
         let manifest_path = Path::new(root_directory).join("manifest");
         if !manifest_path.exists() {
-            fs::File::create(&manifest_path);
+            fs::File::create(&manifest_path).expect("Unable to create manifest file");
         }
         let mut manifest_file = fs::OpenOptions::new()
             .read(true)

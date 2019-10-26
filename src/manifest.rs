@@ -12,10 +12,9 @@ pub mod listing;
 pub mod target;
 
 use crate::repository::backend::Manifest as BackendManifest;
-use crate::repository::{Backend, ChunkID, ChunkSettings, Repository};
+use crate::repository::{Backend, ChunkSettings, Repository};
 
 use chrono::prelude::*;
-use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 pub use self::archive::{Archive, StoredArchive};
