@@ -275,6 +275,11 @@ impl<T: Backend> Repository<T> {
     pub fn key(&self) -> &Key {
         &self.key
     }
+
+    /// Provides a handle to the backend manifest
+    pub fn backend_manifest(&self) -> T::Manifest {
+        self.backend.get_manifest()
+    }
 }
 
 impl<T: Backend> Drop for Repository<T> {

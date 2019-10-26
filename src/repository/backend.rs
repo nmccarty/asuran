@@ -35,7 +35,7 @@ pub trait Segment {
 /// Keeps track of which archives are in the repository.
 ///
 /// All writing methods should commit to hard storage prior to returning
-pub trait Manifest: Send + Sync + Clone {
+pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive>;
     /// Timestamp of the last modification
     fn last_modification(&self) -> DateTime<FixedOffset>;
@@ -60,7 +60,7 @@ pub trait Manifest: Send + Sync + Clone {
 ///
 /// Cloning a backend should result in a new view over the same storage, and clones
 /// should play nice with multithreaded access.
-pub trait Backend: Send + Sync + Clone {
+pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest;
     /// Gets a particular segment
     ///

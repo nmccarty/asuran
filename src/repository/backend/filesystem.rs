@@ -11,7 +11,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use walkdir::WalkDir;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileSystem {
     root_directory: String,
     segments_per_folder: u64,
