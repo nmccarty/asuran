@@ -23,7 +23,7 @@ pub struct Extent {
 }
 
 /// Pointer to an archive in a repository
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct StoredArchive {
     /// The name of the archive
     name: String,
@@ -43,6 +43,16 @@ impl StoredArchive {
         let archive: Archive =
             Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
         Some(archive)
+    }
+
+    /// Constructs a dummy archive object used for testing
+    #[cfg(test)]
+    pub fn dummy_archive() -> StoredArchive {
+        StoredArchive {
+            name: "Test".to_string(),
+            id: ChunkID::manifest_id(),
+            timestamp: Local::now().with_timezone(Local::now().offset()),
+        }
     }
 }
 
