@@ -75,38 +75,23 @@ impl FileSystem {
         if !manifest_path.exists() {
             fs::File::create(&manifest_path);
         }
-        let manifest_file = fs::OpenOptions::new()
+        let mut manifest_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
             .open(&manifest_path)
             .expect("Failed to open manifest file. Check if you have permissions to the directory");
 
-        let manifest_file = Arc::new(RwLock::new(manifest_file));
-
-        FileSystem {
-            root_directory: root_directory.to_string(),
-            segments_per_folder,
-            segment_size,
-            manifest_file,
-        }
-    }
-
-    pub fn new_test_1k(root_directory: &str) -> FileSystem {
-        let segments_per_folder: u64 = 2;
-        let segment_size: u64 = 10_u64.pow(3);
-        // Create the directory if it doesn't exist
-        fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
-
-        // Open the file handle for the manifest, creating it if it doesnt exist.
-        let manifest_path = Path::new(root_directory).join("manifest");
-        if !manifest_path.exists() {
-            fs::File::create(&manifest_path);
-        }
-        let manifest_file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&manifest_path)
-            .expect("Failed to open manifest file. Check if you have permissions to the directory");
+        // Write an empty carrier to the manifest
+        let empty_manifest = ManifestCarrier {
+            timestamp: Local::now().with_timezone(Local::now().offset()),
+            chunk_settings: ChunkSettings {
+                encryption: Encryption::NoEncryption,
+                compression: Compression::NoCompression,
+                hmac: HMAC::Blake2b,
+            },
+            archives: Vec::new(),
+        };
+        write(&mut manifest_file, &empty_manifest).expect("Unable to write manifest");
 
         let manifest_file = Arc::new(RwLock::new(manifest_file));
 

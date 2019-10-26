@@ -12,7 +12,7 @@ pub fn get_repo(root_path: &str, key: Key) -> Repository<impl Backend> {
 }
 
 pub fn get_repo_bare(root_path: &str, key: Key) -> Repository<impl Backend> {
-    let backend = FileSystem::new_test_1k(&root_path);
+    let backend = FileSystem::new_test(&root_path);
     Repository::new(
         backend,
         Compression::NoCompression,
