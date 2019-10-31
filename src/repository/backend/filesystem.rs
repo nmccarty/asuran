@@ -31,9 +31,13 @@ impl FileSystem {
         fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
 
         // Open the file handle for the manifest, creating it if it doesnt exist.
+        let manifest_exists;
         let manifest_path = Path::new(root_directory).join("manifest");
         if !manifest_path.exists() {
             fs::File::create(&manifest_path).expect("Unable to create manifest file.");
+            manifest_exists = false;
+        } else {
+            manifest_exists = true;
         }
         let mut manifest_file = fs::OpenOptions::new()
             .read(true)
@@ -41,17 +45,19 @@ impl FileSystem {
             .open(&manifest_path)
             .expect("Failed to open manifest file. Check if you have permissions to the directory");
 
-        // Write an empty carrier to the manifest
-        let empty_manifest = ManifestCarrier {
-            timestamp: Local::now().with_timezone(Local::now().offset()),
-            chunk_settings: ChunkSettings {
-                encryption: Encryption::NoEncryption,
-                compression: Compression::NoCompression,
-                hmac: HMAC::Blake2b,
-            },
-            archives: Vec::new(),
-        };
-        write(&mut manifest_file, &empty_manifest).expect("Unable to write manifest");
+        if !manifest_exists {
+            // Write an empty carrier to the manifest
+            let empty_manifest = ManifestCarrier {
+                timestamp: Local::now().with_timezone(Local::now().offset()),
+                chunk_settings: ChunkSettings {
+                    encryption: Encryption::NoEncryption,
+                    compression: Compression::NoCompression,
+                    hmac: HMAC::Blake2b,
+                },
+                archives: Vec::new(),
+            };
+            write(&mut manifest_file, &empty_manifest).expect("Unable to write manifest");
+        }
 
         let manifest_file = Arc::new(RwLock::new(manifest_file));
 
@@ -373,5 +379,30 @@ mod tests {
         assert_eq!(restore_1, dummy_archive_1);
         assert_eq!(restore_2, dummy_archive_2);
         assert_ne!(restore_1, restore_2);
+    }
+
+    #[test]
+    fn load_unload_load() {
+        let test_dir = tempdir().unwrap();
+        let dummy_archive_1 = StoredArchive::dummy_archive();
+        let dummy_archive_2 = StoredArchive::dummy_archive();
+        {
+            let mut backend = FileSystem::new(&test_dir.path().display().to_string());
+            backend.write_archive(dummy_archive_1.clone());
+        }
+        {
+            let mut backend = FileSystem::new(&test_dir.path().display().to_string());
+            backend.write_archive(dummy_archive_2.clone());
+        }
+        {
+            let mut backend = FileSystem::new(&test_dir.path().display().to_string());
+            let mut iter = backend.archive_iterator();
+            let restore_2 = iter.next().unwrap();
+            let restore_1 = iter.next().unwrap();
+
+            assert_eq!(restore_1, dummy_archive_1);
+            assert_eq!(restore_2, dummy_archive_2);
+            assert_ne!(restore_1, restore_2);
+        }
     }
 }
