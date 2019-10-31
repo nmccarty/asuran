@@ -26,7 +26,7 @@ impl FileSystem {
     /// blake2b HMAC
     pub fn new(root_directory: &str) -> FileSystem {
         let segments_per_folder: u64 = 250;
-        let segment_size: u64 = 250 * 10_u64.pow(3);
+        let segment_size: u64 = 250 * 10_u64.pow(6);
         // Create the directory if it doesn't exist
         fs::create_dir_all(root_directory).expect("Unable to create repository directory.");
 
