@@ -7,7 +7,7 @@ repository = "https://gitlab.com/asuran-rs/libasuran/"
 documentation = "https://docs.rs/crate/libasuran"
 homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
-readme = "README.org"
+readme = "README-output.md"
 edition = "2018"
 keywords = ["encryption", "compression","deduplication","backup","archive"]
 
