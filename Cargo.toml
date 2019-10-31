@@ -2,11 +2,15 @@
 name = "libasuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "MIT"
-version = "0.0.0"
+version = "0.0.1"
 repository = "https://gitlab.com/asuran-rs/libasuran/"
+documentation = "https://docs.rs/crate/libasuran"
+homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
-readme = "README.md"
+readme = "README.org"
 edition = "2018"
+categories = ["Filesystem"]
+keywords = ["encryption", "compression","deduplication", "dedup","backup","archive"]
 
 [features]
 profile = ["flame", "flamer"]
