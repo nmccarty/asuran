@@ -9,8 +9,7 @@ homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 readme = "README.org"
 edition = "2018"
-categories = ["Filesystem"]
-keywords = ["encryption", "compression","deduplication", "dedup","backup","archive"]
+keywords = ["encryption", "compression","deduplication","backup","archive"]
 
 [features]
 profile = ["flame", "flamer"]
@@ -23,7 +22,7 @@ base64 = "0.10.1"
 zstd = "0.4"
 rust-argon2 = "0.5"
 rand = {version = "0.7", features=["small_rng"]}
-zeroize = { version  = "0.10", features = ["zeroize_derive"]}
+zeroize = { version  = "1.0.0", features = ["zeroize_derive"]}
 hmac = "0.7"
 sha2 = "0.8"
 digest = "0.8"
