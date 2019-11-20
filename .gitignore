@@ -4,3 +4,5 @@
 kcov*
 .cargo
 Cargo.lock
+**/*~
+**/.#*
