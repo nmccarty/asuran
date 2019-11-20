@@ -18,9 +18,9 @@ profile = ["flame", "flamer"]
 aes = "0.3.2"
 aes-ctr = "0.3.0"
 block-modes = "0.3.3"
-base64 = "0.10.1"
-zstd = "0.4"
-rust-argon2 = "0.5"
+base64 = "0.11"
+zstd = "0.5"
+rust-argon2 = "0.6"
 rand = {version = "0.7", features=["small_rng"]}
 zeroize = { version  = "1.0.0", features = ["zeroize_derive"]}
 hmac = "0.7"
