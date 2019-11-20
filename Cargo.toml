@@ -42,3 +42,20 @@ quickcheck = "0.9"
 quickcheck_macros = "0.8"
 dir-diff = "0.3"
 criterion = "0.3"
+
+[[bench]]
+name = "rawchunking"
+harness = false
+
+[[bench]]
+name = "chunkandstore"
+harness = false
+
+[profile.bench]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
