@@ -25,7 +25,7 @@ where
     }
 
     pub fn new_defaults() -> FastCDC<R> {
-        Self::new(16384, 65536, 32768)
+        Self::new(57344, 65536, 73728)
     }
 }
 
