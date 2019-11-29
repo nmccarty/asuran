@@ -57,9 +57,9 @@ fn get_repo(key: Key) -> (Repository<FileSystem>, TempDir) {
     (
         Repository::new(
             backend,
-            Compression::NoCompression,
+            Compression::ZStd { level: 0 },
             HMAC::Blake2bp,
-            Encryption::NoEncryption,
+            Encryption::new_aes256ctr(),
             key,
         ),
         root_dir,
