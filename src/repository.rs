@@ -41,6 +41,7 @@
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
 
+use rayon::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -134,7 +135,7 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&mut self, chunk: Chunk) -> Option<(ChunkID, bool)> {
+    pub fn write_raw(&self, chunk: Chunk) -> Option<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -204,6 +205,23 @@ impl<T: Backend> Repository<T> {
         }
     }
 
+    /// Writes multiple unpacked chunks to the repository in parallel
+    pub fn write_unpacked_chunks_parallel(
+        &self,
+        data: Vec<UnpackedChunk>,
+    ) -> Vec<Option<(ChunkID, bool)>> {
+        data.into_par_iter()
+            .map(|x| {
+                let id = x.id();
+                if self.has_chunk(id) && id != ChunkID::manifest_id() {
+                    Some((id, true))
+                } else {
+                    self.write_chunk_with_id(x.consuming_data(), id)
+                }
+            })
+            .collect()
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
@@ -216,7 +234,7 @@ impl<T: Backend> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&mut self, data: Vec<u8>, id: ChunkID) -> Option<(ChunkID, bool)> {
+    pub fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Option<(ChunkID, bool)> {
         let chunk = Chunk::pack_with_id(
             data,
             self.compression,
@@ -329,6 +347,42 @@ mod tests {
         let key1 = repo.write_chunk(data1.clone()).unwrap().0;
         let key2 = repo.write_chunk(data2.clone()).unwrap().0;
         let key3 = repo.write_chunk(data3.clone()).unwrap().0;
+
+        println!("Reading Chunks");
+        let out1 = repo.read_chunk(key1).unwrap();
+        let out2 = repo.read_chunk(key2).unwrap();
+        let out3 = repo.read_chunk(key3).unwrap();
+
+        assert_eq!(data1, out1);
+        assert_eq!(data2, out2);
+        assert_eq!(data3, out3);
+        std::mem::drop(repo);
+    }
+
+    #[test]
+    fn repository_add_read_parallel() {
+        let key = Key::random(32);
+
+        let size = 7 * 10_u64.pow(3);
+        let mut data1 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data1);
+        let mut data2 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data2);
+        let mut data3 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data3);
+
+        let (mut repo, root_dir) = get_repo(key.clone());
+        let cs = repo.chunk_settings();
+        let chunk1 = UnpackedChunk::new(data1.clone(), &cs, &key);
+        let chunk2 = UnpackedChunk::new(data2.clone(), &cs, &key);
+        let chunk3 = UnpackedChunk::new(data3.clone(), &cs, &key);
+        let chunks_vec = vec![chunk1, chunk2, chunk3];
+
+        println!("Adding Chunks");
+        let keys = repo.write_unpacked_chunks_parallel(chunks_vec);
+        let key1 = keys[0].unwrap().0;
+        let key2 = keys[1].unwrap().0;
+        let key3 = keys[2].unwrap().0;
 
         println!("Reading Chunks");
         let out1 = repo.read_chunk(key1).unwrap();
