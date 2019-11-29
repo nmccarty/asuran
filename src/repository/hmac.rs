@@ -1,3 +1,4 @@
+use blake2b_simd::blake2bp;
 use blake2b_simd::Params;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ type HmacSha256 = Hmac<Sha256>;
 pub enum HMAC {
     SHA256,
     Blake2b,
+    Blake2bp,
 }
 
 impl HMAC {
@@ -30,6 +32,12 @@ impl HMAC {
             }
             HMAC::Blake2b => Params::new()
                 .hash_length(64)
+                .key(key)
+                .hash(data)
+                .as_bytes()
+                .to_vec(),
+            HMAC::Blake2bp => blake2bp::Params::new()
+                .hash_length(32)
                 .key(key)
                 .hash(data)
                 .as_bytes()
@@ -63,6 +71,10 @@ impl HMAC {
             }
             HMAC::Blake2b => {
                 let hash = Params::new().hash_length(64).key(key).hash(data);
+                hash.eq(input_mac)
+            }
+            HMAC::Blake2bp => {
+                let hash = blake2bp::Params::new().hash_length(64).key(key).hash(data);
                 hash.eq(input_mac)
             }
         }
