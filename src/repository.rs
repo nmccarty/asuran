@@ -41,6 +41,7 @@
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
 
+use anyhow::Result;
 use rayon::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -135,12 +136,12 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&self, chunk: Chunk) -> Option<(ChunkID, bool)> {
+    pub fn write_raw(&self, chunk: Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
         if self.has_chunk(id) && id != ChunkID::manifest_id() {
-            Some((id, true))
+            Ok((id, true))
         } else {
             let mut buff = Vec::<u8>::new();
             chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
@@ -150,7 +151,7 @@ impl<T: Backend> Repository<T> {
             let mut seg_id = backend.highest_segment();
             let test_segment = backend.get_segment(seg_id);
             // If no segments exist, we must create one
-            let test_segment = if test_segment.is_none() {
+            let test_segment = if test_segment.is_err() {
                 seg_id = backend.make_segment()?;
                 backend.get_segment(seg_id)?
             } else {
@@ -169,7 +170,7 @@ impl<T: Backend> Repository<T> {
                 .unwrap()
                 .insert(id, (seg_id, start, length));
 
-            Some((id, false))
+            Ok((id, false))
         }
     }
 
@@ -183,7 +184,7 @@ impl<T: Backend> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub fn write_chunk(&mut self, data: Vec<u8>) -> Option<(ChunkID, bool)> {
+    pub fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
         let chunk = Chunk::pack(
             data,
             self.compression,
@@ -196,10 +197,10 @@ impl<T: Backend> Repository<T> {
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
-    pub fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Option<(ChunkID, bool)> {
+    pub fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
         if self.has_chunk(id) && id != ChunkID::manifest_id() {
-            Some((id, true))
+            Ok((id, true))
         } else {
             self.write_chunk_with_id(data.consuming_data(), id)
         }
@@ -209,12 +210,12 @@ impl<T: Backend> Repository<T> {
     pub fn write_unpacked_chunks_parallel(
         &self,
         data: Vec<UnpackedChunk>,
-    ) -> Vec<Option<(ChunkID, bool)>> {
+    ) -> Vec<Result<(ChunkID, bool)>> {
         data.into_par_iter()
             .map(|x| {
                 let id = x.id();
                 if self.has_chunk(id) && id != ChunkID::manifest_id() {
-                    Some((id, true))
+                    Ok((id, true))
                 } else {
                     self.write_chunk_with_id(x.consuming_data(), id)
                 }
@@ -234,7 +235,7 @@ impl<T: Backend> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Option<(ChunkID, bool)> {
+    pub fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
         let chunk = Chunk::pack_with_id(
             data,
             self.compression,
@@ -261,8 +262,8 @@ impl<T: Backend> Repository<T> {
         if self.has_chunk(id) {
             let index = self.index.read().unwrap();
             let (seg_id, start, length) = *index.get(&id)?;
-            let mut segment = self.backend.get_segment(seg_id)?;
-            let chunk_bytes = segment.read_chunk(start, length)?;
+            let mut segment = self.backend.get_segment(seg_id).ok()?;
+            let chunk_bytes = segment.read_chunk(start, length).ok()?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
@@ -380,9 +381,9 @@ mod tests {
 
         println!("Adding Chunks");
         let keys = repo.write_unpacked_chunks_parallel(chunks_vec);
-        let key1 = keys[0].unwrap().0;
-        let key2 = keys[1].unwrap().0;
-        let key3 = keys[2].unwrap().0;
+        let key1 = keys[0].as_ref().unwrap().0;
+        let key2 = keys[1].as_ref().unwrap().0;
+        let key3 = keys[2].as_ref().unwrap().0;
 
         println!("Reading Chunks");
         let out1 = repo.read_chunk(key1).unwrap();

@@ -1,6 +1,7 @@
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
+use anyhow::{Context, Result};
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
 use serde::{Deserialize, Serialize};
@@ -112,21 +113,17 @@ impl FileSystem {
 impl Backend for FileSystem {
     type Manifest = Self;
     type Segment = FileSystemSegment;
-    fn get_segment(&self, id: u64) -> Option<FileSystemSegment> {
+    fn get_segment(&self, id: u64) -> Result<FileSystemSegment> {
         let dir_name = (id / self.segments_per_folder).to_string();
         let path = Path::new(&self.root_directory)
             .join(Path::new(&dir_name))
             .join(Path::new(&id.to_string()));
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path)
-            .ok()?;
+        let file = fs::OpenOptions::new().read(true).write(true).open(path)?;
         let segment = FileSystemSegment {
             file,
             max_size: self.segment_size,
         };
-        Some(segment)
+        Ok(segment)
     }
 
     fn highest_segment(&self) -> u64 {
@@ -141,16 +138,17 @@ impl Backend for FileSystem {
             .fold(0, std::cmp::max)
     }
 
-    fn make_segment(&self) -> Option<u64> {
+    fn make_segment(&self) -> Result<u64> {
         let id = self.highest_segment() + 1;
         let dir_name = (id / self.segments_per_folder).to_string();
         let dir_path = Path::new(&self.root_directory).join(Path::new(&dir_name));
         // Create directory if it doesnt exist
-        fs::create_dir_all(dir_path.clone()).ok()?;
+        fs::create_dir_all(dir_path.clone())?;
         // Create file
         let path = dir_path.join(Path::new(&id.to_string()));
-        fs::File::create(path).ok()?;
-        Some(id)
+        fs::File::create(path.clone())
+            .with_context(|| format!("Failed to create new segment file at {:?}", path))?;
+        Ok(id)
     }
 
     fn get_index(&self) -> Vec<u8> {
@@ -170,7 +168,7 @@ impl Backend for FileSystem {
     fn write_index(&self, index: &[u8]) -> Result<()> {
         let path = Path::new(&self.root_directory).join(Path::new("index"));
         let mut file = fs::File::create(path)?;
-        file.write_all(index)?;
+        file.write_all(index).context("Failed to write index")?;
         Ok(())
     }
 
@@ -182,10 +180,11 @@ impl Backend for FileSystem {
         Ok(())
     }
 
-    fn read_key(&self) -> Option<EncryptedKey> {
+    fn read_key(&self) -> Result<EncryptedKey> {
         let path = Path::new(&self.root_directory).join(Path::new("keyfile"));
-        let file = fs::File::open(path).ok()?;
-        from_read(&file).ok()
+        let file = fs::File::open(path.clone())
+            .with_context(|| format!("Failed to read key file from {:?}", path))?;
+        from_read(&file).context("Failed to deserialize key")
     }
 
     fn get_manifest(&self) -> Self::Manifest {
@@ -294,19 +293,19 @@ impl Segment for FileSystemSegment {
         }
     }
 
-    fn read_chunk(&mut self, start: u64, length: u64) -> Option<Vec<u8>> {
+    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let mut output = vec![0u8; length as usize];
-        self.file.seek(SeekFrom::Start(start)).ok()?;
-        self.file.read_exact(&mut output).ok()?;
-        Some(output)
+        self.file.seek(SeekFrom::Start(start))?;
+        self.file.read_exact(&mut output)?;
+        Ok(output)
     }
 
-    fn write_chunk(&mut self, chunk: &[u8]) -> Option<(u64, u64)> {
+    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)> {
         let length = chunk.len() as u64;
-        let location = self.file.seek(SeekFrom::End(1)).ok()?;
-        self.file.write_all(chunk).unwrap();
+        let location = self.file.seek(SeekFrom::End(1))?;
+        self.file.write_all(chunk)?;
 
-        Some((location, length))
+        Ok((location, length))
     }
 }
 

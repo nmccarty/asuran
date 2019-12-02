@@ -1,10 +1,11 @@
 //! The backend provides abstract IO access to the real location of the data in
 //! the repository.
 use crate::manifest::StoredArchive;
+use crate::repository::ChunkID;
 use crate::repository::ChunkSettings;
 use crate::repository::EncryptedKey;
+use anyhow::Result;
 use chrono::prelude::*;
-use std::io::Result;
 
 pub mod filesystem;
 
@@ -23,11 +24,11 @@ pub trait Segment {
     /// Requires the start and end positions for the chunk
     ///
     /// Will return None if the read fails
-    fn read_chunk(&mut self, start: u64, length: u64) -> Option<Vec<u8>>;
+    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
     /// Writes a chunk to the segment
     ///
     /// Retuns Some(start,length), or None if writing fails
-    fn write_chunk(&mut self, chunk: &[u8]) -> Option<(u64, u64)>;
+    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)>;
 }
 
 /// Manifest trait
@@ -65,15 +66,15 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     type Segment: Segment;
     /// Gets a particular segment
     ///
-    /// Returns None if it does not exist or can not be found
-    fn get_segment(&self, id: u64) -> Option<Self::Segment>;
+    /// Returns Err if it does not exist or can not be found
+    fn get_segment(&self, id: u64) -> Result<Self::Segment>;
     /// Returns the id of the higest segment
     fn highest_segment(&self) -> u64;
     /// Creates a new segment
     ///
     /// Returns Some(id) with the segement if it can be created
     /// Returns None if creation fails.
-    fn make_segment(&self) -> Option<u64>;
+    fn make_segment(&self) -> Result<u64>;
     /// Returns the index of the repository
     ///
     /// Indexes are stored as byte strings, intrepreation is up to the caller
@@ -89,7 +90,7 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     /// Returns Err if the key could not be written
     fn write_key(&self, key: &EncryptedKey) -> Result<()>;
     /// Attempts to read the encrypted key from the backend.
-    fn read_key(&self) -> Option<EncryptedKey>;
+    fn read_key(&self) -> Result<EncryptedKey>;
     /// Returns a view of this respository's manifest
     fn get_manifest(&self) -> Self::Manifest;
 }

@@ -1,5 +1,6 @@
 use crate::chunker::{Chunker, Slice, SlicerSettings};
 use crate::repository::{Backend, ChunkID, Repository};
+use anyhow::Result;
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -120,7 +121,7 @@ impl Archive {
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_reader: R,
-    ) -> Option<()> {
+    ) -> Result<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
         let path = self.canonical_namespace() + path;
 
@@ -147,7 +148,7 @@ impl Archive {
 
         objects.insert(path.to_string(), locations);
 
-        Some(())
+        Ok(())
     }
 
     /// Inserts a sparse object into the archive
@@ -159,7 +160,7 @@ impl Archive {
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_readers: Vec<(Extent, R)>,
-    ) -> Option<()> {
+    ) -> Result<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
         let path = self.canonical_namespace() + path;
 
@@ -184,7 +185,7 @@ impl Archive {
             .expect("Lock on Archive::objects is posioned");
         objects.insert(path.to_string(), locations);
 
-        Some(())
+        Ok(())
     }
 
     /// Inserts an object into the archive without writing any bytes

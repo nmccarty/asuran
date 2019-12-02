@@ -2,6 +2,7 @@ use crate::chunker::{Chunker, SlicerSettings};
 use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
 
@@ -22,7 +23,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
         archive: &Archive,
         path: &str,
         objects: HashMap<String, BackupObject<T>>,
-    ) -> Option<()> {
+    ) -> Result<()> {
         for (namespace, backup_object) in objects {
             // TODO: Store total size in archive
             // let total_size = backup_object.total_size();
@@ -50,7 +51,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                 archive.put_sparse_object(chunker, repo, path, readers)?;
             }
         }
-        Some(())
+        Ok(())
     }
 
     /// Stores an object, performing the calls to BackupTarget::backup_object and raw_store_obejct
@@ -61,7 +62,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
         chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<T>>,
         archive: &Archive,
         path: &str,
-    ) -> Option<()> {
+    ) -> Result<()> {
         let objects = self.backup_object(path);
         self.raw_store_object(repo, chunker, archive, path, objects)
     }
