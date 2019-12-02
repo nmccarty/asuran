@@ -57,7 +57,7 @@ impl ChunkID {
 /// Chunk Settings
 ///
 /// Encapsulates the Encryption, Compression, and HMAC tags for a chunk
-#[derive(Serialize, Deserialize, Clone, Debug, Copy)]
+#[derive(Serialize, Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ChunkSettings {
     pub compression: Compression,
     pub encryption: Encryption,

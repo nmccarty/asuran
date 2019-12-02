@@ -48,7 +48,7 @@ impl<T: Backend> Manifest<T> {
     }
 
     /// Gets the default Chunk Settings for the repository
-    pub fn chunk_settings(self) -> ChunkSettings {
+    pub fn chunk_settings(&self) -> ChunkSettings {
         self.internal_manifest.chunk_settings()
     }
 
@@ -75,5 +75,36 @@ impl<T: Backend> Manifest<T> {
     /// Provides the timestamp of the manifest's last modification
     pub fn timestamp(&self) -> DateTime<FixedOffset> {
         self.internal_manifest.last_modification()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::*;
+
+    #[test]
+    fn chunk_settings_sanity() {
+        let settings = ChunkSettings {
+            encryption: Encryption::NoEncryption,
+            compression: Compression::NoCompression,
+            hmac: HMAC::Blake2b,
+        };
+
+        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let key = Key::random(32);
+        let repo = Repository::new(
+            backend,
+            settings.compression,
+            settings.hmac,
+            settings.encryption,
+            key,
+        );
+        let mut manifest = Manifest::load(&repo);
+
+        manifest.set_chunk_settings(settings);
+        let new_settings = manifest.chunk_settings();
+
+        assert_eq!(settings, new_settings);
     }
 }
