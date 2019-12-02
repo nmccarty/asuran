@@ -1,15 +1,19 @@
 image: "rust:latest"
 
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+cache:
+  paths:
+    - target
+    - .cargo
+  
 before_script:
   - apt-get update -yqq
   - apt-get install -yqq --no-install-recommends build-essential
   - apt-get install -yqq clang
   - apt-get install -yqq tree
   - cargo install cargo-tarpaulin -f
-
-cache:
-  paths:
-    - target
 
 stages:
   - test
