@@ -2,6 +2,7 @@
 #+TITLE: Asuran
 #+INFOJS_OPT: view:t toc:t ltoc:t mouse:underline buttons:0 path:http://thomasf.github.io/solarized-css/org-info.min.js
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
+[[https://codecov.io/gl/asuran-rs/libasuran][file:https://codecov.io/gl/asuran-rs/libasuran/branch/master/graph/badge.svg ]] [[https://gitlab.com/asuran-rs/libasuran][file:https://img.shields.io/gitlab/pipeline/asuran-rs/libasuran/master]] [[https://crates.io/crates/libasuran][ file:https://img.shields.io/crates/v/libasuran]] [[https://crates.io/crates/libasuran][file:https://img.shields.io/crates/l/libasuran]]
 * Overview
   Asuran is a new archive format, and an implementation (in rust) of both a read/write library as
   well as a command line tool.
