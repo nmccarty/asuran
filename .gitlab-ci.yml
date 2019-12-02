@@ -5,6 +5,7 @@ before_script:
   - apt-get install -yqq --no-install-recommends build-essential
   - apt-get install -yqq clang
   - apt-get install -yqq tree
+  - cargo install cargo-tarpaulin -f
 
 cache:
   paths:
@@ -12,6 +13,7 @@ cache:
 
 stages:
   - test
+  - cover
   - build
   - doc
 
@@ -40,4 +42,12 @@ pages:
   artifacts:
     paths:
       - public
+
+tarpaulin:
+  stage: cover
+  script:
+    - cargo tarpaulin --out Xml
+    - bash < (curl -s https://codecov.io/bash)
+  
+  
       
