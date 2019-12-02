@@ -111,7 +111,8 @@ impl FileSystem {
 
 impl Backend for FileSystem {
     type Manifest = Self;
-    fn get_segment(&self, id: u64) -> Option<Box<dyn Segment>> {
+    type Segment = FileSystemSegment;
+    fn get_segment(&self, id: u64) -> Option<FileSystemSegment> {
         let dir_name = (id / self.segments_per_folder).to_string();
         let path = Path::new(&self.root_directory)
             .join(Path::new(&dir_name))
@@ -125,7 +126,7 @@ impl Backend for FileSystem {
             file,
             max_size: self.segment_size,
         };
-        Some(Box::new(segment))
+        Some(segment)
     }
 
     fn highest_segment(&self) -> u64 {

@@ -62,10 +62,11 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
 /// should play nice with multithreaded access.
 pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest;
+    type Segment: Segment;
     /// Gets a particular segment
     ///
     /// Returns None if it does not exist or can not be found
-    fn get_segment(&self, id: u64) -> Option<Box<dyn Segment>>;
+    fn get_segment(&self, id: u64) -> Option<Self::Segment>;
     /// Returns the id of the higest segment
     fn highest_segment(&self) -> u64;
     /// Creates a new segment

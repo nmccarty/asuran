@@ -49,7 +49,7 @@ use std::sync::{Arc, RwLock};
 
 pub use self::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
 pub use crate::repository::backend::filesystem::FileSystem;
-pub use crate::repository::backend::Backend;
+pub use crate::repository::backend::{Backend, Segment};
 pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
