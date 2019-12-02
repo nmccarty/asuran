@@ -64,6 +64,17 @@ pub struct ChunkSettings {
     pub hmac: HMAC,
 }
 
+impl ChunkSettings {
+    /// Returns a chunksettings with no compression, no encryption, and blake2b
+    pub fn lightweight() -> ChunkSettings {
+        ChunkSettings {
+            compression: Compression::NoCompression,
+            encryption: Encryption::NoEncryption,
+            hmac: HMAC::Blake2b,
+        }
+    }
+}
+
 /// A raw block of data and its associated ChunkID
 ///
 /// This data is not encrypted, compressed, or otherwise tampered with, and can not be directly

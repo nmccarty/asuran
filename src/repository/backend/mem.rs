@@ -47,11 +47,13 @@ impl Manifest for Mem {
         manifest.push(archive);
     }
     /// This implementation reconstructs the last modified time, so this does nothing
+    #[cfg_attr(tarpaulin, skip)]
     fn touch(&mut self) {}
 }
 
 impl Segment for Mem {
     /// Always returns u64::max
+    #[cfg_attr(tarpaulin, skip)]
     fn free_bytes(&self) -> u64 {
         std::u64::MAX
     }
@@ -103,10 +105,12 @@ impl Backend for Mem {
         Ok(self.clone())
     }
     /// Always returns 0
+    #[cfg_attr(tarpaulin, skip)]
     fn highest_segment(&self) -> u64 {
         0
     }
     /// Only has one segement, so this does nothing
+    #[cfg_attr(tarpaulin, skip)]
     fn make_segment(&self) -> Result<u64> {
         Ok(0)
     }
@@ -128,5 +132,32 @@ impl Backend for Mem {
     }
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::*;
+
+    /// Makes sure accessing an unset key panics
+    #[test]
+    #[should_panic]
+    fn bad_key_access() {
+        let backend = Mem::new(ChunkSettings::lightweight());
+        backend.read_key().unwrap();
+    }
+
+    /// Checks to make sure setting and retriving a key works
+    #[test]
+    fn key_sanity() {
+        let backend = Mem::new(ChunkSettings::lightweight());
+        let key = Key::random(32);
+        let key_key = [0_u8; 128];
+        let encrypted_key =
+            EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
+        backend.write_key(&encrypted_key).unwrap();
+        let output = backend.read_key().unwrap().decrypt(&key_key).unwrap();
+        assert_eq!(key, output);
     }
 }
