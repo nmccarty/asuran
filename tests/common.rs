@@ -29,3 +29,19 @@ pub fn get_bare_settings() -> ChunkSettings {
         encryption: Encryption::NoEncryption,
     }
 }
+
+pub fn get_repo_mem(key: Key) -> Repository<impl Backend> {
+    let settings = ChunkSettings {
+        compression: Compression::ZStd { level: 1 },
+        hmac: HMAC::Blake2b,
+        encryption: Encryption::new_aes256ctr(),
+    };
+    let backend = libasuran::repository::backend::mem::Mem::new(settings);
+    Repository::new(
+        backend,
+        Compression::ZStd { level: 1 },
+        HMAC::Blake2b,
+        Encryption::new_aes256ctr(),
+        key,
+    )
+}
