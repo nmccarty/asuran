@@ -37,7 +37,7 @@ impl HMAC {
                 .as_bytes()
                 .to_vec(),
             HMAC::Blake2bp => blake2bp::Params::new()
-                .hash_length(32)
+                .hash_length(64)
                 .key(key)
                 .hash(data)
                 .as_bytes()

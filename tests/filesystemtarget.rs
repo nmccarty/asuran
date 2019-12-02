@@ -46,6 +46,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
 
     let mut manifest = Manifest::load(&repo);
     manifest.commit_archive(&mut repo, archive);
+    repo.commit_index();
 
     let manifest = Manifest::load(&repo);
     let stored_archive = &manifest.archives()[0];
@@ -100,6 +101,7 @@ fn backup_restore_no_empty_dirs_mem() {
     let manifest = Manifest::load(&repo);
     let stored_archive = &manifest.archives()[0];
     let archive = stored_archive.load(&repo).unwrap();
+    println!("{:?}", archive);
 
     let mut output_target =
         FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");

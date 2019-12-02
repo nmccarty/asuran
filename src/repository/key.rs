@@ -1,4 +1,5 @@
 use crate::repository::Encryption;
+use anyhow::Result;
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
@@ -154,7 +155,7 @@ impl EncryptedKey {
     /// Attempts to decrypt the key using the provided user key
     ///
     /// Will return none on failure
-    pub fn decrypt(&self, user_key: &[u8]) -> Option<Key> {
+    pub fn decrypt(&self, user_key: &[u8]) -> Result<Key> {
         // Derive the key from the user key
         let config = Config {
             variant: Variant::Argon2id,
@@ -167,16 +168,16 @@ impl EncryptedKey {
             ad: &[],
             hash_length: self.encryption.key_length() as u32,
         };
-        let generated_key_bytes = argon2::hash_raw(&user_key, &self.salt, &config).unwrap();
+        let generated_key_bytes = argon2::hash_raw(&user_key, &self.salt, &config)?;
         // Decrypt the key
         let key_bytes = self
             .encryption
             .decrypt_bytes(&self.encrypted_bytes, &generated_key_bytes)?;
         // Deserialize the key
         let mut de = Deserializer::new(&key_bytes[..]);
-        let key: Key = Deserialize::deserialize(&mut de).ok()?;
+        let key: Key = Deserialize::deserialize(&mut de)?;
 
-        Some(key)
+        Ok(key)
     }
 }
 

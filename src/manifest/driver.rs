@@ -84,7 +84,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
         archive: &Archive,
         path: &str,
         objects: HashMap<String, RestoreObject<T>>,
-    ) -> Option<()> {
+    ) -> Result<()> {
         for (namespace, restore_object) in objects {
             // TODO: get total size and do something with it
             // Get a new archive with the specified namespace
@@ -111,7 +111,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
                 archive.get_sparse_object(repo, path, writers)?;
             }
         }
-        Some(())
+        Ok(())
     }
 
     /// Retrieves an object, performing the call to BackupTarget::restore_object and raw_retrive_object
@@ -121,7 +121,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
         repo: &Repository<impl Backend>,
         archive: &Archive,
         path: &str,
-    ) -> Option<()> {
+    ) -> Result<()> {
         let objects = self.restore_object(path);
         self.raw_retrieve_object(repo, archive, path, objects)
     }

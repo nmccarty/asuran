@@ -38,12 +38,12 @@ pub struct StoredArchive {
 
 impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
-    pub fn load(&self, repo: &Repository<impl Backend>) -> Option<Archive> {
+    pub fn load(&self, repo: &Repository<impl Backend>) -> Result<Archive> {
         let bytes = repo.read_chunk(self.id)?;
         let mut de = Deserializer::new(&bytes[..]);
         let archive: Archive =
             Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
-        Some(archive)
+        Ok(archive)
     }
 
     /// Constructs a dummy archive object used for testing
@@ -128,7 +128,7 @@ impl Archive {
         from_reader: R,
     ) -> Result<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
-        let path = self.canonical_namespace() + path;
+        let path = self.canonical_namespace() + path.trim();
 
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
@@ -167,7 +167,7 @@ impl Archive {
         from_readers: Vec<(Extent, R)>,
     ) -> Result<()> {
         let mut locations: Vec<ChunkLocation> = Vec::new();
-        let path = self.canonical_namespace() + path;
+        let path = self.canonical_namespace() + path.trim();
 
         for (extent, read) in from_readers {
             let settings = repository.chunk_settings();
@@ -212,14 +212,20 @@ impl Archive {
         repository: &Repository<impl Backend>,
         path: &str,
         mut restore_to: impl Write,
-    ) -> Option<()> {
-        let path = self.canonical_namespace() + path;
+    ) -> Result<()> {
+        let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
         let objects = self
             .objects
             .read()
             .expect("Lock on Archive::objects is posioned.");
-        let mut locations = objects.get(&path.to_string())?.clone();
+        println!("{:?}", path);
+        let locations = objects.get(&path.to_string()).cloned();
+        let mut locations = if let Some(locations) = locations {
+            locations
+        } else {
+            return Ok(());
+        };
         locations.sort_unstable();
         let mut last_index = locations[0].start;
         for location in locations.iter() {
@@ -229,16 +235,16 @@ impl Archive {
             if start > last_index + 1 {
                 let zero = [0_u8];
                 for _ in last_index + 1..start {
-                    restore_to.write(&zero).ok()?;
+                    restore_to.write(&zero)?;
                 }
             }
             let bytes = repository.read_chunk(id)?;
 
-            restore_to.write_all(&bytes).ok()?;
+            restore_to.write_all(&bytes)?;
             last_index = start + location.length - 1;
         }
 
-        Some(())
+        Ok(())
     }
 
     /// Retrieve a single extent of an object from the repository
@@ -250,14 +256,20 @@ impl Archive {
         path: &str,
         extent: Extent,
         mut restore_to: impl Write,
-    ) -> Option<()> {
-        let path = self.canonical_namespace() + path;
+    ) -> Result<()> {
+        let path = self.canonical_namespace() + path.trim();
         let objects = self
             .objects
             .read()
             .expect("Lock on Archive::objects is posioned.");
 
-        let mut locations = objects.get(&path.to_string())?.clone();
+        let mut locations = objects.get(&path.to_string()).cloned();
+        let locations = objects.get(&path.to_string()).cloned();
+        let mut locations = if let Some(locations) = locations {
+            locations
+        } else {
+            return Ok(());
+        };
         locations.sort_unstable();
         let locations = locations
             .iter()
@@ -271,15 +283,15 @@ impl Archive {
             if start > last_index + 1 {
                 let zero = [0_u8];
                 for _ in last_index + 1..start {
-                    restore_to.write(&zero).ok()?;
+                    restore_to.write(&zero)?;
                 }
             }
             let bytes = repository.read_chunk(id)?;
-            restore_to.write_all(&bytes).ok()?;
+            restore_to.write_all(&bytes)?;
             last_index = start + location.length - 1;
         }
 
-        Some(())
+        Ok(())
     }
 
     /// Retrieves a sparse object from the repository
@@ -292,11 +304,11 @@ impl Archive {
         repository: &Repository<impl Backend>,
         path: &str,
         mut to_writers: Vec<(Extent, impl Write)>,
-    ) -> Option<()> {
+    ) -> Result<()> {
         for (extent, restore_to) in to_writers.iter_mut() {
             self.get_extent(repository, path, *extent, restore_to)?;
         }
-        Some(())
+        Ok(())
     }
 
     /// Returns the namespace of this archive in string form

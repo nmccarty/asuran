@@ -3,6 +3,7 @@
 //! Contains structs representing both encrypted and unencrypted data
 
 use super::{Compression, Encryption, Key, HMAC};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 
@@ -202,14 +203,14 @@ impl Chunk {
     /// Will return none if either the decompression or the decryption fail
     ///
     /// Will also return none if the HMAC verification fails
-    pub fn unpack(&self, key: &Key) -> Option<Vec<u8>> {
+    pub fn unpack(&self, key: &Key) -> Result<Vec<u8>> {
         if self.hmac.verify_hmac(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
             let decompressed_data = self.compression.decompress(decrypted_data)?;
 
-            Some(decompressed_data)
+            Ok(decompressed_data)
         } else {
-            None
+            Err(anyhow!("hmac verification failed"))
         }
     }
 
@@ -277,37 +278,32 @@ mod tests {
 
         let data_bytes = data_string.as_bytes().to_vec();
         println!("Data: \n:{:X?}", data_bytes);
+        println!("{:?} {:?} {:?}", compression, hmac, encryption);
 
         let key = Key::random(32);
         let packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
 
-        let output_bytes = packed.unpack(&key);
+        let output_bytes = packed.unpack(&key).unwrap();
 
-        assert_eq!(Some(data_string.as_bytes().to_vec()), output_bytes);
+        assert_eq!(data_string.as_bytes().to_vec(), output_bytes);
     }
 
     #[test]
-    fn chunk_aes256cbc_zstd6_sha256() {
-        let compression = Compression::ZStd { level: 6 };
-        let encryption = Encryption::new_aes256cbc();
-        let hmac = HMAC::SHA256;
-        chunk_with_settings(compression, encryption, hmac);
-    }
-
-    #[test]
-    fn chunk_aes256cbc_zstd6_blake2b() {
-        let compression = Compression::ZStd { level: 6 };
-        let encryption = Encryption::new_aes256cbc();
-        let hmac = HMAC::Blake2b;
-        chunk_with_settings(compression, encryption, hmac);
-    }
-
-    #[test]
-    fn chunk_aes256ctr_zstd6_blake2b() {
-        let compression = Compression::ZStd { level: 6 };
-        let encryption = Encryption::new_aes256ctr();
-        let hmac = HMAC::Blake2b;
-        chunk_with_settings(compression, encryption, hmac);
+    fn all_combos() {
+        let compressions = [Compression::NoCompression, Compression::ZStd { level: 1 }];
+        let encryptions = [
+            Encryption::NoEncryption,
+            Encryption::new_aes256cbc(),
+            Encryption::new_aes256ctr(),
+        ];
+        let hmacs = [HMAC::SHA256, HMAC::Blake2b, HMAC::Blake2bp];
+        for c in compressions.iter() {
+            for e in encryptions.iter() {
+                for h in hmacs.iter() {
+                    chunk_with_settings(*c, *e, *h);
+                }
+            }
+        }
     }
 
     #[test]
@@ -325,6 +321,6 @@ mod tests {
 
         let result = packed.unpack(&key);
 
-        assert_eq!(result, None);
+        assert!(result.is_err());
     }
 }

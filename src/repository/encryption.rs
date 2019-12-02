@@ -2,6 +2,7 @@ use aes::Aes256;
 use aes_ctr::stream_cipher::generic_array::GenericArray;
 use aes_ctr::stream_cipher::{NewStreamCipher, SyncStreamCipher};
 use aes_ctr::Aes256Ctr;
+use anyhow::{Context, Result};
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Cbc};
 use rand::prelude::*;
@@ -100,13 +101,13 @@ impl Encryption {
     /// so any value can be used. Will pad key with zeros if it is too short.
     ///
     /// Will return None on encryption failure
-    pub fn decrypt(&self, data: &[u8], key: &Key) -> Option<Vec<u8>> {
+    pub fn decrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>> {
         self.decrypt_bytes(data, key.key())
     }
 
-    pub fn decrypt_bytes(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+    pub fn decrypt_bytes(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         match self {
-            Encryption::NoEncryption => Some(data.to_vec()),
+            Encryption::NoEncryption => Ok(data.to_vec()),
             Encryption::AES256CBC { iv } => {
                 // Creates a key of the correct length, and fills it with
                 // zeros to start with
@@ -115,13 +116,14 @@ impl Encryption {
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..]).ok()?;
-                let final_result = decryptor.decrypt_vec(data).ok()?;
+                let decryptor: Cbc<Aes256, Pkcs7> =
+                    Cbc::new_var(&key, &iv[..]).context("Failed constructing decryptor")?;
+                let final_result = decryptor.decrypt_vec(data).context("Failed to decrypt")?;
 
                 // Zeroize key
                 proper_key.zeroize();
 
-                Some(final_result)
+                Ok(final_result)
             }
             Encryption::AES256CTR { iv } => {
                 let mut proper_key: [u8; 32] = [0; 32];
@@ -135,7 +137,7 @@ impl Encryption {
                 decryptor.apply_keystream(&mut final_result);
 
                 proper_key.zeroize();
-                Some(final_result)
+                Ok(final_result)
             }
         }
     }

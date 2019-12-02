@@ -41,7 +41,7 @@
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -242,7 +242,7 @@ impl<T: Backend> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
-    pub fn read_chunk(&self, id: ChunkID) -> Option<Vec<u8>> {
+    pub fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
             let index = self.backend.get_index();
@@ -250,17 +250,17 @@ impl<T: Backend> Repository<T> {
             let seg_id = location.segment_id;
             let start = location.start;
             let length = location.length;
-            let mut segment = self.backend.get_segment(seg_id).ok()?;
-            let chunk_bytes = segment.read_chunk(start, length).ok()?;
+            let mut segment = self.backend.get_segment(seg_id)?;
+            let chunk_bytes = segment.read_chunk(start, length)?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
 
             let data = chunk.unpack(&self.key)?;
 
-            Some(data)
+            Ok(data)
         } else {
-            None
+            Err(anyhow!("Chunk not in reposiotry"))
         }
     }
 

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "profile")]
@@ -32,17 +33,13 @@ impl Compression {
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails
-    pub fn decompress(self, data: Vec<u8>) -> Option<Vec<u8>> {
+    pub fn decompress(self, data: Vec<u8>) -> Result<Vec<u8>> {
         match self {
-            Compression::NoCompression => Some(data),
+            Compression::NoCompression => Ok(data),
             Compression::ZStd { .. } => {
                 let mut output = Vec::<u8>::new();
-                let result = zstd::stream::copy_decode(data.as_slice(), &mut output);
-                if result.is_err() {
-                    None
-                } else {
-                    Some(output)
-                }
+                zstd::stream::copy_decode(data.as_slice(), &mut output)?;
+                Ok(output)
             }
         }
     }
