@@ -12,7 +12,7 @@ use flamer::*;
 type HmacSha256 = Hmac<Sha256>;
 
 /// Tag for the HMAC algorithim used by a particular chunk
-#[derive(Deserialize, Serialize, Copy, Clone, Debug)]
+#[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HMAC {
     SHA256,
     Blake2b,

@@ -15,7 +15,7 @@ use crate::repository::Key;
 use flamer::*;
 
 /// Tag for the encryption algorthim and IV used by a particular chunk
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum Encryption {
     AES256CBC { iv: [u8; 16] },
     AES256CTR { iv: [u8; 16] },
@@ -164,7 +164,7 @@ mod tests {
             "The quick brown fox jumps over the lazy dog. Jackdaws love my big sphinx of quartz.";
         let encrypted_string = enc.encrypt_bytes(data_string.as_bytes(), &key);
         let decrypted_bytes = enc.decrypt_bytes(&encrypted_string, &key).unwrap();
-        let decrypted_string = str::from_utf8(&decrypted_bytes).unwrap();;
+        let decrypted_string = str::from_utf8(&decrypted_bytes).unwrap();
 
         println!("Input string: {}", data_string);
         println!("Input bytes: \n{:X?}", data_string.as_bytes());

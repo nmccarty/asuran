@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use flamer::*;
 
 /// Marker for the type of compression used by a particular chunk
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
