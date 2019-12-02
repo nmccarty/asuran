@@ -86,7 +86,7 @@ impl Key {
 /// Uses a 32 byte salt that is randomly generated
 ///
 /// Currently uses semi-arbitrary defaults for some values. TODO: allow configuration of this
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EncryptedKey {
     encrypted_bytes: Vec<u8>,
     salt: [u8; 32],

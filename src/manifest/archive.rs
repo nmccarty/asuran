@@ -55,6 +55,11 @@ impl StoredArchive {
             timestamp: Local::now().with_timezone(Local::now().offset()),
         }
     }
+
+    /// Returns the timestamp of the archive
+    pub fn timestamp(&self) -> DateTime<FixedOffset> {
+        self.timestamp.clone()
+    }
 }
 
 /// Location of a chunk in a file
