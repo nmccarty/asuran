@@ -1,13 +1,4 @@
-image: "rust:latest"
-
-variables:
-  CARGO_HOME: $CI_PROJECT_DIR/.cargo
-
-before_script:
-  - apt-get update -yqq
-  - apt-get install -yqq --no-install-recommends build-essential
-  - apt-get install -yqq clang
-  - apt-get install -yqq tree
+image: "thatonelutenist/rust-tarp:20191202"
 
 stages:
   - test
@@ -23,7 +14,6 @@ test:
   cache:
     paths:
       - target
-      - .cargo
 
 build_job:
   stage: build
@@ -35,7 +25,6 @@ build_job:
   cache:
     paths:
       - target
-      - .cargo
 
 pages:
   stage: doc
@@ -49,18 +38,16 @@ pages:
   cache:
     paths:
       - target
-      - .cargo
 
 tarpaulin:
   stage: test
   script:
-    - cargo install cargo-tarpaulin -f
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
   cache:
     paths:
       - target
-      - .cargo
+
   
   
       
