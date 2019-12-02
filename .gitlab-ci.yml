@@ -3,11 +3,6 @@ image: "rust:latest"
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-cache:
-  paths:
-    - target
-    - .cargo
-  
 before_script:
   - apt-get update -yqq
   - apt-get install -yqq --no-install-recommends build-essential
@@ -16,7 +11,6 @@ before_script:
 
 stages:
   - test
-  - cover
   - build
   - doc
 
@@ -26,6 +20,10 @@ test:
     - rustc --version
     - cargo --version
     - cargo test --verbose
+  cache:
+    paths:
+      - target
+      - .cargo
 
 build_job:
   stage: build
@@ -34,6 +32,10 @@ build_job:
   artifacts:
     paths:
       - target/release/
+  cache:
+    paths:
+      - target
+      - .cargo
 
 pages:
   stage: doc
@@ -41,17 +43,24 @@ pages:
     - cargo doc --no-deps
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
-    
   artifacts:
     paths:
       - public
+  cache:
+    paths:
+      - target
+      - .cargo
 
 tarpaulin:
-  stage: cover
+  stage: test
   script:
-    - cargo install cargo-tarpaulin -f
+    - cargo install cargo-tarpaulin
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
+  cache:
+    paths:
+      - target
+      - .cargo
   
   
       
