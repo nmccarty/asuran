@@ -298,6 +298,7 @@ impl<T: Backend> Drop for Repository<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repository::backend::mem::*;
     use rand::prelude::*;
     use tempfile::{tempdir, TempDir};
 
@@ -318,6 +319,22 @@ mod tests {
         )
     }
 
+    fn get_repo_mem(key: Key) -> Repository<Mem> {
+        let settings = ChunkSettings {
+            compression: Compression::ZStd { level: 1 },
+            hmac: HMAC::Blake2b,
+            encryption: Encryption::new_aes256ctr(),
+        };
+        let backend = Mem::new(settings);
+        Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            key,
+        )
+    }
+
     #[test]
     fn repository_add_read() {
         let key = Key::random(32);
@@ -330,8 +347,7 @@ mod tests {
         let mut data3 = vec![0_u8; size as usize];
         thread_rng().fill_bytes(&mut data3);
 
-        let (mut repo, root_dir) = get_repo(key);
-
+        let mut repo = get_repo_mem(key);
         println!("Adding Chunks");
         let key1 = repo.write_chunk(data1.clone()).unwrap().0;
         let key2 = repo.write_chunk(data2.clone()).unwrap().0;
@@ -345,7 +361,6 @@ mod tests {
         assert_eq!(data1, out1);
         assert_eq!(data2, out2);
         assert_eq!(data3, out3);
-        std::mem::drop(repo);
     }
 
     #[test]
@@ -360,7 +375,7 @@ mod tests {
         let mut data3 = vec![0_u8; size as usize];
         thread_rng().fill_bytes(&mut data3);
 
-        let (mut repo, root_dir) = get_repo(key.clone());
+        let mut repo = get_repo_mem(key.clone());
         let cs = repo.chunk_settings();
         let chunk1 = UnpackedChunk::new(data1.clone(), &cs, &key);
         let chunk2 = UnpackedChunk::new(data2.clone(), &cs, &key);
@@ -444,7 +459,7 @@ mod tests {
     fn double_add() {
         // Adding the same chunk to the repository twice shouldn't result in
         // two chunks in the repository
-        let (mut repo, root_dir) = get_repo(Key::random(32));
+        let mut repo = get_repo_mem(Key::random(32));
         assert_eq!(repo.count_chunk(), 0);
         let data = [1_u8; 8192];
 
