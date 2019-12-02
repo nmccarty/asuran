@@ -107,4 +107,29 @@ mod tests {
 
         assert_eq!(settings, new_settings);
     }
+
+    #[test]
+    fn new_archive_updates_time() {
+        let settings = ChunkSettings::lightweight();
+        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let key = Key::random(32);
+        let repo = Repository::new(
+            backend.clone(),
+            settings.compression,
+            settings.hmac,
+            settings.encryption,
+            key,
+        );
+        let mut manifest = Manifest::load(&repo);
+
+        let dummy1 = StoredArchive::dummy_archive();
+        backend.get_manifest().write_archive(dummy1);
+        let time1 = manifest.timestamp();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let dummy2 = StoredArchive::dummy_archive();
+        backend.get_manifest().write_archive(dummy2);
+        let time2 = manifest.timestamp();
+
+        assert!(time2 > time1);
+    }
 }
