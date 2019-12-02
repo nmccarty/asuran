@@ -58,7 +58,7 @@ impl StoredArchive {
 
     /// Returns the timestamp of the archive
     pub fn timestamp(&self) -> DateTime<FixedOffset> {
-        self.timestamp.clone()
+        self.timestamp
     }
 }
 
@@ -235,7 +235,7 @@ impl Archive {
             if start > last_index + 1 {
                 let zero = [0_u8];
                 for _ in last_index + 1..start {
-                    restore_to.write(&zero)?;
+                    restore_to.write_all(&zero)?;
                 }
             }
             let bytes = repository.read_chunk(id)?;
@@ -263,7 +263,6 @@ impl Archive {
             .read()
             .expect("Lock on Archive::objects is posioned.");
 
-        let mut locations = objects.get(&path.to_string()).cloned();
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {
             locations
@@ -283,7 +282,7 @@ impl Archive {
             if start > last_index + 1 {
                 let zero = [0_u8];
                 for _ in last_index + 1..start {
-                    restore_to.write(&zero)?;
+                    restore_to.write_all(&zero)?;
                 }
             }
             let bytes = repository.read_chunk(id)?;

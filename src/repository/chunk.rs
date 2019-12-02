@@ -30,12 +30,13 @@ impl ChunkID {
     }
 
     /// Returns an immutable refrence to the key in bytestring form
+    #[cfg_attr(tarpaulin, skip)]
     pub fn get_id(&self) -> &[u8] {
         &self.id
     }
 
     /// Verifies equaliy of this key with the first 32 bytes of a slice
-    pub fn verfiy(&self, slice: &[u8]) -> bool {
+    pub fn verify(&self, slice: &[u8]) -> bool {
         if slice.len() < self.id.len() {
             false
         } else {
@@ -322,5 +323,14 @@ mod tests {
         let result = packed.unpack(&key);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn chunk_id_equality() {
+        let data1 = [1_u8; 64];
+        let data2 = [2_u8; 64];
+        let id = ChunkID::new(&data1);
+        assert!(id.verify(&data1));
+        assert!(!id.verify(&data2));
     }
 }
