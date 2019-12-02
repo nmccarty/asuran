@@ -45,12 +45,10 @@ use anyhow::Result;
 use rayon::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 
 pub use self::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
 pub use crate::repository::backend::filesystem::FileSystem;
-pub use crate::repository::backend::{Backend, Segment};
+pub use crate::repository::backend::{Backend, ChunkLocation, Index, Segment};
 pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
@@ -74,7 +72,6 @@ pub mod key;
 #[derive(Clone)]
 pub struct Repository<T: Backend> {
     backend: T,
-    index: Arc<RwLock<HashMap<ChunkID, (u64, u64, u64)>>>,
     /// Default compression for new chunks
     compression: Compression,
     /// Default MAC algorthim for new chunks
@@ -94,20 +91,8 @@ impl<T: Backend> Repository<T> {
         encryption: Encryption,
         key: Key,
     ) -> Repository<T> {
-        // Check for index, create a new one if it doesnt exist
-        let index_vec = backend.get_index();
-        let index = if index_vec.is_empty() {
-            Arc::new(RwLock::new(HashMap::new()))
-        } else {
-            let mut de = Deserializer::new(index_vec.as_slice());
-            Arc::new(RwLock::new(
-                Deserialize::deserialize(&mut de).expect("Unable to parse index"),
-            ))
-        };
-
         Repository {
             backend,
-            index,
             compression,
             hmac,
             encryption,
@@ -121,11 +106,9 @@ impl<T: Backend> Repository<T> {
     /// This should be called every time an archive or manifest is written, at
     /// the very least
     pub fn commit_index(&self) {
-        let mut buff = Vec::<u8>::new();
-        let mut se = Serializer::new(&mut buff);
-        self.index.serialize(&mut se).unwrap();
         self.backend
-            .write_index(&buff)
+            .get_index()
+            .commit_index()
             .expect("Unable to commit index");
     }
 
@@ -165,10 +148,12 @@ impl<T: Backend> Repository<T> {
             };
 
             let (start, length) = segment.write_chunk(&buff)?;
-            self.index
-                .write()
-                .unwrap()
-                .insert(id, (seg_id, start, length));
+            let location = ChunkLocation {
+                segment_id: seg_id,
+                start,
+                length,
+            };
+            self.backend.get_index().set_chunk(id, location)?;
 
             Ok((id, false))
         }
@@ -250,7 +235,7 @@ impl<T: Backend> Repository<T> {
 
     /// Determines if a chunk exists in the index
     pub fn has_chunk(&self, id: ChunkID) -> bool {
-        self.index.read().unwrap().contains_key(&id)
+        self.backend.get_index().lookup_chunk(id).is_some()
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -260,8 +245,11 @@ impl<T: Backend> Repository<T> {
     pub fn read_chunk(&self, id: ChunkID) -> Option<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
-            let index = self.index.read().unwrap();
-            let (seg_id, start, length) = *index.get(&id)?;
+            let index = self.backend.get_index();
+            let location = index.lookup_chunk(id).unwrap();
+            let seg_id = location.segment_id;
+            let start = location.start;
+            let length = location.length;
             let mut segment = self.backend.get_segment(seg_id).ok()?;
             let chunk_bytes = segment.read_chunk(start, length).ok()?;
 
@@ -278,7 +266,7 @@ impl<T: Backend> Repository<T> {
 
     /// Provides a count of the number of chunks in the repository
     pub fn count_chunk(&self) -> usize {
-        self.index.read().unwrap().len()
+        self.backend.get_index().count_chunk()
     }
 
     /// Returns the current default chunk settings for this repository

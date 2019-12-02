@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -17,6 +18,8 @@ pub struct FileSystem {
     segments_per_folder: u64,
     segment_size: u64,
     manifest_file: Arc<RwLock<fs::File>>,
+    index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
+    index_file: Arc<RwLock<fs::File>>,
 }
 
 impl FileSystem {
@@ -62,11 +65,40 @@ impl FileSystem {
 
         let manifest_file = Arc::new(RwLock::new(manifest_file));
 
+        // Open the file handle for the index
+        let index_exists;
+        let index_path = Path::new(root_directory).join("index");
+        if !index_path.exists() {
+            fs::File::create(&index_path).expect("Unable to create index file.");
+            index_exists = false;
+        } else {
+            index_exists = true;
+        }
+
+        let mut index_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&index_path)
+            .expect("Failed to open index file. Check if you have permissions to the directory");
+
+        let index;
+        if index_exists {
+            // Read the index
+            index = from_read(&index_file).expect("Unable to deserialize index");
+        } else {
+            // index is empty
+            index = HashMap::new();
+            // Write to file
+            write(&mut index_file, &index).expect("Unable to initalize index");
+        }
+
         FileSystem {
             root_directory: root_directory.to_string(),
             segments_per_folder,
             segment_size,
             manifest_file,
+            index: Arc::new(RwLock::new(index)),
+            index_file: Arc::new(RwLock::new(index_file)),
         }
     }
 
@@ -101,11 +133,40 @@ impl FileSystem {
 
         let manifest_file = Arc::new(RwLock::new(manifest_file));
 
+        // Open the file handle for the index
+        let index_exists;
+        let index_path = Path::new(root_directory).join("index");
+        if !index_path.exists() {
+            fs::File::create(&index_path).expect("Unable to create index file.");
+            index_exists = false;
+        } else {
+            index_exists = true;
+        }
+
+        let mut index_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&index_path)
+            .expect("Failed to open index file. Check if you have permissions to the directory");
+
+        let index;
+        if index_exists {
+            // Read the index
+            index = from_read(&index_file).expect("Unable to deserialize index");
+        } else {
+            // index is empty
+            index = HashMap::new();
+            // Write to file
+            write(&mut index_file, &index).expect("Unable to initalize index");
+        }
+
         FileSystem {
             root_directory: root_directory.to_string(),
             segments_per_folder,
             segment_size,
             manifest_file,
+            index: Arc::new(RwLock::new(index)),
+            index_file: Arc::new(RwLock::new(index_file)),
         }
     }
 }
@@ -113,6 +174,7 @@ impl FileSystem {
 impl Backend for FileSystem {
     type Manifest = Self;
     type Segment = FileSystemSegment;
+    type Index = Self;
     fn get_segment(&self, id: u64) -> Result<FileSystemSegment> {
         let dir_name = (id / self.segments_per_folder).to_string();
         let path = Path::new(&self.root_directory)
@@ -151,25 +213,8 @@ impl Backend for FileSystem {
         Ok(id)
     }
 
-    fn get_index(&self) -> Vec<u8> {
-        // Make index path
-        let path = Path::new(&self.root_directory).join(Path::new("index"));
-        // Check to see if the index exists, otherwise return an empty path
-        if path.exists() {
-            let mut buffer = Vec::new();
-            let mut file = fs::File::open(path).expect("Unable to open index");
-            file.read_to_end(&mut buffer).expect("Unable to read index");
-            buffer
-        } else {
-            Vec::new()
-        }
-    }
-
-    fn write_index(&self, index: &[u8]) -> Result<()> {
-        let path = Path::new(&self.root_directory).join(Path::new("index"));
-        let mut file = fs::File::create(path)?;
-        file.write_all(index).context("Failed to write index")?;
-        Ok(())
+    fn get_index(&self) -> Self::Index {
+        self.clone()
     }
 
     fn write_key(&self, key: &EncryptedKey) -> Result<()> {
@@ -275,6 +320,36 @@ impl Manifest for FileSystem {
         file.set_len(0)
             .expect("Unable to empty file writing settings.");
         write(file, &carrier).expect("Unable to write settings.");
+    }
+}
+
+impl Index for FileSystem {
+    fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
+        self.index.read().unwrap().get(&id).copied()
+    }
+    fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()> {
+        let mut index = self.index.write().expect("Lock on index posioned");
+        index.insert(id, location);
+        Ok(())
+    }
+    fn commit_index(&self) -> Result<()> {
+        let index_guard = self.index.read().unwrap();
+        let index: &HashMap<ChunkID, ChunkLocation> = &index_guard;
+        let mut file_guard = self
+            .index_file
+            .write()
+            .expect("Lock on index file posioned");
+        let file: &mut fs::File = &mut file_guard;
+        // go to start of file and empty it
+        file.seek(SeekFrom::Start(0))?;
+        file.set_len(0)?;
+        // Write index
+        write(file, &index)?;
+
+        Ok(())
+    }
+    fn count_chunk(&self) -> usize {
+        self.index.read().unwrap().len()
     }
 }
 

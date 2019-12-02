@@ -6,6 +6,7 @@ use crate::repository::ChunkSettings;
 use crate::repository::EncryptedKey;
 use anyhow::Result;
 use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
 
 pub mod filesystem;
 
@@ -54,6 +55,28 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     fn touch(&mut self);
 }
 
+/// Holder type for chunkIDs in the (segementID, start, length) format
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct ChunkLocation {
+    pub segment_id: u64,
+    pub start: u64,
+    pub length: u64,
+}
+
+/// Index Trait
+///
+/// Keeps track of where chunks are in the backend
+pub trait Index: Send + Sync + Clone + std::fmt::Debug {
+    /// Provides the location of a chunk in the repository
+    fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation>;
+    /// Sets the location of a chunk in the repository
+    fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()>;
+    /// Commits the index
+    fn commit_index(&self) -> Result<()>;
+    /// Returns the total number of chunks in the index
+    fn count_chunk(&self) -> usize;
+}
+
 /// Repository backend
 ///
 /// The backend handles the heavy lifiting of the IO, abstracting the repository
@@ -64,6 +87,7 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
 pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest;
     type Segment: Segment;
+    type Index: Index;
     /// Gets a particular segment
     ///
     /// Returns Err if it does not exist or can not be found
@@ -75,16 +99,8 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     /// Returns Some(id) with the segement if it can be created
     /// Returns None if creation fails.
     fn make_segment(&self) -> Result<u64>;
-    /// Returns the index of the repository
-    ///
-    /// Indexes are stored as byte strings, intrepreation is up to the caller
-    fn get_index(&self) -> Vec<u8>;
-    /// Writes a new index to the backend
-    ///
-    /// Backend should write the new index first, and then delete the old one
-    ///
-    /// Returns Err if the index could not be written.
-    fn write_index(&self, index: &[u8]) -> Result<()>;
+    /// Returns a view of the index of the repository
+    fn get_index(&self) -> Self::Index;
     /// Writes the specified encrypted key to the backend
     ///
     /// Returns Err if the key could not be written
