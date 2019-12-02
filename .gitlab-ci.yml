@@ -13,7 +13,6 @@ before_script:
   - apt-get install -yqq --no-install-recommends build-essential
   - apt-get install -yqq clang
   - apt-get install -yqq tree
-  - cargo install cargo-tarpaulin -f
 
 stages:
   - test
@@ -50,6 +49,7 @@ pages:
 tarpaulin:
   stage: cover
   script:
+    - cargo install cargo-tarpaulin -f
     - cargo tarpaulin --out Xml
     - bash < (curl -s https://codecov.io/bash)
   
