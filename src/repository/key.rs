@@ -27,7 +27,7 @@ impl Key {
             match i % 3 {
                 0 => buffer1.push(*byte),
                 1 => buffer2.push(*byte),
-                3 => buffer3.push(*byte),
+                2 => buffer3.push(*byte),
                 _ => unreachable!(),
             };
         }
@@ -193,5 +193,15 @@ mod tests {
         let output_key = enc_key.decrypt(user_key).unwrap();
 
         assert_eq!(input_key, output_key);
+    }
+
+    #[test]
+    fn from_bytes() {
+        let input = [1, 2, 3, 1, 2, 3, 1, 2, 3];
+        let key = Key::from_bytes(&input, 4);
+        assert_eq!(key.key, [1, 1, 1]);
+        assert_eq!(key.hmac_key, [2, 2, 2]);
+        assert_eq!(key.id_key, [3, 3, 3]);
+        assert_eq!(key.chunker_nonce(), 4);
     }
 }
