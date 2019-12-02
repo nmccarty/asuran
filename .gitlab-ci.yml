@@ -54,7 +54,7 @@ pages:
 tarpaulin:
   stage: test
   script:
-    - cargo install cargo-tarpaulin
+    - cargo install cargo-tarpaulin -f
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
   cache:
