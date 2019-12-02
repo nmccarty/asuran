@@ -9,6 +9,7 @@ use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub mod filesystem;
+pub mod mem;
 
 /// Segments are abstract blocks of chunks
 ///
