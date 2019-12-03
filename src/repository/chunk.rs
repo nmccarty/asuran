@@ -203,36 +203,19 @@ impl Chunk {
         }
     }
 
-    /// Creates a chunk from a raw bytestring with the given compressor
-    /// and encryption algorithim
-    pub fn from_bytes(
-        data: &[u8],
-        compression: Compression,
-        encryption: Encryption,
-        hmac: HMAC,
-        mac: &[u8],
-        id: ChunkID,
-    ) -> Chunk {
-        Chunk {
-            data: data.to_vec(),
-            compression,
-            encryption,
-            hmac,
-            mac: mac.to_vec(),
-            id,
-        }
-    }
-
+    #[cfg_attr(tarpaulin, skip)]
     /// Returns the length of the data bytes
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Determine if this chunk is empty
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Returns a reference to the raw bytes of this chunk
     pub fn get_bytes(&self) -> &[u8] {
         &self.data
@@ -244,6 +227,7 @@ impl Chunk {
     }
 
     #[cfg(test)]
+    #[cfg_attr(tarpaulin, skip)]
     /// Testing only function used to corrupt the data
     pub fn break_data(&mut self, index: usize) {
         let val = self.data[index];
