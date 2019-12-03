@@ -107,18 +107,6 @@ impl UnpackedChunk {
         &self.data
     }
 
-    /// Consumes self and returns a real chunk
-    pub fn pack(self, settings: &ChunkSettings, key: &Key) -> Chunk {
-        Chunk::pack_with_id(
-            self.data,
-            settings.compression,
-            settings.encryption,
-            settings.hmac,
-            key,
-            self.id,
-        )
-    }
-
     /// Returns the data consuming self
     pub fn consuming_data(self) -> Vec<u8> {
         self.data
