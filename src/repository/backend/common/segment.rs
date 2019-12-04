@@ -1,6 +1,6 @@
 use crate::repository::backend::TransactionType;
 use crate::repository::ChunkID;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -111,14 +111,62 @@ pub struct Segment<T> {
 }
 
 impl<T: Read + Write + Seek> Segment<T> {
-    pub fn new(handle: T, size_limit: u64) -> Segment<T> {
-        Segment { handle, size_limit }
+    /// Creates a new segment given a reader and a maximum size
+    pub fn new(handle: T, size_limit: u64) -> Result<Segment<T>> {
+        let mut s = Segment { handle, size_limit };
+        // Attempt to write the header
+        let written = s.write_header()?;
+        if written {
+            // Segment was empty, pass along as is
+            Ok(s)
+        } else {
+            // Attempt to read the header
+            let header = s.read_header()?;
+            // Validate it
+            if header.validate() {
+                Ok(s)
+            } else {
+                Err(anyhow!("Segment failed header validation"))
+            }
+        }
     }
 
+    /// Consumes the segment and generates a thread safe SegmentHandle
     pub fn into_handle(self) -> SegmentHandle<T> {
         SegmentHandle {
             handle: Arc::new(Mutex::new(self)),
         }
+    }
+
+    /// If the segment has zero length, will write the header and return Ok(true)
+    ///
+    /// If the segment has non-zero length, will do nothing and return Ok(false)
+    ///
+    /// An error in reading/writing will bubble up.
+    pub fn write_header(&mut self) -> Result<bool> {
+        // Am i empty?
+        let end = self.handle.seek(SeekFrom::End(0))?;
+        if end == 0 {
+            // If we are empty, then the handle is at the start of the file
+            let header = Header::default();
+            let mut config = bincode::config();
+            config
+                .big_endian()
+                .serialize_into(&mut self.handle, &header)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Attempts to read the header from the Segment
+    ///
+    /// Will return error if the read fails
+    pub fn read_header(&mut self) -> Result<Header> {
+        self.handle.seek(SeekFrom::Start(0))?;
+        let mut config = bincode::config();
+        let header: Header = config.big_endian().deserialize_from(&mut self.handle)?;
+        Ok(header)
     }
 }
 
@@ -154,6 +202,18 @@ pub struct SegmentHandle<T> {
     handle: Arc<Mutex<Segment<T>>>,
 }
 
+impl<T> SegmentHandle<T> {
+    /// Retrieves the underlying Segment from the handle
+    ///
+    /// Will only work if there are no other living copies
+    pub fn try_into_inner(self) -> Result<Segment<T>, Self> {
+        match Arc::try_unwrap(self.handle) {
+            Ok(m) => Ok(m.into_inner().unwrap()),
+            Err(m) => Err(SegmentHandle { handle: m }),
+        }
+    }
+}
+
 impl<T: Read + Write + Seek> crate::repository::backend::Segment for SegmentHandle<T> {
     fn free_bytes(&mut self) -> u64 {
         self.handle.lock().unwrap().free_bytes()
@@ -171,6 +231,7 @@ impl<T: Read + Write + Seek> crate::repository::backend::Segment for SegmentHand
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
     #[test]
     fn header_sanity() {
         let input = Header::new();
@@ -189,5 +250,16 @@ mod tests {
         assert_eq!(input, output);
         assert_eq!(output.uuid(), crate::IMPLEMENTATION_UUID.clone());
         assert_eq!(output.version_string(), crate::VERSION);
+    }
+
+    #[test]
+    fn segment_header_sanity() {
+        let cursor = Cursor::new(Vec::<u8>::new());
+        let segment = Segment::new(cursor, 100).unwrap();
+        let handle = segment.into_handle();
+        let inner = handle.try_into_inner().unwrap().handle;
+        let mut new_segment = Segment::new(inner, 100).unwrap();
+
+        assert!(new_segment.read_header().unwrap().validate())
     }
 }

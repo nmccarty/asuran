@@ -21,7 +21,7 @@ pub struct Mem {
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let segment = common::Segment::new(Cursor::new(Vec::new()), max);
+        let segment = common::Segment::new(Cursor::new(Vec::new()), max).unwrap();
         Mem {
             data: segment.into_handle(),
             index: Arc::new(RwLock::new(HashMap::new())),
