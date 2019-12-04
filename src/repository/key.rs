@@ -190,7 +190,7 @@ mod tests {
         let input_key = Key::random(8);
         let user_key = "A secure password".as_bytes();
         let encryption = Encryption::new_aes256ctr();
-        let enc_key = EncryptedKey::encrypt_defaults(&input_key, encryption, user_key);
+        let enc_key = EncryptedKey::encrypt(&input_key, 1024, 2, encryption, user_key);
         let output_key = enc_key.decrypt(user_key).unwrap();
 
         assert_eq!(input_key, output_key);
