@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod filesystem;
 pub mod mem;
+pub mod multifile;
 
 /// Segments are abstract blocks of chunks
 ///
@@ -110,4 +111,10 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     fn read_key(&self) -> Result<EncryptedKey>;
     /// Returns a view of this respository's manifest
     fn get_manifest(&self) -> Self::Manifest;
+}
+
+#[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub enum TransactionType {
+    Insert,
+    Delete,
 }
