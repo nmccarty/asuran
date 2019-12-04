@@ -1,4 +1,6 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::io::{Read, Seek, SeekFrom, Write};
 use uuid::Uuid;
 
 use crate::repository::backend::TransactionType;
@@ -83,6 +85,24 @@ impl Transaction {
 
     pub fn id(&self) -> ChunkID {
         self.id
+    }
+}
+
+pub struct Segment<T> {
+    handle: T,
+    size_limit: u64,
+}
+
+impl<T: Read + Write + Seek> crate::repository::backend::Segment for Segment<T> {
+    fn free_bytes(&mut self) -> u64 {
+        let end = self.handle.seek(SeekFrom::End(0)).unwrap();
+        self.size_limit - end
+    }
+    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
+        unimplemented!();
+    }
+    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)> {
+        unimplemented!();
     }
 }
 
