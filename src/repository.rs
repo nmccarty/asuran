@@ -134,7 +134,7 @@ impl<T: Backend> Repository<T> {
             let mut seg_id = backend.highest_segment();
             let test_segment = backend.get_segment(seg_id);
             // If no segments exist, we must create one
-            let test_segment = if test_segment.is_err() {
+            let mut test_segment = if test_segment.is_err() {
                 seg_id = backend.make_segment()?;
                 backend.get_segment(seg_id)?
             } else {
