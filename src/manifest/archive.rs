@@ -369,9 +369,11 @@ mod tests {
     use crate::chunker::slicer::fastcdc::FastCDC;
     use crate::chunker::*;
     use crate::repository::backend::filesystem::*;
+    use crate::repository::backend::mem::Mem;
     use crate::repository::compression::Compression;
     use crate::repository::encryption::Encryption;
     use crate::repository::hmac::HMAC;
+    use crate::repository::ChunkSettings;
     use crate::repository::Key;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
@@ -394,6 +396,18 @@ mod tests {
         )
     }
 
+    fn get_repo_mem(key: Key) -> Repository<impl Backend> {
+        let settings = ChunkSettings::lightweight();
+        let backend = Mem::new(settings);
+        Repository::new(
+            backend,
+            Compression::ZStd { level: 1 },
+            HMAC::Blake2b,
+            Encryption::new_aes256ctr(),
+            key,
+        )
+    }
+
     #[quickcheck]
     fn single_add_get(seed: u64) -> bool {
         println!("Seed: {}", seed);
@@ -405,7 +419,7 @@ mod tests {
         let mut data = vec![0_u8; size];
         let mut rand = SmallRng::seed_from_u64(seed);
         rand.fill_bytes(&mut data);
-        let mut repo = get_repo(key);
+        let mut repo = get_repo_mem(key);
 
         let mut archive = Archive::new("test");
 
@@ -446,18 +460,7 @@ mod tests {
         let slicer: FastCDC<Empty> = FastCDC::new_defaults();
         let chunker = Chunker::new(slicer.copy_settings());
         let key = Key::random(32);
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-
-        let backend = FileSystem::new_test(&root_path);
-        let mut repo = Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
-        );
-        repo.commit_index();
+        let mut repo = get_repo_mem(key);
 
         let mut archive = Archive::new("test");
 
