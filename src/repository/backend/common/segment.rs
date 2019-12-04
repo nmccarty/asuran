@@ -1,14 +1,20 @@
+use crate::repository::backend::TransactionType;
+use crate::repository::ChunkID;
 use anyhow::{Context, Result};
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-use crate::repository::backend::TransactionType;
-use crate::repository::ChunkID;
-
+/// Magic number used for asuran segment files
+///
+/// More or less completly arbitrary, but used to validate files
 const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_S";
 
+/// Represenetation of the header at the start of each file
+///
+/// Designed to be bincoded directly into a spec compliant format with big endian set
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Header {
     magic_number: [u8; 8],
@@ -31,16 +37,19 @@ impl Header {
         self.magic_number == MAGIC_NUMBER
     }
 
+    /// Returns the implementation UUID
     pub fn uuid(&self) -> Uuid {
         Uuid::from_bytes(self.implementation_uuid)
     }
 
+    /// Reconstructs the version string
     pub fn version_string(&self) -> String {
         format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
 
 impl Default for Header {
+    /// Constructs a header using the correct values for this version of libasuran
     fn default() -> Header {
         Header {
             magic_number: MAGIC_NUMBER,
@@ -52,6 +61,7 @@ impl Default for Header {
     }
 }
 
+/// Transaction wrapper struct
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     tx_type: TransactionType,
@@ -93,16 +103,21 @@ impl Transaction {
     }
 }
 
+/// Generic segment implemenation wrapping any Read + Write + Seek
 #[derive(Debug)]
 pub struct Segment<T> {
     handle: T,
     size_limit: u64,
 }
- 
+
 impl<T: Read + Write + Seek> Segment<T> {
     pub fn new(handle: T, size_limit: u64) -> Segment<T> {
-        Segment {
-            handle, size_limit,
+        Segment { handle, size_limit }
+    }
+
+    pub fn to_handle(self) -> SegmentHandle<T> {
+        SegmentHandle {
+            handle: Arc::new(Mutex::new(self)),
         }
     }
 }
@@ -127,6 +142,29 @@ impl<T: Read + Write + Seek> crate::repository::backend::Segment for Segment<T> 
         let end = self.handle.seek(SeekFrom::End(0))?;
         let length = end - start;
         Ok((start, length))
+    }
+}
+
+/// Generic Segment implemtation wrapping a Segment<T> in Arc<Mutex<>>
+///
+/// Arc and Mutex are both required, as some types we may wish to use, such as
+/// `ssh2::File` are not thread safe, and the implementation needs to be general.
+#[derive(Clone, Debug)]
+pub struct SegmentHandle<T> {
+    handle: Arc<Mutex<Segment<T>>>,
+}
+
+impl<T: Read + Write + Seek> crate::repository::backend::Segment for SegmentHandle<T> {
+    fn free_bytes(&mut self) -> u64 {
+        self.handle.lock().unwrap().free_bytes()
+    }
+
+    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
+        self.handle.lock().unwrap().read_chunk(start, length)
+    }
+
+    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
+        self.handle.lock().unwrap().write_chunk(chunk, id)
     }
 }
 

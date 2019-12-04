@@ -1,17 +1,17 @@
+use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
-use crate::repository::backend::common as common;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::sync::{Arc, RwLock};
 use std::io::Cursor;
+use std::sync::{Arc, RwLock};
 
-type CursorSegment =  common::Segment<Cursor<Vec<u8>>>;
+type CursorSegment = Cursor<Vec<u8>>;
 
 #[derive(Clone, Debug)]
 pub struct Mem {
-    data: Arc<RwLock<CursorSegment>>,
+    data: common::SegmentHandle<CursorSegment>,
     index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
@@ -21,9 +21,9 @@ pub struct Mem {
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let segment = common::Segment::new(Cursor::new(Vec::new()),max);
+        let segment = common::Segment::new(Cursor::new(Vec::new()), max);
         Mem {
-            data: Arc::new(RwLock::new(segment)),
+            data: segment.to_handle(),
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
@@ -58,27 +58,6 @@ impl Manifest for Mem {
     fn touch(&mut self) {}
 }
 
-impl Segment for Mem {
-    /// Always returns u64::max
-    #[cfg_attr(tarpaulin, skip)]
-    fn free_bytes(&mut self) -> u64 {
-        let mut segment = self.data.write().unwrap();
-        segment.free_bytes()
-    }
-
-    /// Ignores the length
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
-        let mut segment = self.data.write().unwrap();
-        segment.read_chunk(start, length)
-    }
-
-    /// Ignores the length
-    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let mut segment = self.data.write().unwrap();
-        segment.write_chunk(chunk, id)
-    }
-}
-
 impl Index for Mem {
     fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
         self.index.read().unwrap().get(&id).copied()
@@ -98,11 +77,11 @@ impl Index for Mem {
 
 impl Backend for Mem {
     type Manifest = Self;
-    type Segment = Self;
+    type Segment = common::SegmentHandle<CursorSegment>;
     type Index = Self;
     /// Ignores the id
     fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
-        Ok(self.clone())
+        Ok(self.data.clone())
     }
     /// Always returns 0
     #[cfg_attr(tarpaulin, skip)]
