@@ -10,7 +10,7 @@ clippy:
   stage: lint
   script:
     - rustup component add clippy
-    - cargo clippy -- -D clippy::pedantic
+    - cargo clippy -- -D warnings
   cache:
     paths:
       - target
