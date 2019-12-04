@@ -40,11 +40,13 @@ impl<T: Read> BackupObject<T> {
         self.ranges.push(range);
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Returns the total_size of the object
     pub fn total_size(&self) -> u64 {
         self.total_size
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Sets the total size of the object
     pub fn set_total_size(&mut self, total_size: u64) {
         self.total_size = total_size;
@@ -91,11 +93,13 @@ impl<T: Write> RestoreObject<T> {
         self.ranges.push(range);
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Returns the total_size of the object
     pub fn total_size(&self) -> u64 {
         self.total_size
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Sets the total size of the object
     pub fn set_total_size(&mut self, total_size: u64) {
         self.total_size = total_size;

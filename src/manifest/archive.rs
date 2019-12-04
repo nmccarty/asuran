@@ -349,11 +349,13 @@ impl Archive {
         }
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Provides the name of the archive
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[cfg_attr(tarpaulin, skip)]
     /// Provides the timestamp of the archive
     pub fn timestamp(&self) -> &DateTime<FixedOffset> {
         &self.timestamp
@@ -361,6 +363,7 @@ impl Archive {
 }
 
 #[cfg(test)]
+#[cfg_attr(tarpaulin, skip)]
 mod tests {
     use super::*;
     use crate::chunker::slicer::fastcdc::FastCDC;
