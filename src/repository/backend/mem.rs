@@ -1,13 +1,17 @@
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
-use anyhow::{anyhow, ensure, Result};
+use crate::repository::backend::common as common;
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
+use std::io::Cursor;
+
+type CursorSegment =  common::Segment<Cursor<Vec<u8>>>;
 
 #[derive(Clone, Debug)]
 pub struct Mem {
-    data: Arc<RwLock<Vec<Vec<u8>>>>,
+    data: Arc<RwLock<CursorSegment>>,
     index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
@@ -16,8 +20,10 @@ pub struct Mem {
 
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
+        let max = usize::max_value().try_into().unwrap();
+        let segment = common::Segment::new(Cursor::new(Vec::new()),max);
         Mem {
-            data: Arc::new(RwLock::new(Vec::new())),
+            data: Arc::new(RwLock::new(segment)),
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
@@ -56,27 +62,20 @@ impl Segment for Mem {
     /// Always returns u64::max
     #[cfg_attr(tarpaulin, skip)]
     fn free_bytes(&mut self) -> u64 {
-        usize::max_value().try_into().unwrap()
+        let mut segment = self.data.write().unwrap();
+        segment.free_bytes()
     }
 
     /// Ignores the length
-    fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
-        let data = self.data.read().unwrap();
-        ensure!(
-            start < data.len() as u64,
-            "Attempted to access a segement with an out of bounds index"
-        );
-        Ok(data[start as usize].clone())
+    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
+        let mut segment = self.data.write().unwrap();
+        segment.read_chunk(start, length)
     }
 
     /// Ignores the length
-    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)> {
-        let mut data = self.data.write().unwrap();
-        let index = data.len();
-        let chunk = chunk.to_vec();
-        let length = chunk.len();
-        data.push(chunk);
-        Ok((index as u64, length as u64))
+    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
+        let mut segment = self.data.write().unwrap();
+        segment.write_chunk(chunk, id)
     }
 }
 

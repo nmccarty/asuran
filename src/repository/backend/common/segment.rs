@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
 use uuid::Uuid;
@@ -83,14 +84,27 @@ impl Transaction {
         self.chunk.as_ref().map(|x| &x[..])
     }
 
+    pub fn take_data(&mut self) -> Option<Vec<u8>> {
+        self.chunk.take()
+    }
+
     pub fn id(&self) -> ChunkID {
         self.id
     }
 }
 
+#[derive(Debug)]
 pub struct Segment<T> {
     handle: T,
     size_limit: u64,
+}
+ 
+impl<T: Read + Write + Seek> Segment<T> {
+    pub fn new(handle: T, size_limit: u64) -> Segment<T> {
+        Segment {
+            handle, size_limit,
+        }
+    }
 }
 
 impl<T: Read + Write + Seek> crate::repository::backend::Segment for Segment<T> {
@@ -98,11 +112,21 @@ impl<T: Read + Write + Seek> crate::repository::backend::Segment for Segment<T> 
         let end = self.handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
-        unimplemented!();
+    fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
+        self.handle.seek(SeekFrom::Start(start))?;
+        let mut tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
+        let data = tx
+            .take_data()
+            .with_context(|| format!("Read transaction {:?} does not have a chunk in it.", tx))?;
+        Ok(data)
     }
-    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)> {
-        unimplemented!();
+    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
+        let tx = Transaction::encode_insert(chunk.to_vec(), id);
+        let start = self.handle.seek(SeekFrom::End(0))?;
+        rpms::encode::write(&mut self.handle, &tx)?;
+        let end = self.handle.seek(SeekFrom::End(0))?;
+        let length = end - start;
+        Ok((start, length))
     }
 }
 

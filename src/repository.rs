@@ -147,7 +147,7 @@ impl<T: Backend> Repository<T> {
                 test_segment
             };
 
-            let (start, length) = segment.write_chunk(&buff)?;
+            let (start, length) = segment.write_chunk(&buff, id)?;
             let location = ChunkLocation {
                 segment_id: seg_id,
                 start,

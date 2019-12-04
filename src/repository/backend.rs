@@ -16,7 +16,6 @@ pub mod multifile;
 /// Segments are abstract blocks of chunks
 ///
 /// Backends are free to arrange chunks within segements any way they wish,
-/// as long as they only ever append to existing segments.
 ///
 /// Segement compaction must happen through writing new segments and deleting
 /// the old ones
@@ -32,7 +31,7 @@ pub trait Segment {
     /// Writes a chunk to the segment
     ///
     /// Retuns Some(start,length), or None if writing fails
-    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)>;
+    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
 }
 
 /// Manifest trait

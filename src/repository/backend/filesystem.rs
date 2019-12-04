@@ -377,7 +377,7 @@ impl Segment for FileSystemSegment {
         Ok(output)
     }
 
-    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(u64, u64)> {
+    fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
         let length = chunk.len() as u64;
         let location = self.file.seek(SeekFrom::End(1))?;
         self.file.write_all(chunk)?;
