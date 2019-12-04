@@ -1,9 +1,19 @@
 image: "thatonelutenist/rust-tarp:20191202"
 
 stages:
+  - lint
   - test
   - build
   - doc
+
+clippy:
+  state: clippy
+  script:
+    - rustup component add clippy
+    - cargo clippy -- -D clippy::pedantic
+  cache:
+    paths:
+      - target
 
 test:
   stage: test
