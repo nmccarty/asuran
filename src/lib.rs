@@ -29,7 +29,7 @@ lazy_static! {
     };
 
     /// The UUID of this asuran implementation
-    pub static ref IMPLEMNATION_UUID: Uuid = Uuid::parse_str("bfd30b79-4687-404e-a84d-112383994b26").unwrap();
+    pub static ref IMPLEMENTATION_UUID: Uuid = Uuid::parse_str("bfd30b79-4687-404e-a84d-112383994b26").unwrap();
 }
 
 #[cfg(test)]
