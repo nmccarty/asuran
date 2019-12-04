@@ -7,7 +7,7 @@ stages:
   - doc
 
 clippy:
-  state: clippy
+  stage: lint
   script:
     - rustup component add clippy
     - cargo clippy -- -D clippy::pedantic
@@ -54,8 +54,3 @@ tarpaulin:
   script:
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
-
-
-  
-  
-      
