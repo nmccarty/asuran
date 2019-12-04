@@ -157,11 +157,7 @@ where
                         self.cursor = 0;
                         let result = self.reader.as_mut().unwrap().read(&mut self.buffer);
                         match result {
-                            Err(_) => {
-                                split = true;
-                                self.finished = true;
-                            }
-                            Ok(0) => {
+                            Err(_) | Ok(0) => {
                                 split = true;
                                 self.finished = true;
                             }

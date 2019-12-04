@@ -1,3 +1,6 @@
+// In this case, this lint results in harder to read code for security critical portions
+#![allow(clippy::match_same_arms)]
+
 use aes::Aes256;
 use aes_ctr::stream_cipher::generic_array::GenericArray;
 use aes_ctr::stream_cipher::{NewStreamCipher, SyncStreamCipher};

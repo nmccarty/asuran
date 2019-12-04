@@ -1,3 +1,5 @@
+#![allow(clippy::filter_map)]
+
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
@@ -37,11 +39,11 @@ impl FileSystem {
         // Open the file handle for the manifest, creating it if it doesnt exist.
         let manifest_exists;
         let manifest_path = Path::new(root_directory).join("manifest");
-        if !manifest_path.exists() {
+        if manifest_path.exists() {
+            manifest_exists = true;
+        } else {
             fs::File::create(&manifest_path).expect("Unable to create manifest file.");
             manifest_exists = false;
-        } else {
-            manifest_exists = true;
         }
         let mut manifest_file = fs::OpenOptions::new()
             .read(true)
@@ -68,11 +70,11 @@ impl FileSystem {
         // Open the file handle for the index
         let index_exists;
         let index_path = Path::new(root_directory).join("index");
-        if !index_path.exists() {
+        if index_path.exists() {
+            index_exists = true;
+        } else {
             fs::File::create(&index_path).expect("Unable to create index file.");
             index_exists = false;
-        } else {
-            index_exists = true;
         }
 
         let mut index_file = fs::OpenOptions::new()
@@ -136,11 +138,11 @@ impl FileSystem {
         // Open the file handle for the index
         let index_exists;
         let index_path = Path::new(root_directory).join("index");
-        if !index_path.exists() {
+        if index_path.exists() {
+            index_exists = true;
+        } else {
             fs::File::create(&index_path).expect("Unable to create index file.");
             index_exists = false;
-        } else {
-            index_exists = true;
         }
 
         let mut index_file = fs::OpenOptions::new()
@@ -369,7 +371,7 @@ impl Segment for FileSystemSegment {
     }
 
     fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
-        let mut output = vec![0u8; length as usize];
+        let mut output = vec![0_u8; length as usize];
         self.file.seek(SeekFrom::Start(start))?;
         self.file.read_exact(&mut output)?;
         Ok(output)

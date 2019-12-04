@@ -57,7 +57,7 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     fn touch(&mut self);
 }
 
-/// Holder type for chunkIDs in the (segementID, start, length) format
+/// Holder type for `chunkIDs` in the (`segementID`, start, length) format
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ChunkLocation {
     pub segment_id: u64,

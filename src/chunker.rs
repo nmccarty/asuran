@@ -9,10 +9,10 @@
 //! chunk sizes.
 //!
 //! The file is sliced by rolling each slice through the hasher, and generating
-//! splits when the last mask_bits of the resulting hash are all zero.
+//! splits when the last `mask_bits` of the resulting hash are all zero.
 //!
-//! This results in a 2^mask_bits byte statistical slice length, minimum and
-//! maximum chunk sizes are set at 2^(mask_bits-2) bytes and 2^(mask_bits+2)
+//! This results in a `2^mask_bits` byte statistical slice length, minimum and
+//! maximum chunk sizes are set at 2^(mask_bits-2) bytes and `2^(mask_bits+2)`
 //! bytes, respectivly, to prevent overly large or small slices, and to provide
 //! some measure of predictibility.
 use crate::repository::{ChunkSettings, Key, UnpackedChunk};

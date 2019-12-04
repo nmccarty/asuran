@@ -77,7 +77,7 @@ impl ChunkSettings {
     }
 }
 
-/// A raw block of data and its associated ChunkID
+/// A raw block of data and its associated `ChunkID`
 ///
 /// This data is not encrypted, compressed, or otherwise tampered with, and can not be directly
 /// inserted into the repo.

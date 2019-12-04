@@ -11,7 +11,7 @@
 //! # Encryption and Compression
 //!
 //! Encryption and compression algorthims can be swapped out on a chunk by
-//! chunk basis, with Encryption::NoEncryption and Compression::NoCompression
+//! chunk basis, with `Encryption::NoEncryption` and `Compression::NoCompression`
 //! providing pass through modes for those who do not wish to use those
 //! features.
 //!
@@ -119,7 +119,7 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&self, chunk: Chunk) -> Result<(ChunkID, bool)> {
+    pub fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -178,7 +178,7 @@ impl<T: Backend> Repository<T> {
             &self.key,
         );
 
-        self.write_raw(chunk)
+        self.write_raw(&chunk)
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
@@ -230,7 +230,7 @@ impl<T: Backend> Repository<T> {
             id,
         );
 
-        self.write_raw(chunk)
+        self.write_raw(&chunk)
     }
 
     /// Determines if a chunk exists in the index

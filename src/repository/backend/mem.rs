@@ -2,6 +2,7 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, ensure, Result};
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Debug)]
@@ -55,7 +56,7 @@ impl Segment for Mem {
     /// Always returns u64::max
     #[cfg_attr(tarpaulin, skip)]
     fn free_bytes(&self) -> u64 {
-        std::u64::MAX
+        usize::max_value().try_into().unwrap()
     }
 
     /// Ignores the length

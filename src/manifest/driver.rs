@@ -40,7 +40,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                 archive.put_object(chunker, repo, path, object)?;
             } else {
                 let mut readers: Vec<(Extent, T)> = Vec::new();
-                for object in ranges.into_iter() {
+                for object in ranges {
                     let extent = Extent {
                         start: object.start,
                         end: object.end,
@@ -100,7 +100,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
                 archive.get_object(repo, path, object)?;
             } else if range_count > 1 {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
-                for object in ranges.into_iter() {
+                for object in ranges {
                     let extent = Extent {
                         start: object.start,
                         end: object.end,

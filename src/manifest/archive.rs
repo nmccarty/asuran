@@ -228,7 +228,7 @@ impl Archive {
         };
         locations.sort_unstable();
         let mut last_index = locations[0].start;
-        for location in locations.iter() {
+        for location in &locations {
             let id = location.id;
             // If a chunk is not included, fill the space inbween it and the last with zeros
             let start = location.start;
@@ -304,7 +304,7 @@ impl Archive {
         path: &str,
         mut to_writers: Vec<(Extent, impl Write)>,
     ) -> Result<()> {
-        for (extent, restore_to) in to_writers.iter_mut() {
+        for (extent, restore_to) in &mut to_writers {
             self.get_extent(repository, path, *extent, restore_to)?;
         }
         Ok(())
