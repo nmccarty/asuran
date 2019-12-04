@@ -55,7 +55,7 @@ impl Manifest for Mem {
 impl Segment for Mem {
     /// Always returns u64::max
     #[cfg_attr(tarpaulin, skip)]
-    fn free_bytes(&self) -> u64 {
+    fn free_bytes(&mut self) -> u64 {
         usize::max_value().try_into().unwrap()
     }
 

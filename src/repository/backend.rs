@@ -22,7 +22,7 @@ pub mod multifile;
 /// the old ones
 pub trait Segment {
     /// Returns the free bytes in this segment
-    fn free_bytes(&self) -> u64;
+    fn free_bytes(&mut self) -> u64;
     /// Reads a chunk from the segment into a bytestring
     ///
     /// Requires the start and end positions for the chunk

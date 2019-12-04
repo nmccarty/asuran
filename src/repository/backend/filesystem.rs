@@ -361,7 +361,7 @@ pub struct FileSystemSegment {
 }
 
 impl Segment for FileSystemSegment {
-    fn free_bytes(&self) -> u64 {
+    fn free_bytes(&mut self) -> u64 {
         let file_size = self.file.metadata().unwrap().len();
         if file_size > self.max_size {
             0
