@@ -1,55 +1,48 @@
-use anyhow::Result;
-use std::io::{Read, Write};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_S";
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Header {
     magic_number: [u8; 8],
-    implementation_uuid: Uuid,
-    version_bytes: [u8; 6],
+    implementation_uuid: [u8; 16],
+    major: u16,
+    minor: u16,
+    patch: u16,
 }
 
 impl Header {
     /// Creates a new segment header with correct values for this version of libasuran
     pub fn new() -> Header {
-        Header {
-            magic_number: b"ASURAN_S".clone(),
-            implementation_uuid: crate::IMPLEMENTATION_UUID.clone(),
-            version_bytes: crate::VERSION_BYTES.clone(),
-        }
-    }
-
-    /// Serializes the header to a byte stream
-    pub fn to_bytes(&self) -> [u8; 30] {
-        let mut output = [0_u8; 30];
-        let mut wrt: &mut [u8] = &mut output;
-        wrt.write_all(&self.magic_number).unwrap();
-        wrt.write_all(self.implementation_uuid.as_bytes()).unwrap();
-        wrt.write_all(&self.version_bytes).unwrap();
-        output
-    }
-
-    /// Reads a header from a reader
-    pub fn from_read(mut bytes: impl Read) -> Result<Header> {
-        let mut magic_number = [0_u8; 8];
-        bytes.read_exact(&mut magic_number)?;
-        let mut uuid_bytes = [0_u8; 16];
-        bytes.read_exact(&mut uuid_bytes)?;
-        let implementation_uuid = Uuid::from_bytes(uuid_bytes);
-        let mut version_bytes = [0_u8; 6];
-        bytes.read_exact(&mut version_bytes)?;
-        Ok(Header {
-            magic_number,
-            implementation_uuid,
-            version_bytes,
-        })
+        Self::default()
     }
 
     /// Checks if a header is valid for this version of libasuran
     ///
     /// Currently only checks the header
     pub fn validate(&self) -> bool {
-        &self.magic_number == b"ASURAN_S"
+        self.magic_number == MAGIC_NUMBER
+    }
+
+    pub fn uuid(&self) -> Uuid {
+        Uuid::from_bytes(self.implementation_uuid)
+    }
+
+    pub fn version_string(&self) -> String {
+        format!("{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+impl Default for Header {
+    fn default() -> Header {
+        Header {
+            magic_number: MAGIC_NUMBER,
+            implementation_uuid: *crate::IMPLEMENTATION_UUID.as_bytes(),
+            major: crate::VERSION_PIECES[0],
+            minor: crate::VERSION_PIECES[1],
+            patch: crate::VERSION_PIECES[2],
+        }
     }
 }
 
@@ -59,13 +52,20 @@ mod tests {
     #[test]
     fn header_sanity() {
         let input = Header::new();
-        let bytes = input.to_bytes();
-        let output = Header::from_read(&bytes[..]).unwrap();
+
+        let mut config = bincode::config();
+        config.big_endian();
+        let bytes = config.serialize(&input).unwrap();
+
+        let output: Header = config.deserialize(&bytes).unwrap();
 
         println!("{:02X?}", output);
         println!("{:02X?}", bytes);
+        println!("{}", output.version_string());
 
         assert!(output.validate());
         assert_eq!(input, output);
+        assert_eq!(output.uuid(), crate::IMPLEMENTATION_UUID.clone());
+        assert_eq!(output.version_string(), crate::VERSION);
     }
 }

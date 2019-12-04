@@ -11,9 +11,18 @@ pub mod chunker;
 pub mod manifest;
 pub mod repository;
 
-pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 lazy_static! {
+    /// The pieces of the version string for this version of libasuran
+    pub static ref VERSION_PIECES: [u16; 3] = {
+        let mut output = [0_u16; 3];
+        let items = VERSION.split('.').map(|x| x.parse::<u16>().unwrap()).collect::<Vec<_>>();
+        assert!(items.len() == 3);
+        output[..3].clone_from_slice(&items[..3]);
+        output
+    };
+
     /// The versions bytes for this version of libasuran, the concationation of major+minor+patch as
     /// u16s in network byte order
     pub static ref VERSION_BYTES: [u8; 6] = {
@@ -27,6 +36,8 @@ lazy_static! {
 
         output
     };
+
+
 
     /// The UUID of this asuran implementation
     pub static ref IMPLEMENTATION_UUID: Uuid = Uuid::parse_str("bfd30b79-4687-404e-a84d-112383994b26").unwrap();
