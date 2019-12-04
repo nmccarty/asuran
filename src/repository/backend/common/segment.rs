@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::repository::backend::TransactionType;
+use crate::repository::ChunkID;
+
 const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_S";
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -43,6 +46,43 @@ impl Default for Header {
             minor: crate::VERSION_PIECES[1],
             patch: crate::VERSION_PIECES[2],
         }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct Transaction {
+    tx_type: TransactionType,
+    id: ChunkID,
+    chunk: Option<Vec<u8>>,
+}
+
+impl Transaction {
+    pub fn transaction_type(&self) -> TransactionType {
+        self.tx_type
+    }
+
+    pub fn encode_insert(input: Vec<u8>, id: ChunkID) -> Transaction {
+        Transaction {
+            tx_type: TransactionType::Insert,
+            id,
+            chunk: Some(input),
+        }
+    }
+
+    pub fn encode_delete(id: ChunkID) -> Transaction {
+        Transaction {
+            tx_type: TransactionType::Delete,
+            id,
+            chunk: None,
+        }
+    }
+
+    pub fn data(&self) -> Option<&[u8]> {
+        self.chunk.as_ref().map(|x| &x[..])
+    }
+
+    pub fn id(&self) -> ChunkID {
+        self.id
     }
 }
 

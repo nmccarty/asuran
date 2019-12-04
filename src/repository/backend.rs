@@ -114,7 +114,7 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     fn get_manifest(&self) -> Self::Manifest;
 }
 
-#[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]
 pub enum TransactionType {
     Insert,
     Delete,
