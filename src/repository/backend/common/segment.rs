@@ -115,7 +115,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         Segment { handle, size_limit }
     }
 
-    pub fn to_handle(self) -> SegmentHandle<T> {
+    pub fn into_handle(self) -> SegmentHandle<T> {
         SegmentHandle {
             handle: Arc::new(Mutex::new(self)),
         }

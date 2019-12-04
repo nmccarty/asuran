@@ -23,7 +23,7 @@ impl Mem {
         let max = usize::max_value().try_into().unwrap();
         let segment = common::Segment::new(Cursor::new(Vec::new()), max);
         Mem {
-            data: segment.to_handle(),
+            data: segment.into_handle(),
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
