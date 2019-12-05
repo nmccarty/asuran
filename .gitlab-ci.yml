@@ -11,7 +11,6 @@ clippy:
   script:
     - cargo clippy -- -D warnings
 
-
 rustfmt:
   stage: lint
   script:
@@ -23,6 +22,11 @@ test:
     - rustc --version
     - cargo --version
     - cargo test --verbose
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-test"
+    paths:
+      - ~/.cargo
+      - target
 
 build_job:
   stage: build
@@ -31,6 +35,11 @@ build_job:
   artifacts:
     paths:
       - target/release/
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-build"
+    paths:
+      - ~/.cargo
+      - target
 
 pages:
   stage: doc
@@ -46,6 +55,10 @@ pages:
 tarpaulin:
   stage: test
   script:
-    - cargo clean
-    - cargo tarpaulin --out Xml
+    - cargo tarpaulin --out Xml -t 360
     - bash <(curl -s https://codecov.io/bash)
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-tarp"
+    paths:
+      - ~/.cargo
+      - target
