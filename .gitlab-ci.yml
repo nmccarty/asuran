@@ -17,7 +17,7 @@ clippy:
 rustfmt:
   stage: lint
   script:
-    - cargo fmt --all --check
+    - cargo fmt --all -- --check
 
 test:
   stage: test
