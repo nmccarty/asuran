@@ -66,7 +66,7 @@ tarpaulin:
 bench:
   stage: build
   variables:
-    RUSTFLAGS: "-C target-cpu=native lto"
+    RUSTFLAGS: "-C target-cpu=native"
   script:
     - cargo bench
   cache:
