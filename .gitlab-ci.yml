@@ -10,9 +10,7 @@ clippy:
   stage: lint
   script:
     - cargo clippy -- -D warnings
-  cache:
-    paths:
-      - target
+
 
 rustfmt:
   stage: lint
@@ -25,9 +23,6 @@ test:
     - rustc --version
     - cargo --version
     - cargo test --verbose
-  cache:
-    paths:
-      - target
 
 build_job:
   stage: build
@@ -36,9 +31,6 @@ build_job:
   artifacts:
     paths:
       - target/release/
-  cache:
-    paths:
-      - target
 
 pages:
   stage: doc
@@ -49,12 +41,11 @@ pages:
   artifacts:
     paths:
       - public
-  cache:
-    paths:
       - target
 
 tarpaulin:
   stage: test
   script:
+    - cargo clean
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
