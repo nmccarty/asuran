@@ -1,4 +1,4 @@
-image: "thatonelutenist/rust-tarp:20191202"
+image: "thatonelutenist/rust-nathan:latest"
 
 stages:
   - lint
@@ -9,11 +9,15 @@ stages:
 clippy:
   stage: lint
   script:
-    - rustup component add clippy
     - cargo clippy -- -D warnings
   cache:
     paths:
       - target
+
+rustfmt:
+  stage: lint
+  script:
+    - cargo fmt --all --check
 
 test:
   stage: test
