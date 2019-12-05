@@ -25,7 +25,7 @@ fn buzhash_chunk(r: impl Read) {
 pub fn bench(c: &mut Criterion) {
     let mut zero = Vec::<u8>::new();
     let mut rand = Vec::<u8>::new();
-    let size = 1280000;
+    let size = 320000;
     let mut rng = rand::thread_rng();
     for i in 0..size {
         zero.push(0);
@@ -34,22 +34,18 @@ pub fn bench(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("fastcdc");
     group.throughput(Throughput::Bytes(size as u64));
-    group.measurement_time(Duration::new(6, 0));
-    group.sample_size(10);
-    group.bench_function("fastcdc 128M zero", |b| {
-        b.iter(|| fast_cdc_chunk(&zero[..]))
-    });
-    group.bench_function("fastcdc 128M rand", |b| {
-        b.iter(|| fast_cdc_chunk(&rand[..]))
-    });
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("fastcdc 32M zero", |b| b.iter(|| fast_cdc_chunk(&zero[..])));
+    group.bench_function("fastcdc 32M rand", |b| b.iter(|| fast_cdc_chunk(&rand[..])));
     group.finish();
 
     let mut group = c.benchmark_group("buzhash");
     group.throughput(Throughput::Bytes(size as u64));
-    group.measurement_time(Duration::new(6, 0));
-    group.sample_size(10);
-    group.bench_function("buzhash 128M zero", |b| b.iter(|| buzhash_chunk(&zero[..])));
-    group.bench_function("buzhash 128M rand", |b| b.iter(|| buzhash_chunk(&rand[..])));
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("buzhash 32M zero", |b| b.iter(|| buzhash_chunk(&zero[..])));
+    group.bench_function("buzhash 32M rand", |b| b.iter(|| buzhash_chunk(&rand[..])));
     group.finish();
 }
 

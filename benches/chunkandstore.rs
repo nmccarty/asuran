@@ -68,7 +68,7 @@ fn get_repo(key: Key) -> Repository<impl Backend> {
 fn bench(c: &mut Criterion) {
     let mut zero = Vec::<u8>::new();
     let mut rand = Vec::<u8>::new();
-    let size = 128000000;
+    let size = 32000000;
     let mut rng = rand::thread_rng();
     for i in 0..size {
         zero.push(0);
@@ -77,9 +77,9 @@ fn bench(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Fastcdc chunk and store");
     group.throughput(Throughput::Bytes(size as u64));
-    group.measurement_time(Duration::new(60, 0));
-    group.sample_size(10);
-    group.bench_function("fastcdc 128M zero", |b| {
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("fastcdc 32M zero", |b| {
         b.iter(|| {
             slice_and_store(
                 &zero[..],
@@ -88,7 +88,7 @@ fn bench(c: &mut Criterion) {
             )
         })
     });
-    group.bench_function("fastcdc 128M rand", |b| {
+    group.bench_function("fastcdc 32M rand", |b| {
         b.iter(|| {
             slice_and_store(
                 &rand[..],
@@ -101,9 +101,9 @@ fn bench(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Fastcdc parallel chunk and store");
     group.throughput(Throughput::Bytes(size as u64));
-    group.measurement_time(Duration::new(60, 0));
-    group.sample_size(10);
-    group.bench_function("fastcdc parallel 128M zero", |b| {
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("fastcdc parallel 32M zero", |b| {
         b.iter(|| {
             slice_and_store_par(
                 &zero[..],
@@ -112,7 +112,7 @@ fn bench(c: &mut Criterion) {
             )
         })
     });
-    group.bench_function("fastcdc parallel 128M rand", |b| {
+    group.bench_function("fastcdc parallel 32M rand", |b| {
         b.iter(|| {
             slice_and_store_par(
                 &rand[..],
@@ -125,9 +125,9 @@ fn bench(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Buzhash chunk and store");
     group.throughput(Throughput::Bytes(size as u64));
-    group.measurement_time(Duration::new(60, 0));
-    group.sample_size(10);
-    group.bench_function("buzhash 128M zero", |b| {
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("buzhash 32M zero", |b| {
         b.iter(|| {
             slice_and_store(
                 &zero[..],
@@ -136,7 +136,7 @@ fn bench(c: &mut Criterion) {
             )
         })
     });
-    group.bench_function("buzhash 128M rand", |b| {
+    group.bench_function("buzhash 32M rand", |b| {
         b.iter(|| {
             slice_and_store(
                 &rand[..],

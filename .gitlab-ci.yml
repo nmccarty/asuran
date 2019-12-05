@@ -62,3 +62,15 @@ tarpaulin:
     paths:
       - ~/.cargo
       - target
+
+bench:
+  stage: build
+  variables:
+    RUSTFLAGS: "-C target-cpu=native lto"
+  script:
+    - cargo bench
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-bench"
+    paths:
+      - ~/.cargo
+      - target
