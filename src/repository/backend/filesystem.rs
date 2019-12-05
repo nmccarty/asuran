@@ -4,6 +4,7 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
 use anyhow::{Context, Result};
+use parking_lot::RwLock;
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[derive(Clone, Debug)]
@@ -249,7 +250,7 @@ struct ManifestCarrier {
 impl Manifest for FileSystem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
     fn last_modification(&self) -> DateTime<FixedOffset> {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let carrier: ManifestCarrier = from_read(file).unwrap();
@@ -257,7 +258,7 @@ impl Manifest for FileSystem {
     }
 
     fn chunk_settings(&self) -> ChunkSettings {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let carrier: ManifestCarrier = from_read(file).unwrap();
@@ -265,7 +266,7 @@ impl Manifest for FileSystem {
     }
 
     fn archive_iterator(&self) -> std::vec::IntoIter<StoredArchive> {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let carrier: ManifestCarrier = from_read(file).unwrap();
@@ -276,7 +277,7 @@ impl Manifest for FileSystem {
     }
 
     fn write_chunk_settings(&mut self, settings: ChunkSettings) {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let mut carrier: ManifestCarrier = from_read(file).unwrap();
@@ -293,7 +294,7 @@ impl Manifest for FileSystem {
     }
 
     fn write_archive(&mut self, archive: StoredArchive) {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let mut carrier: ManifestCarrier = from_read(file).unwrap();
@@ -310,7 +311,7 @@ impl Manifest for FileSystem {
     }
 
     fn touch(&mut self) {
-        let mut file_guard = self.manifest_file.write().unwrap();
+        let mut file_guard = self.manifest_file.write();
         let file: &mut fs::File = &mut file_guard;
         file.seek(SeekFrom::Start(0)).unwrap();
         let mut carrier: ManifestCarrier = from_read(file).unwrap();
@@ -327,20 +328,17 @@ impl Manifest for FileSystem {
 
 impl Index for FileSystem {
     fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
-        self.index.read().unwrap().get(&id).copied()
+        self.index.read().get(&id).copied()
     }
     fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()> {
-        let mut index = self.index.write().expect("Lock on index posioned");
+        let mut index = self.index.write();
         index.insert(id, location);
         Ok(())
     }
     fn commit_index(&self) -> Result<()> {
-        let index_guard = self.index.read().unwrap();
+        let index_guard = self.index.read();
         let index: &HashMap<ChunkID, ChunkLocation> = &index_guard;
-        let mut file_guard = self
-            .index_file
-            .write()
-            .expect("Lock on index file posioned");
+        let mut file_guard = self.index_file.write();
         let file: &mut fs::File = &mut file_guard;
         // go to start of file and empty it
         file.seek(SeekFrom::Start(0))?;
@@ -351,7 +349,7 @@ impl Index for FileSystem {
         Ok(())
     }
     fn count_chunk(&self) -> usize {
-        self.index.read().unwrap().len()
+        self.index.read().len()
     }
 }
 

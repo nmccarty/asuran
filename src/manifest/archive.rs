@@ -2,12 +2,13 @@ use crate::chunker::{Chunker, Slice, SlicerSettings};
 use crate::repository::{Backend, ChunkID, Repository};
 use anyhow::Result;
 use chrono::prelude::*;
+use parking_lot::RwLock;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 #[cfg(feature = "profile")]
 use flame::*;
@@ -146,10 +147,7 @@ impl Archive {
         #[cfg(feature = "profile")]
         flame::end("Packing chunks");
 
-        let mut objects = self
-            .objects
-            .write()
-            .expect("Lock on Archive::objects is posioned.");
+        let mut objects = self.objects.write();
 
         objects.insert(path.to_string(), locations);
 
@@ -184,10 +182,7 @@ impl Archive {
             }
         }
 
-        let mut objects = self
-            .objects
-            .write()
-            .expect("Lock on Archive::objects is posioned");
+        let mut objects = self.objects.write();
         objects.insert(path.to_string(), locations);
 
         Ok(())
@@ -196,10 +191,7 @@ impl Archive {
     /// Inserts an object into the archive without writing any bytes
     pub fn put_empty(&mut self, path: &str) {
         let locations: Vec<ChunkLocation> = Vec::new();
-        let mut objects = self
-            .objects
-            .write()
-            .expect("Lock on Archive::objects is posioned");
+        let mut objects = self.objects.write();
         objects.insert(path.to_string(), locations);
     }
 
@@ -215,10 +207,7 @@ impl Archive {
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
-        let objects = self
-            .objects
-            .read()
-            .expect("Lock on Archive::objects is posioned.");
+        let objects = self.objects.read();
         println!("{:?}", path);
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {
@@ -258,10 +247,7 @@ impl Archive {
         mut restore_to: impl Write,
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
-        let objects = self
-            .objects
-            .read()
-            .expect("Lock on Archive::objects is posioned.");
+        let objects = self.objects.read();
 
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {

@@ -2,10 +2,11 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 type CursorSegment = Cursor<Vec<u8>>;
 
@@ -35,22 +36,22 @@ impl Mem {
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
     fn last_modification(&self) -> DateTime<FixedOffset> {
-        let manifest = self.manifest.read().unwrap();
+        let manifest = self.manifest.read();
         let archive = &manifest[manifest.len() - 1];
         archive.timestamp()
     }
     fn chunk_settings(&self) -> ChunkSettings {
-        *self.chunk_settings.read().unwrap()
+        *self.chunk_settings.read()
     }
     fn archive_iterator(&self) -> Self::Iterator {
-        self.manifest.read().unwrap().clone().into_iter()
+        self.manifest.read().clone().into_iter()
     }
     fn write_chunk_settings(&mut self, settings: ChunkSettings) {
-        let mut x = self.chunk_settings.write().unwrap();
+        let mut x = self.chunk_settings.write();
         *x = settings;
     }
     fn write_archive(&mut self, archive: StoredArchive) {
-        let mut manifest = self.manifest.write().unwrap();
+        let mut manifest = self.manifest.write();
         manifest.push(archive);
     }
     /// This implementation reconstructs the last modified time, so this does nothing
@@ -60,10 +61,10 @@ impl Manifest for Mem {
 
 impl Index for Mem {
     fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
-        self.index.read().unwrap().get(&id).copied()
+        self.index.read().get(&id).copied()
     }
     fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()> {
-        self.index.write().unwrap().insert(id, location);
+        self.index.write().insert(id, location);
         Ok(())
     }
     /// This format is not persistant so this does nothing
@@ -71,7 +72,7 @@ impl Index for Mem {
         Ok(())
     }
     fn count_chunk(&self) -> usize {
-        self.index.read().unwrap().len()
+        self.index.read().len()
     }
 }
 
@@ -97,16 +98,16 @@ impl Backend for Mem {
         self.clone()
     }
     fn write_key(&self, key: &EncryptedKey) -> Result<()> {
-        let mut skey = self.key.write().unwrap();
+        let mut skey = self.key.write();
         *skey = Some(key.clone());
         Ok(())
     }
     fn read_key(&self) -> Result<EncryptedKey> {
-        let key = self.key.read().unwrap();
-        if key.is_some() {
-            Ok(key.as_ref().unwrap().clone())
+        let key: &Option<EncryptedKey> = &self.key.read();
+        if let Some(k) = key {
+            Ok(k.clone())
         } else {
-            Err(anyhow!("Attempted to read a key that has not been set"))
+            Err(anyhow!("Tried to access an unset key"))
         }
     }
     fn get_manifest(&self) -> Self::Manifest {
@@ -135,7 +136,7 @@ mod tests {
         let key_key = [0_u8; 128];
         let encrypted_key =
             EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-        backend.write_key(&encrypted_key).unwrap();
+        backend.write_key(&encrypted_key);
         let output = backend.read_key().unwrap().decrypt(&key_key).unwrap();
         assert_eq!(key, output);
     }

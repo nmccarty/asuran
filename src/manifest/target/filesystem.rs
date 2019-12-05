@@ -4,11 +4,12 @@ pub use metadata::*;
 
 use super::*;
 use crate::manifest::driver::*;
+use parking_lot::Mutex;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, metadata, File};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -69,14 +70,13 @@ impl BackupTarget<File> for FileSystemTarget {
         output.insert("".to_string(), file_object);
         self.listing
             .lock()
-            .unwrap()
             .push(rel_path.to_str().unwrap().to_string());
         output
     }
 
     fn backup_listing(&self) -> Vec<u8> {
         let mut buff = Vec::<u8>::new();
-        let listing = self.listing.lock().unwrap();
+        let listing = self.listing.lock();
         let listing = Vec::clone(&listing);
         listing.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
@@ -120,7 +120,7 @@ impl RestoreTarget<File> for FileSystemTarget {
     }
 
     fn restore_listing(&self) -> Vec<String> {
-        self.listing.lock().unwrap().clone()
+        self.listing.lock().clone()
     }
 }
 

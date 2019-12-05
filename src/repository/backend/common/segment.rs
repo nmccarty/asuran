@@ -1,10 +1,11 @@
 use crate::repository::backend::TransactionType;
 use crate::repository::ChunkID;
 use anyhow::{anyhow, Context, Result};
+use parking_lot::Mutex;
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Magic number used for asuran segment files
@@ -208,7 +209,7 @@ impl<T> SegmentHandle<T> {
     /// Will only work if there are no other living copies
     pub fn try_into_inner(self) -> Result<Segment<T>, Self> {
         match Arc::try_unwrap(self.handle) {
-            Ok(m) => Ok(m.into_inner().unwrap()),
+            Ok(m) => Ok(m.into_inner()),
             Err(m) => Err(SegmentHandle { handle: m }),
         }
     }
@@ -216,15 +217,15 @@ impl<T> SegmentHandle<T> {
 
 impl<T: Read + Write + Seek> crate::repository::backend::Segment for SegmentHandle<T> {
     fn free_bytes(&mut self) -> u64 {
-        self.handle.lock().unwrap().free_bytes()
+        self.handle.lock().free_bytes()
     }
 
     fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
-        self.handle.lock().unwrap().read_chunk(start, length)
+        self.handle.lock().read_chunk(start, length)
     }
 
     fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        self.handle.lock().unwrap().write_chunk(chunk, id)
+        self.handle.lock().write_chunk(chunk, id)
     }
 }
 
