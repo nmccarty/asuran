@@ -55,7 +55,7 @@ pages:
 tarpaulin:
   stage: test
   script:
-    - cargo tarpaulin --out Xml -t 360
+    - cargo tarpaulin --out Xml -t 360 --ignore-tests --force-clean
     - bash <(curl -s https://codecov.io/bash)
   cache:
     key: "$CI_COMMIT_REF_SLUG-tarp"
