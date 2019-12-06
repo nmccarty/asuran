@@ -379,9 +379,9 @@ mod tests {
 
         let mut repo = get_repo_mem(key.clone());
         let cs = repo.chunk_settings();
-        let chunk1 = UnpackedChunk::new(data1.clone(), &cs, &key);
-        let chunk2 = UnpackedChunk::new(data2.clone(), &cs, &key);
-        let chunk3 = UnpackedChunk::new(data3.clone(), &cs, &key);
+        let chunk1 = block_on(UnpackedChunk::new(data1.clone(), cs, key.clone()));
+        let chunk2 = block_on(UnpackedChunk::new(data2.clone(), cs, key.clone()));
+        let chunk3 = block_on(UnpackedChunk::new(data3.clone(), cs, key.clone()));
         let chunks_vec = vec![chunk1, chunk2, chunk3];
 
         println!("Adding Chunks");
