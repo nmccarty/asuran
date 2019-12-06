@@ -42,6 +42,7 @@
 //! effectivly preventing the storage of duplicate chunks.
 
 use anyhow::{anyhow, Result};
+use async_std::task::block_on;
 use rayon::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -147,7 +148,7 @@ impl<T: Backend> Repository<T> {
                 test_segment
             };
 
-            let (start, length) = segment.write_chunk(&buff, id)?;
+            let (start, length) = block_on(segment.write_chunk(&buff, id))?;
             let location = ChunkLocation {
                 segment_id: seg_id,
                 start,
@@ -251,7 +252,7 @@ impl<T: Backend> Repository<T> {
             let start = location.start;
             let length = location.length;
             let mut segment = self.backend.get_segment(seg_id)?;
-            let chunk_bytes = segment.read_chunk(start, length)?;
+            let chunk_bytes = block_on(segment.read_chunk(start, length))?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();

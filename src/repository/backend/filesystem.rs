@@ -4,6 +4,7 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use parking_lot::RwLock;
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
@@ -358,6 +359,7 @@ pub struct FileSystemSegment {
     max_size: u64,
 }
 
+#[async_trait]
 impl Segment for FileSystemSegment {
     fn free_bytes(&mut self) -> u64 {
         let file_size = self.file.metadata().unwrap().len();
@@ -368,14 +370,14 @@ impl Segment for FileSystemSegment {
         }
     }
 
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let mut output = vec![0_u8; length as usize];
         self.file.seek(SeekFrom::Start(start))?;
         self.file.read_exact(&mut output)?;
         Ok(output)
     }
 
-    fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
+    async fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
         let length = chunk.len() as u64;
         let location = self.file.seek(SeekFrom::End(1))?;
         self.file.write_all(chunk)?;

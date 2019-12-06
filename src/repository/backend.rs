@@ -5,6 +5,7 @@ use crate::repository::ChunkID;
 use crate::repository::ChunkSettings;
 use crate::repository::EncryptedKey;
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,7 @@ pub mod multifile;
 ///
 /// Segement compaction must happen through writing new segments and deleting
 /// the old ones
+#[async_trait]
 pub trait Segment {
     /// Returns the free bytes in this segment
     fn free_bytes(&mut self) -> u64;
@@ -27,11 +29,11 @@ pub trait Segment {
     /// Requires the start and end positions for the chunk
     ///
     /// Will return None if the read fails
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
+    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
     /// Writes a chunk to the segment
     ///
     /// Retuns Some(start,length), or None if writing fails
-    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
+    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
 }
 
 /// Manifest trait

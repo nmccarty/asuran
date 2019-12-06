@@ -2,6 +2,7 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
+use async_std::task::block_on;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -22,9 +23,9 @@ pub struct Mem {
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let segment = common::Segment::new(Cursor::new(Vec::new()), max).unwrap();
+        let segment = block_on(common::SegmentHandle::new(Cursor::new(Vec::new()), max)).unwrap();
         Mem {
-            data: segment.into_handle(),
+            data: segment,
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
