@@ -59,7 +59,6 @@ impl<R: Read, S: Slicer<R>> Iterator for ChunkIterator<R, S> {
     }
 }
 
-
 /// Trait for the setttings object associated with the Slicer
 pub trait SlicerSettings<R: Read> {
     type Slicer: Slicer<R>;
