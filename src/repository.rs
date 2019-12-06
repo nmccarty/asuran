@@ -120,7 +120,7 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -170,7 +170,7 @@ impl<T: Backend> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
+    pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
         let chunk = Chunk::pack(
             data,
             self.compression,
@@ -179,16 +179,16 @@ impl<T: Backend> Repository<T> {
             &self.key,
         );
 
-        self.write_raw(&chunk)
+        self.write_raw(&chunk).await
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
-    pub fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
         if self.has_chunk(id) && id != ChunkID::manifest_id() {
             Ok((id, true))
         } else {
-            self.write_chunk_with_id(data.consuming_data(), id)
+            self.write_chunk_with_id(data.consuming_data(), id).await
         }
     }
 
@@ -203,7 +203,7 @@ impl<T: Backend> Repository<T> {
                 if self.has_chunk(id) && id != ChunkID::manifest_id() {
                     Ok((id, true))
                 } else {
-                    self.write_chunk_with_id(x.consuming_data(), id)
+                    block_on(self.write_chunk_with_id(x.consuming_data(), id))
                 }
             })
             .collect()
@@ -221,17 +221,18 @@ impl<T: Backend> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
-        let chunk = Chunk::pack_with_id(
+    pub async fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
+        let chunk = Chunk::pack_with_id_async(
             data,
             self.compression,
             self.encryption.new_iv(),
             self.hmac,
             &self.key,
             id,
-        );
+        )
+        .await;
 
-        self.write_raw(&chunk)
+        self.write_raw(&chunk).await
     }
 
     /// Determines if a chunk exists in the index
@@ -350,9 +351,9 @@ mod tests {
 
         let mut repo = get_repo_mem(key);
         println!("Adding Chunks");
-        let key1 = repo.write_chunk(data1.clone()).unwrap().0;
-        let key2 = repo.write_chunk(data2.clone()).unwrap().0;
-        let key3 = repo.write_chunk(data3.clone()).unwrap().0;
+        let key1 = block_on(repo.write_chunk(data1.clone())).unwrap().0;
+        let key2 = block_on(repo.write_chunk(data2.clone())).unwrap().0;
+        let key3 = block_on(repo.write_chunk(data3.clone())).unwrap().0;
 
         println!("Reading Chunks");
         let out1 = repo.read_chunk(key1).unwrap();
@@ -431,9 +432,9 @@ mod tests {
             );
 
             println!("Adding Chunks");
-            key1 = repo.write_chunk(data1.clone()).unwrap().0;
-            key2 = repo.write_chunk(data2.clone()).unwrap().0;
-            key3 = repo.write_chunk(data3.clone()).unwrap().0;
+            key1 = block_on(repo.write_chunk(data1.clone())).unwrap().0;
+            key2 = block_on(repo.write_chunk(data2.clone())).unwrap().0;
+            key3 = block_on(repo.write_chunk(data3.clone())).unwrap().0;
         }
 
         let backend = FileSystem::new_test(&root_path);
@@ -464,10 +465,10 @@ mod tests {
         assert_eq!(repo.count_chunk(), 0);
         let data = [1_u8; 8192];
 
-        let (key_1, unique_1) = repo.write_chunk(data.to_vec()).unwrap();
+        let (key_1, unique_1) = block_on(repo.write_chunk(data.to_vec())).unwrap();
         assert_eq!(unique_1, false);
         assert_eq!(repo.count_chunk(), 1);
-        let (key_2, unique_2) = repo.write_chunk(data.to_vec()).unwrap();
+        let (key_2, unique_2) = block_on(repo.write_chunk(data.to_vec())).unwrap();
         assert_eq!(repo.count_chunk(), 1);
         assert_eq!(unique_2, true);
         assert_eq!(key_1, key_2);

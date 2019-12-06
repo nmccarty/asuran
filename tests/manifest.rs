@@ -1,3 +1,4 @@
+use async_std::task::block_on;
 use libasuran::chunker::slicer::fastcdc::FastCDC;
 use libasuran::chunker::*;
 use libasuran::manifest::*;
@@ -31,14 +32,13 @@ fn put_drop_get_filesytem() {
         manifest.set_chunk_settings(repo.chunk_settings());
         let mut archive = Archive::new("test");
         for (i, object) in objects.iter().enumerate() {
-            archive
-                .put_object(
-                    &chunker,
-                    &mut repo,
-                    &i.to_string(),
-                    &mut Cursor::new(object),
-                )
-                .unwrap();
+            block_on(archive.put_object(
+                &chunker,
+                &mut repo,
+                &i.to_string(),
+                &mut Cursor::new(object),
+            ))
+            .unwrap();
         }
         println!("Archive: \n {:?}", archive);
         manifest.commit_archive(&mut repo, archive);
@@ -79,14 +79,13 @@ fn put_drop_get_mem() {
         manifest.set_chunk_settings(repo.chunk_settings());
         let mut archive = Archive::new("test");
         for (i, object) in objects.iter().enumerate() {
-            archive
-                .put_object(
-                    &chunker,
-                    &mut repo,
-                    &i.to_string(),
-                    &mut Cursor::new(object),
-                )
-                .unwrap();
+            block_on(archive.put_object(
+                &chunker,
+                &mut repo,
+                &i.to_string(),
+                &mut Cursor::new(object),
+            ))
+            .unwrap();
         }
         println!("Archive: \n {:?}", archive);
         manifest.commit_archive(&mut repo, archive);

@@ -1,6 +1,7 @@
 use crate::chunker::{Chunker, Slice, SlicerSettings};
 use crate::repository::{Backend, ChunkID, Repository};
 use anyhow::Result;
+use async_std::task::block_on;
 use chrono::prelude::*;
 use parking_lot::RwLock;
 use rmp_serde::{Deserializer, Serializer};
@@ -121,7 +122,7 @@ impl Archive {
     ///
     /// Will read holes as 0s
     #[cfg_attr(feature = "profile", flame)]
-    pub fn put_object<R: Read>(
+    pub async fn put_object<R: Read>(
         &mut self,
         chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
@@ -137,7 +138,7 @@ impl Archive {
         let key = repository.key();
         let slices = chunker.chunked_iterator(from_reader, 0, &settings, key);
         for Slice { data, start, end } in slices {
-            let id = repository.write_unpacked_chunk(data)?.0;
+            let id = repository.write_unpacked_chunk(data).await?.0;
             locations.push(ChunkLocation {
                 id,
                 start,
@@ -157,7 +158,7 @@ impl Archive {
     /// Inserts a sparse object into the archive
     ///
     /// Requires that the object be pre-split into extents
-    pub fn put_sparse_object<R: Read>(
+    pub async fn put_sparse_object<R: Read>(
         &mut self,
         chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
@@ -172,7 +173,7 @@ impl Archive {
             let key = repository.key();
             let slices = chunker.chunked_iterator(read, 0, &settings, key);
             for Slice { data, start, end } in slices {
-                let id = repository.write_unpacked_chunk(data)?.0;
+                let id = repository.write_unpacked_chunk(data).await?.0;
                 // This math works becasue extents are 0 indexed
                 locations.push(ChunkLocation {
                     id,
@@ -321,8 +322,7 @@ impl Archive {
         self.serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize archive.");
 
-        let id = repo
-            .write_chunk(bytes)
+        let id = block_on(repo.write_chunk(bytes))
             .expect("Unable to write archive metatdata to repository.")
             .0;
 
@@ -417,7 +417,7 @@ mod tests {
         }
         let mut input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
 
-        archive.put_object(&chunker, &mut repo, "FileOne", &mut input_file);
+        block_on(archive.put_object(&chunker, &mut repo, "FileOne", &mut input_file));
 
         let mut buf = Cursor::new(Vec::<u8>::new());
         archive.get_object(&mut repo, "FileOne", &mut buf);
@@ -491,8 +491,7 @@ mod tests {
 
         // println!("Extent list: {:?}", extent_list);
         // Load data into archive
-        archive
-            .put_sparse_object(&chunker, &mut repo, "test", extent_list)
+        block_on(archive.put_sparse_object(&chunker, &mut repo, "test", extent_list))
             .expect("Archive Put Failed");
 
         // Create output vec
@@ -557,12 +556,8 @@ mod tests {
         let mut archive_1 = Archive::new("test");
         let mut archive_2 = archive_1.clone();
 
-        archive_1
-            .put_object(&chunker, &mut repo, "1", &mut obj1)
-            .unwrap();
-        archive_2
-            .put_object(&chunker, &mut repo, "2", &mut obj2)
-            .unwrap();
+        block_on(archive_1.put_object(&chunker, &mut repo, "1", &mut obj1)).unwrap();
+        block_on(archive_2.put_object(&chunker, &mut repo, "2", &mut obj2)).unwrap();
 
         let mut restore_1 = Cursor::new(Vec::<u8>::new());
         archive_2.get_object(&repo, "1", &mut restore_1).unwrap();
@@ -595,8 +590,7 @@ mod tests {
         let mut obj1 = Cursor::new(obj1);
 
         let mut archive = Archive::new("test");
-        archive
-            .put_object(&chunker, &mut repo, "1", &mut obj1)
+        block_on(archive.put_object(&chunker, &mut repo, "1", &mut obj1))
             .expect("Unable to put object in archive");
 
         let stored_archive = archive.store(&mut repo);

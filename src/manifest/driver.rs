@@ -3,6 +3,7 @@ use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
 use anyhow::Result;
+use async_std::task::block_on;
 use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
 
@@ -37,7 +38,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                 archive.put_empty(path);
             } else if range_count == 1 {
                 let object = ranges.remove(0).object;
-                archive.put_object(chunker, repo, path, object)?;
+                block_on(archive.put_object(chunker, repo, path, object))?;
             } else {
                 let mut readers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges {
@@ -48,7 +49,7 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                     let object = object.object;
                     readers.push((extent, object));
                 }
-                archive.put_sparse_object(chunker, repo, path, readers)?;
+                block_on(archive.put_sparse_object(chunker, repo, path, readers))?;
             }
         }
         Ok(())
