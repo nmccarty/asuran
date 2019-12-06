@@ -377,6 +377,7 @@ impl Segment for FileSystemSegment {
         Ok(output)
     }
 
+    #[allow(clippy::used_underscore_binding)]
     async fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
         let length = chunk.len() as u64;
         let location = self.file.seek(SeekFrom::End(1))?;

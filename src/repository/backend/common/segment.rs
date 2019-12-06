@@ -172,6 +172,7 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
         let end = self.handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
+    #[allow(clippy::used_underscore_binding)]
     async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let mut tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
@@ -264,6 +265,7 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
         self.size_limit - end
     }
 
+    #[allow(clippy::used_underscore_binding)]
     async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         let mut handle = self.handle.lock().await;
         handle.seek(SeekFrom::Start(start))?;

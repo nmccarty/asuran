@@ -3,7 +3,7 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
 use async_std::task::block_on;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
@@ -13,23 +13,30 @@ type CursorSegment = Cursor<Vec<u8>>;
 
 #[derive(Clone, Debug)]
 pub struct Mem {
-    data: common::SegmentHandle<CursorSegment>,
+    data: Vec<common::SegmentHandle<CursorSegment>>,
     index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
     key: Arc<RwLock<Option<EncryptedKey>>>,
+    count: Arc<Mutex<u64>>,
+    len: u64,
 }
 
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let segment = block_on(common::SegmentHandle::new(Cursor::new(Vec::new()), max)).unwrap();
+        let mut data = Vec::new();
+        for _ in 0..num_cpus::get() {
+            data.push(block_on(common::SegmentHandle::new(Cursor::new(Vec::new()), max)).unwrap());
+        }
         Mem {
-            data: segment,
+            data,
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
             key: Arc::new(RwLock::new(None)),
+            count: Arc::new(Mutex::new(0)),
+            len: num_cpus::get() as u64,
         }
     }
 }
@@ -82,18 +89,21 @@ impl Backend for Mem {
     type Segment = common::SegmentHandle<CursorSegment>;
     type Index = Self;
     /// Ignores the id
-    fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
-        Ok(self.data.clone())
+    fn get_segment(&self, id: u64) -> Result<Self::Segment> {
+        Ok(self.data[id as usize].clone())
     }
-    /// Always returns 0
+    /// Returns a random number in [0,5)
     #[cfg_attr(tarpaulin, skip)]
     fn highest_segment(&self) -> u64 {
-        0
+        let mut count = self.count.lock();
+        let old = *count;
+        *count += 1;
+        old % self.len
     }
     /// Only has one segement, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
     fn make_segment(&self) -> Result<u64> {
-        Ok(0)
+        Ok(self.highest_segment())
     }
     fn get_index(&self) -> Self::Index {
         self.clone()
