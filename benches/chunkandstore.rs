@@ -43,7 +43,7 @@ fn slice_and_store_par<'a>(
     }
     let slices: Vec<UnpackedChunk> = slices
         .into_par_iter()
-        .map(|x| UnpackedChunk::new(x, &cs, repo.key()))
+        .map(|x| UnpackedChunk::new(x, cs, repo.key().clone()))
         .collect();
 
     repo.write_unpacked_chunks_parallel(slices);

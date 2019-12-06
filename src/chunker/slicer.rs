@@ -7,6 +7,7 @@ pub mod fastcdc;
 
 use crate::repository::chunk::*;
 use crate::repository::Key;
+use async_std::task::block_on;
 use std::io::Read;
 use std::marker::PhantomData;
 
@@ -50,9 +51,14 @@ impl<R: Read, S: Slicer<R>> Iterator for ChunkIterator<R, S> {
     type Item = UnpackedChunk;
     fn next(&mut self) -> Option<UnpackedChunk> {
         let slice = self.slicer.take_slice()?;
-        Some(UnpackedChunk::new(slice, &self.settings, &self.key))
+        Some(block_on(UnpackedChunk::new(
+            slice,
+            self.settings,
+            self.key.clone(),
+        )))
     }
 }
+
 
 /// Trait for the setttings object associated with the Slicer
 pub trait SlicerSettings<R: Read> {
