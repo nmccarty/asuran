@@ -1,3 +1,4 @@
+use async_std::task::block_on;
 use criterion::*;
 use libasuran::chunker::slicer::buzhash::*;
 use libasuran::chunker::slicer::fastcdc::*;
@@ -42,8 +43,8 @@ fn slice_and_store_par<'a>(
         slice = slicer.take_slice();
     }
     let slices: Vec<UnpackedChunk> = slices
-        .into_par_iter()
-        .map(|x| UnpackedChunk::new(x, cs, repo.key().clone()))
+        .into_iter()
+        .map(|x| block_on(UnpackedChunk::new(x, cs, repo.key().clone())))
         .collect();
 
     repo.write_unpacked_chunks_parallel(slices);
