@@ -4,7 +4,6 @@
 
 use super::{Compression, Encryption, Key, HMAC};
 use anyhow::{anyhow, Result};
-use async_std::task::spawn;
 use serde::{Deserialize, Serialize};
 use std::cmp;
 
@@ -118,7 +117,7 @@ impl UnpackedChunk {
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Chunk {
     /// The data of the chunk, stored as a vec of raw bytes
     #[serde(with = "serde_bytes")]
@@ -153,6 +152,25 @@ impl Chunk {
         let data = encryption.encrypt(&compressed_data, key);
         let id = ChunkID::new(&id_mac);
         let mac = hmac.mac(&data, key);
+        Chunk {
+            data,
+            compression,
+            encryption,
+            hmac,
+            mac,
+            id,
+        }
+    }
+
+    /// Constructs a chunk from its parts
+    pub fn from_parts(
+        data: Vec<u8>,
+        compression: Compression,
+        encryption: Encryption,
+        hmac: HMAC,
+        mac: Vec<u8>,
+        id: ChunkID,
+    ) -> Chunk {
         Chunk {
             data,
             compression,

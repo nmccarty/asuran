@@ -88,7 +88,7 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 ///
 /// Cloning a backend should result in a new view over the same storage, and clones
 /// should play nice with multithreaded access.
-pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
+pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest;
     type Segment: Segment;
     type Index: Index;

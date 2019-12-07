@@ -64,6 +64,7 @@ pub mod compression;
 pub mod encryption;
 pub mod hmac;
 pub mod key;
+pub mod pipeline;
 
 /// Provides an interface to the storage-backed key value store
 ///
