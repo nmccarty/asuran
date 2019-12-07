@@ -18,12 +18,14 @@ struct Message {
 pub struct Pipeline {
     pool: ThreadPool,
     input: channel::mpsc::Sender<(Vec<u8>, Message)>,
+    input_id: channel::mpsc::Sender<(ChunkID, Vec<u8>, Message)>,
 }
 
 impl Pipeline {
     pub fn new(pool: ThreadPool) -> Pipeline {
         let (input, mut id_rx) = channel::mpsc::channel(100);
         let (mut id_tx, mut compress_rx) = channel::mpsc::channel(100);
+        let input_id = id_tx.clone();
         let (mut compress_tx, mut enc_rx) = channel::mpsc::channel(100);
         let (mut enc_tx, mut mac_rx) = channel::mpsc::channel(100);
         // ID stage
@@ -72,7 +74,11 @@ impl Pipeline {
             }
         });
 
-        Pipeline { pool, input }
+        Pipeline {
+            pool,
+            input,
+            input_id,
+        }
     }
 
     pub async fn process(
@@ -99,5 +105,28 @@ impl Pipeline {
         let mut input = self.input.clone();
         input.send((data, message)).await.unwrap();
         (id_rx, c_rx)
+    }
+
+    pub async fn process_with_id(
+        &self,
+        data: Vec<u8>,
+        id: ChunkID,
+        compression: Compression,
+        encryption: Encryption,
+        hmac: HMAC,
+        key: Key,
+    ) -> channel::oneshot::Receiver<Chunk> {
+        let (c_tx, c_rx) = channel::oneshot::channel();
+        let message = Message {
+            compression,
+            encryption,
+            hmac,
+            key,
+            ret_chunk: c_tx,
+            ret_id: None,
+        };
+        let mut input = self.input_id.clone();
+        input.send((id, data, message)).await.unwrap();
+        c_rx
     }
 }

@@ -43,7 +43,8 @@
 
 use anyhow::{anyhow, Result};
 use async_std::task::block_on;
-use rayon::prelude::*;
+use futures::executor::ThreadPool;
+use futures::future::join_all;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +55,7 @@ pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
 pub use crate::repository::key::{EncryptedKey, Key};
+use crate::repository::pipeline::Pipeline;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -82,6 +84,10 @@ pub struct Repository<T: Backend> {
     encryption: Encryption,
     /// Encryption key for this repo
     key: Key,
+    /// Threadpool used by the repository executor
+    pool: ThreadPool,
+    /// Pipeline used for chunking
+    pipeline: Pipeline,
 }
 
 impl<T: Backend> Repository<T> {
@@ -93,12 +99,16 @@ impl<T: Backend> Repository<T> {
         encryption: Encryption,
         key: Key,
     ) -> Repository<T> {
+        let pool = ThreadPool::new().unwrap();
+        let pipeline = Pipeline::new(pool.clone());
         Repository {
             backend,
             compression,
             hmac,
             encryption,
             key,
+            pool,
+            pipeline,
         }
     }
 
@@ -172,19 +182,23 @@ impl<T: Backend> Repository<T> {
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
     pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
-        let chunk = Chunk::pack(
-            data,
-            self.compression,
-            self.encryption.new_iv(),
-            self.hmac,
-            &self.key,
-        );
-
+        let (i, c) = self
+            .pipeline
+            .process(
+                data,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+        i.await.unwrap();
+        let chunk = c.await.unwrap();
         self.write_raw(&chunk).await
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
-    pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_unpacked_chunk(&self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
         if self.has_chunk(id) && id != ChunkID::manifest_id() {
             Ok((id, true))
@@ -198,16 +212,7 @@ impl<T: Backend> Repository<T> {
         &self,
         data: Vec<UnpackedChunk>,
     ) -> Vec<Result<(ChunkID, bool)>> {
-        data.into_par_iter()
-            .map(|x| {
-                let id = x.id();
-                if self.has_chunk(id) && id != ChunkID::manifest_id() {
-                    Ok((id, true))
-                } else {
-                    block_on(self.write_chunk_with_id(x.consuming_data(), id))
-                }
-            })
-            .collect()
+        block_on(async { join_all(data.into_iter().map(|x| self.write_unpacked_chunk(x))).await })
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -223,15 +228,19 @@ impl<T: Backend> Repository<T> {
     ///
     /// Primiarly intended for writing the manifest
     pub async fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
-        let chunk = Chunk::pack_with_id_async(
-            data,
-            self.compression,
-            self.encryption.new_iv(),
-            self.hmac,
-            &self.key,
-            id,
-        )
-        .await;
+        let c = self
+            .pipeline
+            .process_with_id(
+                data,
+                id,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+
+        let chunk = c.await.unwrap();
 
         self.write_raw(&chunk).await
     }
