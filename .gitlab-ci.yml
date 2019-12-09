@@ -1,23 +1,28 @@
-image: "thatonelutenist/rust-nathan:latest"
-
 stages:
   - lint
   - test
   - build
   - doc
 
-clippy:
+lint:clippy:
   stage: lint
+  image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo clippy -- -D warnings
+  tags:
+    - linux
 
-rustfmt:
+lint:rustfmt:
   stage: lint
+  image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo fmt --all -- --check
+  tags:
+    - linux
 
-test:
+test:test:
   stage: test
+  image: "thatonelutenist/rust-nathan:latest"
   script:
     - rustc --version
     - cargo --version
@@ -27,9 +32,26 @@ test:
     paths:
       - ~/.cargo
       - target
+  tags:
+    - linux
 
-build_job:
+test:tarpaulin:
+  stage: test
+  image: "thatonelutenist/rust-nathan:latest"
+  script:
+    - cargo tarpaulin --out Xml -t 360 --ignore-tests --force-clean
+    - bash <(curl -s https://codecov.io/bash)
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-tarp"
+    paths:
+      - ~/.cargo
+      - target
+  tags:
+    - linux 
+
+build:build:linux:
   stage: build
+  image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo build --release
   artifacts:
@@ -40,31 +62,12 @@ build_job:
     paths:
       - ~/.cargo
       - target
+  tags:
+    - linux
 
-pages:
-  stage: doc
-  script:
-    - cargo doc --no-deps
-    - mv target/doc public
-    - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
-  artifacts:
-    paths:
-      - public
-      - target
-
-tarpaulin:
-  stage: test
-  script:
-    - cargo tarpaulin --out Xml -t 360 --ignore-tests --force-clean
-    - bash <(curl -s https://codecov.io/bash)
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-tarp"
-    paths:
-      - ~/.cargo
-      - target
-
-bench:
+build:bench:linux:
   stage: build
+  image: "thatonelutenist/rust-nathan:latest"
   variables:
     RUSTFLAGS: "-C target-cpu=native"
   script:
@@ -74,3 +77,22 @@ bench:
     paths:
       - ~/.cargo
       - target
+  tags:
+    - linux
+
+doc:pages:
+  stage: doc
+  image: "thatonelutenist/rust-nathan:latest"
+  script:
+    - cargo doc --no-deps
+    - mv target/doc public
+    - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
+  artifacts:
+    paths:
+      - public
+      - target
+  tags:
+    - linux 
+
+
+
