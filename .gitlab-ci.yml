@@ -20,7 +20,7 @@ lint:rustfmt:
   tags:
     - linux
 
-test:test:
+test:test:linux:
   stage: test
   image: "thatonelutenist/rust-nathan:latest"
   script:
