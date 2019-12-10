@@ -195,20 +195,6 @@ mod tests {
         let input_path = input_dir.path().display().to_string();
         let output_path = output_dir.path().display().to_string();
 
-        println!("Contents of input directory ({}):", input_path);
-        let output = Command::new("/usr/bin/tree")
-            .arg(input_path)
-            .output()
-            .unwrap();
-        println!("{}", str::from_utf8(&output.stdout).unwrap());
-
-        println!("Contents of output directory ({}):", output_path);
-        let output = Command::new("/usr/bin/tree")
-            .arg(output_path)
-            .output()
-            .unwrap();
-        println!("{}", str::from_utf8(&output.stdout).unwrap());
-
         assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
     }
 }
