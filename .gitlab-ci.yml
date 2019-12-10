@@ -1,19 +1,18 @@
 stages:
-  - lint
   - test
   - build
   - doc
 
-lint:clippy:
-  stage: lint
+test:lint:clippy:
+  stage: test
   image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo clippy -- -D warnings
   tags:
     - linux
 
-lint:rustfmt:
-  stage: lint
+test:lint:rustfmt:
+  stage: test
   image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo fmt --all -- --check
@@ -79,6 +78,21 @@ build:build:linux:
   tags:
     - linux
 
+build:build:windows:
+  stage: build
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-build"
+    paths:
+      - ~/.cargo
+      - target
+  tags:
+    - windows
+
 build:bench:linux:
   stage: build
   image: "thatonelutenist/rust-nathan:latest"
@@ -93,6 +107,20 @@ build:bench:linux:
       - target
   tags:
     - linux
+
+build:bench:windows:
+  stage: build
+  variables:
+    RUSTFLAGS: "-C target-cpu=native"
+  script:
+    - cargo bench
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-bench"
+    paths:
+      - ~/.cargo
+      - target
+  tags:
+    - windows
 
 doc:pages:
   stage: doc
