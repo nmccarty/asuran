@@ -35,6 +35,20 @@ test:test:linux:
   tags:
     - linux
 
+test:test:windows:
+  stage: test
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --verbose
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-test"
+    paths:
+      - ~/.cargo
+      - target
+  tags:
+    - windows
+
 test:tarpaulin:
   stage: test
   image: "thatonelutenist/rust-nathan:latest"
