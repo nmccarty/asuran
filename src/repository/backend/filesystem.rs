@@ -433,6 +433,7 @@ mod tests {
         let mut backend = FileSystem::new(&test_dir.path().display().to_string());
 
         let timestamp1 = backend.last_modification();
+        std::thread::sleep(std::time::Duration::from_millis(100));
         backend.touch();
         let timestamp2 = backend.last_modification();
 
@@ -447,6 +448,7 @@ mod tests {
         let dummy_archive_1 = StoredArchive::dummy_archive();
         backend.write_archive(dummy_archive_1.clone());
 
+        std::thread::sleep(std::time::Duration::from_millis(100));
         let dummy_archive_2 = StoredArchive::dummy_archive();
         backend.write_archive(dummy_archive_2.clone());
 
@@ -463,11 +465,15 @@ mod tests {
     fn load_unload_load() {
         let test_dir = tempdir().unwrap();
         let dummy_archive_1 = StoredArchive::dummy_archive();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
         let dummy_archive_2 = StoredArchive::dummy_archive();
         {
             let mut backend = FileSystem::new(&test_dir.path().display().to_string());
             backend.write_archive(dummy_archive_1.clone());
         }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
         {
             let mut backend = FileSystem::new(&test_dir.path().display().to_string());
             backend.write_archive(dummy_archive_2.clone());
