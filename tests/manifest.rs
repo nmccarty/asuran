@@ -46,13 +46,11 @@ fn put_drop_get_filesytem() {
     }
 
     let manifest = Manifest::load(&repo);
-    let archive = manifest.archives()[0].load(&repo).unwrap();
+    let archive = block_on(manifest.archives()[0].load(&repo)).unwrap();
     for (i, object) in objects.iter().enumerate() {
         let mut buffer = Cursor::new(Vec::<u8>::new());
         println!("Archive: \n {:?}", archive);
-        archive
-            .get_object(&repo, &i.to_string(), &mut buffer)
-            .unwrap();
+        block_on(archive.get_object(&repo, &i.to_string(), &mut buffer)).unwrap();
         let buffer = buffer.into_inner();
         assert_eq!(object, &buffer);
     }
@@ -93,13 +91,11 @@ fn put_drop_get_mem() {
     }
 
     let manifest = Manifest::load(&repo);
-    let archive = manifest.archives()[0].load(&repo).unwrap();
+    let archive = block_on(manifest.archives()[0].load(&repo)).unwrap();
     for (i, object) in objects.iter().enumerate() {
         let mut buffer = Cursor::new(Vec::<u8>::new());
         println!("Archive: \n {:?}", archive);
-        archive
-            .get_object(&repo, &i.to_string(), &mut buffer)
-            .unwrap();
+        block_on(archive.get_object(&repo, &i.to_string(), &mut buffer)).unwrap();
         let buffer = buffer.into_inner();
         assert_eq!(object, &buffer);
     }

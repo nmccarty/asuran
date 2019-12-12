@@ -42,7 +42,6 @@
 //! effectivly preventing the storage of duplicate chunks.
 
 use anyhow::{anyhow, Result};
-use async_std::task::block_on;
 use futures::executor::ThreadPool;
 use futures::future::join_all;
 use rmp_serde::{Deserializer, Serializer};
@@ -159,7 +158,7 @@ impl<T: Backend> Repository<T> {
                 test_segment
             };
 
-            let (start, length) = block_on(segment.write_chunk(&buff, id))?;
+            let (start, length) = segment.write_chunk(&buff, id).await?;
             let location = ChunkLocation {
                 segment_id: seg_id,
                 start,
@@ -208,11 +207,11 @@ impl<T: Backend> Repository<T> {
     }
 
     /// Writes multiple unpacked chunks to the repository in parallel
-    pub fn write_unpacked_chunks_parallel(
+    pub async fn write_unpacked_chunks_parallel(
         &self,
         data: Vec<UnpackedChunk>,
     ) -> Vec<Result<(ChunkID, bool)>> {
-        block_on(async { join_all(data.into_iter().map(|x| self.write_unpacked_chunk(x))).await })
+        join_all(data.into_iter().map(|x| self.write_unpacked_chunk(x))).await
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -254,7 +253,7 @@ impl<T: Backend> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
-    pub fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
+    pub async fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
             let index = self.backend.get_index();
@@ -263,7 +262,7 @@ impl<T: Backend> Repository<T> {
             let start = location.start;
             let length = location.length;
             let mut segment = self.backend.get_segment(seg_id)?;
-            let chunk_bytes = block_on(segment.read_chunk(start, length))?;
+            let chunk_bytes = segment.read_chunk(start, length).await?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
@@ -311,6 +310,7 @@ impl<T: Backend> Drop for Repository<T> {
 mod tests {
     use super::*;
     use crate::repository::backend::mem::*;
+    use async_std::task::block_on;
     use rand::prelude::*;
     use tempfile::{tempdir, TempDir};
 
@@ -349,91 +349,112 @@ mod tests {
 
     #[test]
     fn repository_add_read() {
-        let key = Key::random(32);
+        block_on(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo_mem(key);
-        println!("Adding Chunks");
-        let key1 = block_on(repo.write_chunk(data1.clone())).unwrap().0;
-        let key2 = block_on(repo.write_chunk(data2.clone())).unwrap().0;
-        let key3 = block_on(repo.write_chunk(data3.clone())).unwrap().0;
+            let mut repo = get_repo_mem(key);
+            println!("Adding Chunks");
+            let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+            let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+            let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
 
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+        });
     }
 
     #[test]
     fn repository_add_read_parallel() {
-        let key = Key::random(32);
+        block_on(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo_mem(key.clone());
-        let cs = repo.chunk_settings();
-        let chunk1 = block_on(UnpackedChunk::new(data1.clone(), cs, key.clone()));
-        let chunk2 = block_on(UnpackedChunk::new(data2.clone(), cs, key.clone()));
-        let chunk3 = block_on(UnpackedChunk::new(data3.clone(), cs, key.clone()));
-        let chunks_vec = vec![chunk1, chunk2, chunk3];
+            let mut repo = get_repo_mem(key.clone());
+            let cs = repo.chunk_settings();
+            let chunk1 = UnpackedChunk::new(data1.clone(), cs, key.clone()).await;
+            let chunk2 = UnpackedChunk::new(data2.clone(), cs, key.clone()).await;
+            let chunk3 = UnpackedChunk::new(data3.clone(), cs, key.clone()).await;
+            let chunks_vec = vec![chunk1, chunk2, chunk3];
 
-        println!("Adding Chunks");
-        let keys = repo.write_unpacked_chunks_parallel(chunks_vec);
-        let key1 = keys[0].as_ref().unwrap().0;
-        let key2 = keys[1].as_ref().unwrap().0;
-        let key3 = keys[2].as_ref().unwrap().0;
+            println!("Adding Chunks");
+            let keys = repo.write_unpacked_chunks_parallel(chunks_vec).await;
+            let key1 = keys[0].as_ref().unwrap().0;
+            let key2 = keys[1].as_ref().unwrap().0;
+            let key3 = keys[2].as_ref().unwrap().0;
 
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
-        std::mem::drop(repo);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+            std::mem::drop(repo);
+        })
     }
 
     #[test]
     fn repository_add_drop_read() {
-        let key = Key::random(32);
+        block_on(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-        println!("Repo root dir: {}", root_path);
+            let root_dir = tempdir().unwrap();
+            let root_path = root_dir.path().display().to_string();
+            println!("Repo root dir: {}", root_path);
 
-        let backend = FileSystem::new_test(&root_path);
-        let key1;
-        let key2;
-        let key3;
+            let backend = FileSystem::new_test(&root_path);
+            let key1;
+            let key2;
+            let key3;
 
-        {
-            let mut repo = Repository::new(
+            {
+                let mut repo = Repository::new(
+                    backend,
+                    Compression::ZStd { level: 1 },
+                    HMAC::SHA256,
+                    Encryption::new_aes256cbc(),
+                    key.clone(),
+                );
+
+                println!("Adding Chunks");
+                key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+                key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+                key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
+            }
+
+            let backend = FileSystem::new_test(&root_path);
+
+            let repo = Repository::new(
                 backend,
                 Compression::ZStd { level: 1 },
                 HMAC::SHA256,
@@ -441,48 +462,35 @@ mod tests {
                 key.clone(),
             );
 
-            println!("Adding Chunks");
-            key1 = block_on(repo.write_chunk(data1.clone())).unwrap().0;
-            key2 = block_on(repo.write_chunk(data2.clone())).unwrap().0;
-            key3 = block_on(repo.write_chunk(data3.clone())).unwrap().0;
-        }
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        let backend = FileSystem::new_test(&root_path);
-
-        let repo = Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::SHA256,
-            Encryption::new_aes256cbc(),
-            key.clone(),
-        );
-
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
-
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+        });
     }
 
     #[test]
     fn double_add() {
-        // Adding the same chunk to the repository twice shouldn't result in
-        // two chunks in the repository
-        let mut repo = get_repo_mem(Key::random(32));
-        assert_eq!(repo.count_chunk(), 0);
-        let data = [1_u8; 8192];
+        block_on(async {
+            // Adding the same chunk to the repository twice shouldn't result in
+            // two chunks in the repository
+            let mut repo = get_repo_mem(Key::random(32));
+            assert_eq!(repo.count_chunk(), 0);
+            let data = [1_u8; 8192];
 
-        let (key_1, unique_1) = block_on(repo.write_chunk(data.to_vec())).unwrap();
-        assert_eq!(unique_1, false);
-        assert_eq!(repo.count_chunk(), 1);
-        let (key_2, unique_2) = block_on(repo.write_chunk(data.to_vec())).unwrap();
-        assert_eq!(repo.count_chunk(), 1);
-        assert_eq!(unique_2, true);
-        assert_eq!(key_1, key_2);
-        std::mem::drop(repo);
+            let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(unique_1, false);
+            assert_eq!(repo.count_chunk(), 1);
+            let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(repo.count_chunk(), 1);
+            assert_eq!(unique_2, true);
+            assert_eq!(key_1, key_2);
+            std::mem::drop(repo);
+        });
     }
 
     #[test]

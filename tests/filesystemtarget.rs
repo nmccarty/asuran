@@ -1,3 +1,4 @@
+use futures::executor::block_on;
 use libasuran::chunker::slicer::fastcdc::FastCDC;
 use libasuran::chunker::*;
 use libasuran::manifest::driver::*;
@@ -50,7 +51,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
 
     let manifest = Manifest::load(&repo);
     let stored_archive = &manifest.archives()[0];
-    let archive = stored_archive.load(&repo).unwrap();
+    let archive = block_on(stored_archive.load(&repo)).unwrap();
 
     let mut output_target =
         FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");
@@ -100,7 +101,7 @@ fn backup_restore_no_empty_dirs_mem() {
 
     let manifest = Manifest::load(&repo);
     let stored_archive = &manifest.archives()[0];
-    let archive = stored_archive.load(&repo).unwrap();
+    let archive = block_on(stored_archive.load(&repo)).unwrap();
     println!("{:?}", archive);
 
     let mut output_target =

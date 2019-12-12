@@ -98,7 +98,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
             // an empty object
             if range_count == 1 {
                 let object = ranges.remove(0).object;
-                archive.get_object(repo, path, object)?;
+                block_on(archive.get_object(repo, path, object))?;
             } else if range_count > 1 {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges {
@@ -109,7 +109,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
                     let object = object.object;
                     writers.push((extent, object));
                 }
-                archive.get_sparse_object(repo, path, writers)?;
+                block_on(archive.get_sparse_object(repo, path, writers))?;
             }
         }
         Ok(())
