@@ -14,7 +14,7 @@ type CursorSegment = Cursor<Vec<u8>>;
 
 #[derive(Clone, Debug)]
 pub struct Mem {
-    data: Vec<common::SegmentHandle<CursorSegment>>,
+    data: common::SegmentHandle<CursorSegment>,
     index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
@@ -26,10 +26,7 @@ pub struct Mem {
 impl Mem {
     pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let mut data = Vec::new();
-        for _ in 0..num_cpus::get() {
-            data.push(block_on(common::SegmentHandle::new(Cursor::new(Vec::new()), max)).unwrap());
-        }
+        let mut data = block_on(common::SegmentHandle::new(Cursor::new(Vec::new()), max)).unwrap();
         Mem {
             data,
             index: Arc::new(RwLock::new(HashMap::new())),
@@ -91,15 +88,12 @@ impl Backend for Mem {
     type Index = Self;
     /// Ignores the id
     fn get_segment(&self, id: u64) -> Result<Self::Segment> {
-        Ok(self.data[id as usize].clone())
+        Ok(self.data.clone())
     }
     /// Returns a random number in [0,5)
     #[cfg_attr(tarpaulin, skip)]
     fn highest_segment(&self) -> u64 {
-        let mut count = self.count.lock();
-        let old = *count;
-        *count += 1;
-        old % self.len
+        0
     }
     /// Only has one segement, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
