@@ -1,19 +1,16 @@
 use async_std::task::block_on;
 use criterion::*;
+use futures::future::join_all;
 use libasuran::chunker::slicer::buzhash::*;
 use libasuran::chunker::slicer::fastcdc::*;
 use libasuran::chunker::slicer::*;
 use libasuran::repository::*;
 use rand::Rng;
-use rayon::prelude::*;
-use std::io::Read;
-use std::mem::drop;
 use std::time::Duration;
-use tempfile::{tempdir, TempDir};
 
-fn slice_and_store<'a>(
+async fn slice_and_store<'a>(
     data: &'a [u8],
-    mut repo: Repository<impl Backend>,
+    repo: Repository<impl Backend>,
     mut slicer: impl Slicer<&'a [u8]>,
 ) {
     slicer.add_reader(data);
@@ -23,15 +20,16 @@ fn slice_and_store<'a>(
         slices.push(slice.unwrap());
         slice = slicer.take_slice();
     }
-
-    for s in slices.into_iter() {
-        repo.write_chunk(s);
+    let mut s = Vec::new();
+    for slice in slices.into_iter() {
+        s.push(repo.write_chunk(slice));
     }
+    join_all(s).await;
 }
 
-fn slice_and_store_par<'a>(
+async fn slice_and_store_par<'a>(
     data: &'a [u8],
-    mut repo: Repository<impl Backend>,
+    repo: Repository<impl Backend>,
     mut slicer: impl Slicer<&'a [u8]>,
 ) {
     slicer.add_reader(data);
@@ -42,12 +40,14 @@ fn slice_and_store_par<'a>(
         slices.push(slice.unwrap());
         slice = slicer.take_slice();
     }
-    let slices: Vec<UnpackedChunk> = slices
-        .into_iter()
-        .map(|x| block_on(UnpackedChunk::new(x, cs, repo.key().clone())))
-        .collect();
+    let slices: Vec<UnpackedChunk> = join_all(
+        slices
+            .into_iter()
+            .map(|x| UnpackedChunk::new(x, cs, repo.key().clone())),
+    )
+    .await;
 
-    repo.write_unpacked_chunks_parallel(slices);
+    repo.write_unpacked_chunks_parallel(slices).await;
 }
 
 fn get_repo(key: Key) -> Repository<impl Backend> {
@@ -82,20 +82,20 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("fastcdc 32M zero", |b| {
         b.iter(|| {
-            slice_and_store(
+            block_on(slice_and_store(
                 &zero[..],
                 get_repo(Key::random(32)),
                 FastCDC::new_defaults(),
-            )
+            ))
         })
     });
     group.bench_function("fastcdc 32M rand", |b| {
         b.iter(|| {
-            slice_and_store(
+            block_on(slice_and_store(
                 &rand[..],
                 get_repo(Key::random(32)),
                 FastCDC::new_defaults(),
-            )
+            ))
         })
     });
     group.finish();
@@ -106,20 +106,20 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("fastcdc parallel 32M zero", |b| {
         b.iter(|| {
-            slice_and_store_par(
+            block_on(slice_and_store_par(
                 &zero[..],
                 get_repo(Key::random(32)),
                 FastCDC::new_defaults(),
-            )
+            ))
         })
     });
     group.bench_function("fastcdc parallel 32M rand", |b| {
         b.iter(|| {
-            slice_and_store_par(
+            block_on(slice_and_store_par(
                 &rand[..],
                 get_repo(Key::random(32)),
                 FastCDC::new_defaults(),
-            )
+            ))
         })
     });
     group.finish();
@@ -130,24 +130,23 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("buzhash 32M zero", |b| {
         b.iter(|| {
-            slice_and_store(
+            block_on(slice_and_store(
                 &zero[..],
                 get_repo(Key::random(32)),
                 BuzHash::new_defaults(0),
-            )
+            ))
         })
     });
     group.bench_function("buzhash 32M rand", |b| {
         b.iter(|| {
-            slice_and_store(
+            block_on(slice_and_store(
                 &rand[..],
                 get_repo(Key::random(32)),
                 BuzHash::new_defaults(0),
-            )
+            ))
         })
     });
     group.finish();
 }
-
 criterion_group!(benches, bench);
 criterion_main!(benches);

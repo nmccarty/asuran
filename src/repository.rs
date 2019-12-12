@@ -180,7 +180,7 @@ impl<T: Backend> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
+    pub async fn write_chunk(&self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
         let (i, c) = self
             .pipeline
             .process(
