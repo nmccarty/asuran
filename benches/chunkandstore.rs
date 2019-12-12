@@ -1,5 +1,5 @@
-use async_std::task::block_on;
 use criterion::*;
+use futures::executor::block_on;
 use futures::future::join_all;
 use libasuran::chunker::slicer::buzhash::*;
 use libasuran::chunker::slicer::fastcdc::*;
