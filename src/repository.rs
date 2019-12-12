@@ -111,6 +111,20 @@ impl<T: Backend> Repository<T> {
         }
     }
 
+    /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
+    pub fn with(backend: T, settings: ChunkSettings, key: Key, pool: ThreadPool) -> Repository<T> {
+        let pipeline = Pipeline::new(pool.clone());
+        Repository {
+            backend,
+            key,
+            pool,
+            pipeline,
+            compression: settings.compression,
+            hmac: settings.hmac,
+            encryption: settings.encryption,
+        }
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Commits the index to storage
     ///
