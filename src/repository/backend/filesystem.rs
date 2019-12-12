@@ -5,6 +5,7 @@ use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use futures::channel::oneshot;
 use parking_lot::RwLock;
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
@@ -238,6 +239,14 @@ impl Backend for FileSystem {
 
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
+    }
+
+    fn read_chunk(&self, locaton: SegmentDescriptor) -> oneshot::Receiver<Vec<u8>> {
+        unimplemented!();
+    }
+
+    fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> oneshot::Receiver<SegmentDescriptor> {
+        unimplemented!();
     }
 }
 

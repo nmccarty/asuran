@@ -7,12 +7,22 @@ use crate::repository::EncryptedKey;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::prelude::*;
+use futures::channel::oneshot;
 use serde::{Deserialize, Serialize};
 
 pub mod common;
 pub mod filesystem;
 pub mod mem;
 pub mod multifile;
+
+/// Describes the segment id and location there in of a chunk
+///
+/// This does not store the lenght, as segments are responsible for storing chunks in a format
+/// that does not require prior knowlege of the chunk lenght.
+pub struct SegmentDescriptor {
+    pub segment_id: u64,
+    pub start: u64,
+}
 
 /// Segments are abstract blocks of chunks
 ///
@@ -113,6 +123,16 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     fn read_key(&self) -> Result<EncryptedKey>;
     /// Returns a view of this respository's manifest
     fn get_manifest(&self) -> Self::Manifest;
+    /// Starts reading a chunk from the backend
+    ///
+    /// The chunk will be written to the oneshot once reading is complete
+    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Vec<u8>>;
+    /// Starts writing a chunk to the backend
+    ///
+    /// A segment descriptor describing it will be written to oneshot once reading is complete
+    ///
+    /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
+    fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> oneshot::Receiver<SegmentDescriptor>;
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

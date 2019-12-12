@@ -3,6 +3,7 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
 use async_std::task::block_on;
+use futures::channel::oneshot;
 use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -123,6 +124,14 @@ impl Backend for Mem {
     }
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
+    }
+
+    fn read_chunk(&self, locaton: SegmentDescriptor) -> oneshot::Receiver<Vec<u8>> {
+        unimplemented!();
+    }
+
+    fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> oneshot::Receiver<SegmentDescriptor> {
+        unimplemented!();
     }
 }
 
