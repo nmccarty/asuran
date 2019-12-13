@@ -118,8 +118,9 @@ impl Backend for Mem {
         self.clone()
     }
 
-    fn read_chunk(&self, locaton: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
-        unimplemented!();
+    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+        let mut data = self.data.clone();
+        data.read_chunk(location)
     }
 
     fn write_chunk(
@@ -127,7 +128,8 @@ impl Backend for Mem {
         chunk: Vec<u8>,
         id: ChunkID,
     ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
-        unimplemented!();
+        let mut data = self.data.clone();
+        data.write_chunk(chunk,id)
     }
 }
 
