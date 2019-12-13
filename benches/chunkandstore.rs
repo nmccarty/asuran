@@ -1,5 +1,5 @@
 use criterion::*;
-use futures::executor::block_on;
+use futures::executor::{block_on, ThreadPool};
 use futures::future::join_all;
 use libasuran::chunker::slicer::buzhash::*;
 use libasuran::chunker::slicer::fastcdc::*;
@@ -51,19 +51,14 @@ async fn slice_and_store_par<'a>(
 }
 
 fn get_repo(key: Key) -> Repository<impl Backend> {
+    let pool = ThreadPool::new().unwrap();
     let settings = ChunkSettings {
         compression: Compression::ZStd { level: 1 },
         encryption: Encryption::new_aes256ctr(),
         hmac: HMAC::Blake2bp,
     };
-    let backend = libasuran::repository::backend::mem::Mem::new(settings);
-    Repository::new(
-        backend,
-        settings.compression,
-        settings.hmac,
-        settings.encryption,
-        key,
-    )
+    let backend = libasuran::repository::backend::mem::Mem::new(settings, &pool);
+    Repository::with(backend, settings, key, pool)
 }
 
 fn bench(c: &mut Criterion) {
