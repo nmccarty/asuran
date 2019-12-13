@@ -52,7 +52,7 @@ test:tarpaulin:
   stage: test
   image: "thatonelutenist/rust-nathan:latest"
   script:
-    - cargo tarpaulin --out Xml -t 360 --ignore-tests --force-clean
+    - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
     - bash <(curl -s https://codecov.io/bash)
   cache:
     key: "$CI_COMMIT_REF_SLUG-tarp"
