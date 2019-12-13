@@ -32,7 +32,7 @@ pub struct SegmentDescriptor {
 /// Segement compaction must happen through writing new segments and deleting
 /// the old ones
 #[async_trait]
-pub trait Segment {
+pub trait Segment: Send {
     /// Returns the free bytes in this segment
     fn free_bytes(&mut self) -> u64;
     /// Reads a chunk from the segment into a bytestring
@@ -100,9 +100,9 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 /// Cloning a backend should result in a new view over the same storage, and clones
 /// should play nice with multithreaded access.
 pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
-    type Manifest: Manifest;
-    type Segment: Segment;
-    type Index: Index;
+    type Manifest: Manifest + 'static;
+    type Segment: Segment + 'static;
+    type Index: Index + 'static;
     /// Gets a particular segment
     ///
     /// Returns Err if it does not exist or can not be found

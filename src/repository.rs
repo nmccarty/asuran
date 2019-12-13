@@ -44,6 +44,8 @@
 use anyhow::{anyhow, Result};
 use futures::executor::ThreadPool;
 use futures::future::join_all;
+use futures::prelude::Future;
+use futures::task::SpawnExt;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -89,7 +91,7 @@ pub struct Repository<T: Backend> {
     pipeline: Pipeline,
 }
 
-impl<T: Backend> Repository<T> {
+impl<T: Backend + 'static> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
     pub fn new(
         backend: T,
@@ -184,6 +186,54 @@ impl<T: Backend> Repository<T> {
         }
     }
 
+    /// The same as write_raw, but using the new backend api to do the writing
+    ///
+    /// FIXME: After getting rid of the old filesystem backend, merge this into write_raw
+    pub fn write_raw_async(&self, chunk: Chunk) -> impl Future<Output = Result<(ChunkID, bool)>> {
+        let repo = self.clone();
+        self.pool
+            .spawn_with_handle(async move {
+                let id = chunk.get_id();
+
+                // Check if chunk exists
+                if repo.has_chunk(id) && id != ChunkID::manifest_id() {
+                    Ok((id, true))
+                } else {
+                    let mut buff = Vec::<u8>::new();
+                    chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
+
+                    // Get highest segment and check to see if has enough space
+                    let backend = &repo.backend;
+                    let mut seg_id = backend.highest_segment();
+                    let test_segment = backend.get_segment(seg_id);
+                    // If no segments exist, we must create one
+                    let mut test_segment = if test_segment.is_err() {
+                        seg_id = backend.make_segment()?;
+                        backend.get_segment(seg_id)?
+                    } else {
+                        test_segment?
+                    };
+                    let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+                        seg_id = backend.make_segment()?;
+                        backend.get_segment(seg_id)?
+                    } else {
+                        test_segment
+                    };
+
+                    let (start, length) = segment.write_chunk(&buff, id).await?;
+                    let location = ChunkLocation {
+                        segment_id: seg_id,
+                        start,
+                        length,
+                    };
+                    repo.backend.get_index().set_chunk(id, location)?;
+
+                    Ok((id, false))
+                }
+            })
+            .unwrap()
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
@@ -213,11 +263,16 @@ impl<T: Backend> Repository<T> {
     /// Writes an unpacked chunk to the repository using all defaults
     pub async fn write_unpacked_chunk(&self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
-        if self.has_chunk(id) && id != ChunkID::manifest_id() {
-            Ok((id, true))
-        } else {
-            self.write_chunk_with_id(data.consuming_data(), id).await
-        }
+        self.write_chunk_with_id(data.consuming_data(), id).await
+    }
+
+    pub async fn write_unpacked_chunk_async(
+        &self,
+        data: UnpackedChunk,
+    ) -> impl Future<Output = Result<(ChunkID, bool)>> {
+        let id = data.id();
+        self.write_chunk_with_id_async(data.consuming_data(), id)
+            .await
     }
 
     /// Writes multiple unpacked chunks to the repository in parallel
@@ -225,7 +280,7 @@ impl<T: Backend> Repository<T> {
         &self,
         data: Vec<UnpackedChunk>,
     ) -> Vec<Result<(ChunkID, bool)>> {
-        join_all(data.into_iter().map(|x| self.write_unpacked_chunk(x))).await
+        join_all(join_all(data.into_iter().map(|x| self.write_unpacked_chunk_async(x))).await).await
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -256,6 +311,28 @@ impl<T: Backend> Repository<T> {
         let chunk = c.await.unwrap();
 
         self.write_raw(&chunk).await
+    }
+
+    pub async fn write_chunk_with_id_async(
+        &self,
+        data: Vec<u8>,
+        id: ChunkID,
+    ) -> impl Future<Output = Result<(ChunkID, bool)>> {
+        let c = self
+            .pipeline
+            .process_with_id(
+                data,
+                id,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+
+        let chunk = c.await.unwrap();
+
+        self.write_raw_async(chunk)
     }
 
     /// Determines if a chunk exists in the index
