@@ -310,6 +310,7 @@ impl<T: Read + Write + Seek + Send + 'static> crate::repository::backend::Segmen
         block_on(async { self.stats().await.unwrap().free })
     }
 
+    #[allow(unused_variables)]
     async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let descriptor = SegmentDescriptor {
             segment_id: 0,

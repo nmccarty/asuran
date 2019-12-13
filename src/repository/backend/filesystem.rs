@@ -241,14 +241,14 @@ impl Backend for FileSystem {
         self.clone()
     }
 
-    fn read_chunk(&self, locaton: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    fn read_chunk(&self, _location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
         unimplemented!();
     }
 
     fn write_chunk(
         &self,
-        chunk: Vec<u8>,
-        id: ChunkID,
+        _chunk: Vec<u8>,
+        _id: ChunkID,
     ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
         unimplemented!();
     }

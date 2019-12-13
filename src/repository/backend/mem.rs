@@ -85,7 +85,7 @@ impl Backend for Mem {
     type Segment = common::TaskedSegment<Cursor<Vec<u8>>>;
     type Index = Self;
     /// Ignores the id
-    fn get_segment(&self, id: u64) -> Result<Self::Segment> {
+    fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
         Ok(self.data.clone())
     }
     /// Returns a random number in [0,5)
@@ -129,7 +129,7 @@ impl Backend for Mem {
         id: ChunkID,
     ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
         let mut data = self.data.clone();
-        data.write_chunk(chunk,id)
+        data.write_chunk(chunk, id)
     }
 }
 
