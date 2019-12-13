@@ -82,6 +82,7 @@ impl<T: Backend> Manifest<T> {
 mod tests {
     use super::*;
     use crate::repository::*;
+    use futures::executor::ThreadPool;
 
     #[test]
     fn chunk_settings_sanity() {
@@ -91,15 +92,10 @@ mod tests {
             hmac: HMAC::Blake2b,
         };
 
-        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let pool = ThreadPool::new().unwrap();
+        let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
         let key = Key::random(32);
-        let repo = Repository::new(
-            backend,
-            settings.compression,
-            settings.hmac,
-            settings.encryption,
-            key,
-        );
+        let repo = Repository::with(backend, settings, key, pool);
         let mut manifest = Manifest::load(&repo);
 
         manifest.set_chunk_settings(settings);
@@ -111,15 +107,11 @@ mod tests {
     #[test]
     fn new_archive_updates_time() {
         let settings = ChunkSettings::lightweight();
-        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let pool = ThreadPool::new().unwrap();
+        let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
         let key = Key::random(32);
-        let repo = Repository::new(
-            backend.clone(),
-            settings.compression,
-            settings.hmac,
-            settings.encryption,
-            key,
-        );
+        let repo = Repository::with(backend.clone(), settings, key, pool);
+
         let mut manifest = Manifest::load(&repo);
 
         let dummy1 = StoredArchive::dummy_archive();

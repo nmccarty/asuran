@@ -19,6 +19,7 @@ pub mod multifile;
 ///
 /// This does not store the lenght, as segments are responsible for storing chunks in a format
 /// that does not require prior knowlege of the chunk lenght.
+#[derive(Debug)]
 pub struct SegmentDescriptor {
     pub segment_id: u64,
     pub start: u64,
@@ -126,13 +127,17 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     /// Starts reading a chunk from the backend
     ///
     /// The chunk will be written to the oneshot once reading is complete
-    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Vec<u8>>;
+    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>>;
     /// Starts writing a chunk to the backend
     ///
     /// A segment descriptor describing it will be written to oneshot once reading is complete
     ///
     /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
-    fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> oneshot::Receiver<SegmentDescriptor>;
+    fn write_chunk(
+        &self,
+        chunk: Vec<u8>,
+        id: ChunkID,
+    ) -> oneshot::Receiver<Result<SegmentDescriptor>>;
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

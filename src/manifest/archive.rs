@@ -362,6 +362,7 @@ mod tests {
     use crate::repository::hmac::HMAC;
     use crate::repository::ChunkSettings;
     use crate::repository::Key;
+    use futures::executor::ThreadPool;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use std::fs;
@@ -384,15 +385,10 @@ mod tests {
     }
 
     fn get_repo_mem(key: Key) -> Repository<impl Backend> {
+        let pool = ThreadPool::new().unwrap();
         let settings = ChunkSettings::lightweight();
-        let backend = Mem::new(settings);
-        Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
-        )
+        let backend = Mem::new(settings, &pool);
+        Repository::with(backend, settings, key, pool)
     }
 
     #[quickcheck]

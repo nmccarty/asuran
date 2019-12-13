@@ -346,19 +346,14 @@ mod tests {
     }
 
     fn get_repo_mem(key: Key) -> Repository<Mem> {
+        let pool = ThreadPool::new().unwrap();
         let settings = ChunkSettings {
             compression: Compression::ZStd { level: 1 },
             hmac: HMAC::Blake2b,
             encryption: Encryption::new_aes256ctr(),
         };
-        let backend = Mem::new(settings);
-        Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
-        )
+        let backend = Mem::new(settings, &pool);
+        Repository::with(backend, settings, key, pool)
     }
 
     #[test]
