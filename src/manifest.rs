@@ -59,8 +59,8 @@ impl<T: Backend> Manifest<T> {
     /// # Panics
     ///
     /// Will panic if commiting the archive to the repository fails
-    pub fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
-        let stored_archive = archive.store(repo);
+    pub async fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
+        let stored_archive = archive.store(repo).await;
         self.internal_manifest.write_archive(stored_archive);
         repo.commit_index();
     }

@@ -12,7 +12,7 @@ pub struct FastCDC<R: Read> {
 
 impl<R> FastCDC<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     pub fn new(min_size: usize, max_size: usize, avg_size: usize) -> FastCDC<R> {
         FastCDC {
@@ -31,7 +31,7 @@ where
 
 impl<R> Slicer<R> for FastCDC<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     type Settings = FastCDCSettings;
     fn add_reader(&mut self, reader: R) {
@@ -86,7 +86,7 @@ pub struct FastCDCSettings {
 
 impl<R> SlicerSettings<R> for FastCDCSettings
 where
-    R: Read,
+    R: Read + Send,
 {
     type Slicer = FastCDC<R>;
     fn to_slicer(&self, reader: R) -> Self::Slicer {
@@ -102,7 +102,7 @@ where
 
 impl<R> Iterator for FastCDC<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     type Item = Vec<u8>;
     fn next(&mut self) -> Option<Vec<u8>> {

@@ -92,7 +92,7 @@ impl UnpackedChunk {
     /// HMAC algorthim used for chunkid is specified by chunksettings
     ///
     /// Key used for ChunkID generation is determined by key
-    pub async fn new(data: Vec<u8>, settings: ChunkSettings, key: Key) -> UnpackedChunk {
+    pub fn new(data: Vec<u8>, settings: ChunkSettings, key: &Key) -> UnpackedChunk {
         let id = settings.hmac.id(data.as_slice(), &key);
         let cid = ChunkID::new(&id);
         UnpackedChunk { data, id: cid }

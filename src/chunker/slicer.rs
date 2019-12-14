@@ -7,7 +7,6 @@ pub mod fastcdc;
 
 use crate::repository::chunk::*;
 use crate::repository::Key;
-use async_std::task::block_on;
 use std::io::Read;
 use std::marker::PhantomData;
 
@@ -19,7 +18,7 @@ use std::marker::PhantomData;
 /// 1.) Data must be split into one or more chunks
 /// 2.) Data must be identical after as simple reconstruction by concatenation
 /// 3.) The same data and settings must produce the same slices every time
-pub trait Slicer<R: Read>: Sized {
+pub trait Slicer<R: Read + Send>: Sized + Send {
     type Settings: SlicerSettings<R>;
     /// Inserts a reader into the Slicer
     ///
@@ -40,27 +39,23 @@ pub trait Slicer<R: Read>: Sized {
     }
 }
 
-pub struct ChunkIterator<R: Read, S: Slicer<R>> {
+pub struct ChunkIterator<R: Read + Send, S: Slicer<R>> {
     slicer: S,
     settings: ChunkSettings,
     key: Key,
     marker: PhantomData<R>,
 }
 
-impl<R: Read, S: Slicer<R>> Iterator for ChunkIterator<R, S> {
+impl<R: Read + Send, S: Slicer<R>> Iterator for ChunkIterator<R, S> {
     type Item = UnpackedChunk;
     fn next(&mut self) -> Option<UnpackedChunk> {
         let slice = self.slicer.take_slice()?;
-        Some(block_on(UnpackedChunk::new(
-            slice,
-            self.settings,
-            self.key.clone(),
-        )))
+        Some(UnpackedChunk::new(slice, self.settings, &self.key))
     }
 }
 
 /// Trait for the setttings object associated with the Slicer
-pub trait SlicerSettings<R: Read> {
+pub trait SlicerSettings<R: Read + Send>: Send + Sync {
     type Slicer: Slicer<R>;
     /// Given a reader, transforms this into its relevant slicer
     fn to_slicer(&self, reader: R) -> Self::Slicer;

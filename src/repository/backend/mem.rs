@@ -80,6 +80,7 @@ impl Index for Mem {
     }
 }
 
+#[async_trait]
 impl Backend for Mem {
     type Manifest = Self;
     type Segment = common::TaskedSegment<Cursor<Vec<u8>>>;
@@ -118,18 +119,18 @@ impl Backend for Mem {
         self.clone()
     }
 
-    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
         let mut data = self.data.clone();
-        data.read_chunk(location)
+        data.read_chunk(location).await
     }
 
-    fn write_chunk(
+    async fn write_chunk(
         &self,
         chunk: Vec<u8>,
         id: ChunkID,
     ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
         let mut data = self.data.clone();
-        data.write_chunk(chunk, id)
+        data.write_chunk(chunk, id).await
     }
 }
 

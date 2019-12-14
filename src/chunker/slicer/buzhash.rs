@@ -45,7 +45,7 @@ pub struct BuzHashSettings {
 
 impl<R> SlicerSettings<R> for BuzHashSettings
 where
-    R: Read,
+    R: Read + Send,
 {
     type Slicer = BuzHash<R>;
     fn to_slicer(&self, reader: R) -> Self::Slicer {
@@ -68,7 +68,7 @@ where
     }
 }
 
-impl<R: Read> BuzHash<R> {
+impl<R: Read + Send> BuzHash<R> {
     pub fn new(nonce: u64, window_size: u32, mask_bits: u32) -> BuzHash<R> {
         let mut table = [0_u64; 256];
         let mut rand = SmallRng::seed_from_u64(nonce);
@@ -125,7 +125,7 @@ impl<R: Read> BuzHash<R> {
 
 impl<R> Slicer<R> for BuzHash<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     type Settings = BuzHashSettings;
     fn add_reader(&mut self, reader: R) {
@@ -187,7 +187,7 @@ where
     }
 }
 
-impl<R: Read> Iterator for BuzHash<R> {
+impl<R: Read + Send> Iterator for BuzHash<R> {
     type Item = Vec<u8>;
     fn next(&mut self) -> Option<Vec<u8>> {
         self.take_slice()

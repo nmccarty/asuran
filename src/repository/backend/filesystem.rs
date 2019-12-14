@@ -176,6 +176,7 @@ impl FileSystem {
     }
 }
 
+#[async_trait]
 impl Backend for FileSystem {
     type Manifest = Self;
     type Segment = FileSystemSegment;
@@ -241,11 +242,13 @@ impl Backend for FileSystem {
         self.clone()
     }
 
-    fn read_chunk(&self, _location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    #[allow(clippy::used_underscore_binding)]
+    async fn read_chunk(&self, _location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
         unimplemented!();
     }
 
-    fn write_chunk(
+    #[allow(clippy::used_underscore_binding)]
+    async fn write_chunk(
         &self,
         _chunk: Vec<u8>,
         _id: ChunkID,
@@ -374,7 +377,7 @@ pub struct FileSystemSegment {
 
 #[async_trait]
 impl Segment for FileSystemSegment {
-    fn free_bytes(&mut self) -> u64 {
+    async fn free_bytes(&mut self) -> u64 {
         let file_size = self.file.metadata().unwrap().len();
         if file_size > self.max_size {
             0

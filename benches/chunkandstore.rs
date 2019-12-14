@@ -4,6 +4,7 @@ use futures::future::join_all;
 use libasuran::chunker::slicer::buzhash::*;
 use libasuran::chunker::slicer::fastcdc::*;
 use libasuran::chunker::slicer::*;
+use libasuran::repository::backend::mem::Mem;
 use libasuran::repository::*;
 use rand::Rng;
 use std::time::Duration;
@@ -40,13 +41,10 @@ async fn slice_and_store_par<'a>(
         slices.push(slice.unwrap());
         slice = slicer.take_slice();
     }
-    let slices: Vec<UnpackedChunk> = join_all(
-        slices
-            .into_iter()
-            .map(|x| UnpackedChunk::new(x, cs, repo.key().clone())),
-    )
-    .await;
-
+    let slices: Vec<UnpackedChunk> = slices
+        .into_iter()
+        .map(|x| UnpackedChunk::new(x, cs, repo.key()))
+        .collect();
     repo.write_unpacked_chunks_parallel(slices).await;
 }
 

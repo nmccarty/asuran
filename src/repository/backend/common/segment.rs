@@ -2,7 +2,6 @@ use crate::repository::backend::{Segment as OtherSegment, SegmentDescriptor, Tra
 use crate::repository::ChunkID;
 use anyhow::{anyhow, Context, Result};
 use async_std::sync;
-use async_std::task::block_on;
 use async_trait::async_trait;
 use futures::channel;
 use futures::executor::ThreadPool;
@@ -194,7 +193,7 @@ impl<T: Read + Write + Seek> Segment<T> {
 
 #[async_trait]
 impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segment<T> {
-    fn free_bytes(&mut self) -> u64 {
+    async fn free_bytes(&mut self) -> u64 {
         let end = self.handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
@@ -263,7 +262,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
                     }
                     SegmentCommand::Stats(ret) => {
                         let size = segment.size();
-                        let free = segment.free_bytes();
+                        let free = segment.free_bytes().await;
                         let quota = segment.size_limit;
                         let stats = SegmentStats { size, free, quota };
                         ret.send(stats).unwrap();
@@ -277,43 +276,37 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
         }
     }
 
-    pub fn write_chunk(
+    pub async fn write_chunk(
         &mut self,
         chunk: Vec<u8>,
         id: ChunkID,
     ) -> channel::oneshot::Receiver<Result<SegmentDescriptor>> {
         let (tx, rx) = channel::oneshot::channel();
-        block_on(async {
-            self.command_tx
-                .send(SegmentCommand::Write(chunk, id, tx))
-                .await
-                .unwrap();
-        });
+        self.command_tx
+            .send(SegmentCommand::Write(chunk, id, tx))
+            .await
+            .unwrap();
         rx
     }
 
-    pub fn read_chunk(
+    pub async fn read_chunk(
         &mut self,
         location: SegmentDescriptor,
     ) -> channel::oneshot::Receiver<Result<Vec<u8>>> {
         let (tx, rx) = channel::oneshot::channel();
-        block_on(async {
-            self.command_tx
-                .send(SegmentCommand::Read(location, tx))
-                .await
-                .unwrap();
-        });
+        self.command_tx
+            .send(SegmentCommand::Read(location, tx))
+            .await
+            .unwrap();
         rx
     }
 
-    pub fn stats(&mut self) -> channel::oneshot::Receiver<SegmentStats> {
+    pub async fn stats(&mut self) -> channel::oneshot::Receiver<SegmentStats> {
         let (tx, rx) = channel::oneshot::channel();
-        block_on(async {
-            self.command_tx
-                .send(SegmentCommand::Stats(tx))
-                .await
-                .unwrap();
-        });
+        self.command_tx
+            .send(SegmentCommand::Stats(tx))
+            .await
+            .unwrap();
         rx
     }
 }
@@ -322,8 +315,8 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
 impl<T: Read + Write + Seek + Send + 'static> crate::repository::backend::Segment
     for TaskedSegment<T>
 {
-    fn free_bytes(&mut self) -> u64 {
-        block_on(async { self.stats().await.unwrap().free })
+    async fn free_bytes(&mut self) -> u64 {
+        self.stats().await.await.unwrap().free
     }
 
     #[allow(unused_variables)]
@@ -332,11 +325,11 @@ impl<T: Read + Write + Seek + Send + 'static> crate::repository::backend::Segmen
             segment_id: 0,
             start,
         };
-        Self::read_chunk(self, descriptor).await.unwrap()
+        Self::read_chunk(self, descriptor).await.await?
     }
 
     async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let location = Self::write_chunk(self, chunk.to_vec(), id).await.unwrap()?;
+        let location = Self::write_chunk(self, chunk.to_vec(), id).await.await??;
         Ok((location.start, 0))
     }
 }
@@ -409,8 +402,8 @@ impl<T: Read + Write + Seek> SegmentHandle<T> {
 
 #[async_trait]
 impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for SegmentHandle<T> {
-    fn free_bytes(&mut self) -> u64 {
-        let mut handle = block_on(self.handle.lock());
+    async fn free_bytes(&mut self) -> u64 {
+        let mut handle = self.handle.lock().await;
         let end = handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
@@ -439,6 +432,7 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::executor::block_on;
     use std::io::Cursor;
     #[test]
     fn header_sanity() {
@@ -478,18 +472,23 @@ mod tests {
 
     #[test]
     fn tasked_segment_read_write() {
-        let cursor = Cursor::new(Vec::<u8>::new());
-        let pool = ThreadPool::new().unwrap();
-        let mut segment = TaskedSegment::new(cursor, 1_000_000, 0, &pool);
-        let mut data = Vec::<u8>::new();
-        for i in 0..10_000 {
-            data.push(i as u8);
-        }
-        let location = block_on(segment.write_chunk(data.clone(), ChunkID::manifest_id()))
-            .unwrap()
-            .unwrap();
-        let out = block_on(segment.read_chunk(location)).unwrap().unwrap();
+        block_on(async {
+            let cursor = Cursor::new(Vec::<u8>::new());
+            let pool = ThreadPool::new().unwrap();
+            let mut segment = TaskedSegment::new(cursor, 1_000_000, 0, &pool);
+            let mut data = Vec::<u8>::new();
+            for i in 0..10_000 {
+                data.push(i as u8);
+            }
+            let location = segment
+                .write_chunk(data.clone(), ChunkID::manifest_id())
+                .await
+                .await
+                .unwrap()
+                .unwrap();
+            let out = segment.read_chunk(location).await.await.unwrap().unwrap();
 
-        assert_eq!(data, out);
+            assert_eq!(data, out);
+        });
     }
 }

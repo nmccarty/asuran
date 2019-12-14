@@ -1,7 +1,6 @@
 use crate::chunker::{Chunker, Slice, SlicerSettings};
 use crate::repository::{Backend, ChunkID, Repository};
 use anyhow::Result;
-use async_std::task::block_on;
 use chrono::prelude::*;
 use parking_lot::RwLock;
 use rmp_serde::{Deserializer, Serializer};
@@ -122,7 +121,7 @@ impl Archive {
     ///
     /// Will read holes as 0s
     #[cfg_attr(feature = "profile", flame)]
-    pub async fn put_object<R: Read>(
+    pub async fn put_object<R: Read + Send>(
         &mut self,
         chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
@@ -158,7 +157,7 @@ impl Archive {
     /// Inserts a sparse object into the archive
     ///
     /// Requires that the object be pre-split into extents
-    pub async fn put_sparse_object<R: Read>(
+    pub async fn put_sparse_object<R: Read + Send>(
         &mut self,
         chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
         repository: &mut Repository<impl Backend>,
@@ -318,12 +317,14 @@ impl Archive {
     ///  object, and consuming the Archive in the process.
     ///
     /// Returns the key of the serialized archive in the repository
-    pub fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
+    pub async fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
         let mut bytes = Vec::<u8>::new();
         self.serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize archive.");
 
-        let id = block_on(repo.write_chunk(bytes))
+        let id = repo
+            .write_chunk(bytes)
+            .await
             .expect("Unable to write archive metatdata to repository.")
             .0;
 
@@ -362,7 +363,7 @@ mod tests {
     use crate::repository::hmac::HMAC;
     use crate::repository::ChunkSettings;
     use crate::repository::Key;
-    use futures::executor::ThreadPool;
+    use futures::executor::{block_on, ThreadPool};
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use std::fs;
@@ -616,7 +617,7 @@ mod tests {
                 .await
                 .expect("Unable to put object in archive");
 
-            let stored_archive = archive.store(&mut repo);
+            let stored_archive = archive.store(&mut repo).await;
 
             let archive = stored_archive
                 .load(&repo)

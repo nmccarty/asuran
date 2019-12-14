@@ -10,7 +10,7 @@ use std::io::{Empty, Read, Write};
 /// Collection of abstract methods for moving data from a storage target to a repository
 ///
 /// This trait provides reasonable default versions of the functions for you
-pub trait BackupDriver<T: Read>: BackupTarget<T> {
+pub trait BackupDriver<T: Read + Send>: BackupTarget<T> {
     /// Inserts an object into the repository using the output from BackupTarget::backup_object
     ///
     /// This method should only really be used directly when you want to change the data in route,

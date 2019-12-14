@@ -35,14 +35,14 @@ pub struct Slice {
 /// Apply content based slicing over a Read, and iterate throught the slices
 ///
 /// Slicing is applied as the iteration proceeds, so each byte is only read once
-pub struct IteratedReader<R: Read, S: Slicer<R>> {
+pub struct IteratedReader<R: Read + Send, S: Slicer<R>> {
     /// Internal chunk iterator
     chunk_iterator: ChunkIterator<R, S>,
     /// Offset used for calcuating slice ends
     offset: u64,
 }
 
-impl<R: Read, S: Slicer<R>> Iterator for IteratedReader<R, S> {
+impl<R: Read + Send, S: Slicer<R>> Iterator for IteratedReader<R, S> {
     type Item = Slice;
 
     #[cfg_attr(feature = "profile", flame)]
@@ -82,7 +82,7 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
         key: &Key,
     ) -> IteratedReader<R, impl Slicer<R>>
     where
-        R: Read,
+        R: Read + Send,
         S: SlicerSettings<R>,
     {
         let slicer = <S as SlicerSettings<R>>::to_slicer(&self.settings, reader);

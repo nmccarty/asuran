@@ -167,7 +167,7 @@ impl<T: Backend + 'static> Repository<T> {
             } else {
                 test_segment?
             };
-            let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+            let mut segment = if test_segment.free_bytes().await <= buff.len() as u64 {
                 seg_id = backend.make_segment()?;
                 backend.get_segment(seg_id)?
             } else {
@@ -213,7 +213,7 @@ impl<T: Backend + 'static> Repository<T> {
                     } else {
                         test_segment?
                     };
-                    let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+                    let mut segment = if test_segment.free_bytes().await <= buff.len() as u64 {
                         seg_id = backend.make_segment()?;
                         backend.get_segment(seg_id)?
                     } else {
@@ -478,9 +478,9 @@ mod tests {
 
             let mut repo = get_repo_mem(key.clone());
             let cs = repo.chunk_settings();
-            let chunk1 = UnpackedChunk::new(data1.clone(), cs, key.clone()).await;
-            let chunk2 = UnpackedChunk::new(data2.clone(), cs, key.clone()).await;
-            let chunk3 = UnpackedChunk::new(data3.clone(), cs, key.clone()).await;
+            let chunk1 = UnpackedChunk::new(data1.clone(), cs, &key);
+            let chunk2 = UnpackedChunk::new(data2.clone(), cs, &key);
+            let chunk3 = UnpackedChunk::new(data3.clone(), cs, &key);
             let chunks_vec = vec![chunk1, chunk2, chunk3];
 
             println!("Adding Chunks");

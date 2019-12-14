@@ -34,7 +34,7 @@ pub struct SegmentDescriptor {
 #[async_trait]
 pub trait Segment: Send {
     /// Returns the free bytes in this segment
-    fn free_bytes(&mut self) -> u64;
+    async fn free_bytes(&mut self) -> u64;
     /// Reads a chunk from the segment into a bytestring
     ///
     /// Requires the start and end positions for the chunk
@@ -99,6 +99,7 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 ///
 /// Cloning a backend should result in a new view over the same storage, and clones
 /// should play nice with multithreaded access.
+#[async_trait]
 pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest + 'static;
     type Segment: Segment + 'static;
@@ -127,13 +128,13 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     /// Starts reading a chunk from the backend
     ///
     /// The chunk will be written to the oneshot once reading is complete
-    fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>>;
+    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>>;
     /// Starts writing a chunk to the backend
     ///
     /// A segment descriptor describing it will be written to oneshot once reading is complete
     ///
     /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
-    fn write_chunk(
+    async fn write_chunk(
         &self,
         chunk: Vec<u8>,
         id: ChunkID,
