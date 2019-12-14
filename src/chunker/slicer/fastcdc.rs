@@ -2,6 +2,7 @@ use super::{Slicer, SlicerSettings};
 use fastcdc;
 use std::io::Read;
 
+#[derive(Clone)]
 pub struct FastCDC<R: Read> {
     reader: Option<R>,
     min_size: usize,
@@ -78,6 +79,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct FastCDCSettings {
     min_size: usize,
     max_size: usize,

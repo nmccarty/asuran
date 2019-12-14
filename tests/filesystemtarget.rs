@@ -39,7 +39,8 @@ fn backup_restore_no_empty_dirs_filesystem() {
             {
                 println!("Backing up {}", &path);
                 input_target
-                    .store_object(&mut repo, &chunker, &archive, &path)
+                    .store_object(&mut repo, chunker.clone(), &archive, path.clone())
+                    .await
                     .unwrap();
             }
         }
@@ -63,6 +64,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
             println!("Restoring: {}", path);
             output_target
                 .retrieve_object(&repo, &archive, &path)
+                .await
                 .unwrap();
         }
 
@@ -94,7 +96,8 @@ fn backup_restore_no_empty_dirs_mem() {
             {
                 println!("Backing up {}", &path);
                 input_target
-                    .store_object(&mut repo, &chunker, &archive, &path)
+                    .store_object(&mut repo, chunker.clone(), &archive, path.clone())
+                    .await
                     .unwrap();
             }
         }
@@ -118,6 +121,7 @@ fn backup_restore_no_empty_dirs_mem() {
             println!("Restoring: {}", path);
             output_target
                 .retrieve_object(&repo, &archive, &path)
+                .await
                 .unwrap();
         }
 

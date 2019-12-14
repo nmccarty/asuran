@@ -401,7 +401,7 @@ impl<T: Backend> Drop for Repository<T> {
 mod tests {
     use super::*;
     use crate::repository::backend::mem::*;
-    use async_std::task::block_on;
+    use futures::executor::block_on;
     use rand::prelude::*;
     use tempfile::{tempdir, TempDir};
 

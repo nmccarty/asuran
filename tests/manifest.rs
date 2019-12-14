@@ -1,4 +1,4 @@
-use async_std::task::block_on;
+use futures::executor::block_on;
 use libasuran::chunker::slicer::fastcdc::FastCDC;
 use libasuran::chunker::*;
 use libasuran::manifest::*;

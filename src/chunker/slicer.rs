@@ -39,6 +39,7 @@ pub trait Slicer<R: Read + Send>: Sized + Send {
     }
 }
 
+#[derive(Clone)]
 pub struct ChunkIterator<R: Read + Send, S: Slicer<R>> {
     slicer: S,
     settings: ChunkSettings,

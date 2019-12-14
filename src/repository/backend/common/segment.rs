@@ -1,10 +1,10 @@
 use crate::repository::backend::{Segment as OtherSegment, SegmentDescriptor, TransactionType};
 use crate::repository::ChunkID;
 use anyhow::{anyhow, Context, Result};
-use async_std::sync;
 use async_trait::async_trait;
 use futures::channel;
 use futures::executor::ThreadPool;
+use futures::lock::Mutex;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rpms;
@@ -340,16 +340,18 @@ impl<T: Read + Write + Seek + Send + 'static> crate::repository::backend::Segmen
 /// `ssh2::File` are not thread safe, and the implementation needs to be general.
 #[derive(Clone, Debug)]
 pub struct SegmentHandle<T> {
-    handle: Arc<sync::Mutex<T>>,
+    handle: Arc<Mutex<T>>,
     size_limit: u64,
+    phantom: PhantomData<T>,
 }
 
 impl<T: Read + Write + Seek> SegmentHandle<T> {
     /// Creates a new segment given a reader and a maximum size
     pub async fn new(handle: T, size_limit: u64) -> Result<SegmentHandle<T>> {
         let mut s = SegmentHandle {
-            handle: Arc::new(sync::Mutex::new(handle)),
+            handle: Arc::new(Mutex::new(handle)),
             size_limit,
+            phantom: PhantomData,
         };
         // Attempt to write the header
         let written = s.write_header().await?;
