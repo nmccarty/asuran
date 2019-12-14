@@ -70,11 +70,19 @@ impl Default for Header {
 }
 
 /// Transaction wrapper struct
+///
+/// TODO: Document this better
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     tx_type: TransactionType,
     id: ChunkID,
-    chunk: Option<Vec<u8>>,
+    /// Conceptually, this should be an Option<Vec<u8>>. We instead employ an optimization where we use
+    /// a vector with a zero length to simualte the none case. This has the side effect of requiring that
+    /// all chunk payloads be 1 byte or longer, but in practice this is not a serious issue as the content
+    /// will always be packed chunk structs, which will always have a length greater than zero, as they
+    /// contain manditory tags in addition to data.
+    #[serde(with = "serde_bytes")]
+    chunk: Vec<u8>,
 }
 
 impl Transaction {
@@ -86,7 +94,7 @@ impl Transaction {
         Transaction {
             tx_type: TransactionType::Insert,
             id,
-            chunk: Some(input),
+            chunk: input,
         }
     }
 
@@ -94,16 +102,24 @@ impl Transaction {
         Transaction {
             tx_type: TransactionType::Delete,
             id,
-            chunk: None,
+            chunk: Vec::new(),
         }
     }
 
     pub fn data(&self) -> Option<&[u8]> {
-        self.chunk.as_ref().map(|x| &x[..])
+        if self.chunk.is_empty() {
+            None
+        } else {
+            Some(&self.chunk[..])
+        }
     }
 
-    pub fn take_data(&mut self) -> Option<Vec<u8>> {
-        self.chunk.take()
+    pub fn take_data(self) -> Option<Vec<u8>> {
+        if self.chunk.is_empty() {
+            None
+        } else {
+            Some(self.chunk)
+        }
     }
 
     pub fn id(&self) -> ChunkID {
@@ -185,10 +201,10 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
     #[allow(clippy::used_underscore_binding)]
     async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
-        let mut tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
+        let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
         let data = tx
             .take_data()
-            .with_context(|| format!("Read transaction {:?} does not have a chunk in it.", tx))?;
+            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
         Ok(data)
     }
     async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
@@ -403,10 +419,10 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
     async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         let mut handle = self.handle.lock().await;
         handle.seek(SeekFrom::Start(start))?;
-        let mut tx: Transaction = rpms::decode::from_read(&mut *handle)?;
+        let tx: Transaction = rpms::decode::from_read(&mut *handle)?;
         let data = tx
             .take_data()
-            .with_context(|| format!("Read transaction {:?} does not have a chunk in it.", tx))?;
+            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
         Ok(data)
     }
     async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
