@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 /// 1.) Data must be split into one or more chunks
 /// 2.) Data must be identical after as simple reconstruction by concatenation
 /// 3.) The same data and settings must produce the same slices every time
-pub trait Slicer<R: Read + Send>: Sized + Send {
+pub trait Slicer<R: Read + Send>: Sized + Send + IntoIterator<Item = Vec<u8>>{
     type Settings: SlicerSettings<R>;
     /// Inserts a reader into the Slicer
     ///
