@@ -107,7 +107,8 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
             if range_count == 1 {
                 let object = ranges.remove(0).object;
                 archive.get_object(&repo, &path, object).await?;
-            } else if range_count > 1 {
+                // This used to be a if range count > 1, this may cause issues
+            } else {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges {
                     let extent = Extent {

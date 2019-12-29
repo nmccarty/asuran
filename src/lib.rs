@@ -11,6 +11,8 @@
 #![allow(clippy::similar_names)]
 #![allow(clippy::use_self)]
 #![allow(clippy::shadow_unrelated)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::doc_markdown)]
 // Temporary, will remove
 #![allow(clippy::cast_possible_truncation)]
 
