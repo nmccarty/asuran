@@ -15,16 +15,11 @@ async fn slice_and_store<'a>(
     mut slicer: impl Slicer<&'a [u8]>,
 ) {
     slicer.add_reader(data);
-    let mut slices = Vec::new();
-    let mut slice = slicer.take_slice();
-    while slice.is_some() {
-        slices.push(slice.unwrap());
-        slice = slicer.take_slice();
-    }
     let mut s = Vec::new();
-    for slice in slices.into_iter() {
+    for slice in slicer {
         s.push(repo.write_chunk(slice));
     }
+
     join_all(s).await;
 }
 
