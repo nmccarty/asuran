@@ -25,17 +25,12 @@ test:test:linux:
   script:
     - rustc --version
     - cargo --version
-    - cargo junit --name linux.xml
+    - cargo test
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
       - ~/.cargo
       - target
-  artifacts:
-    paths:
-      - linux.xml
-    reports:
-      junit: linux.xml
   tags:
     - linux
 
