@@ -254,8 +254,8 @@ impl<T: Backend + 'static> Repository<T> {
                 self.key.clone(),
             )
             .await;
-        i.await.unwrap();
-        let chunk = c.await.unwrap();
+        i.receive().await.unwrap();
+        let chunk = c.receive().await.unwrap();
         self.write_raw(&chunk).await
     }
 
@@ -290,7 +290,7 @@ impl<T: Backend + 'static> Repository<T> {
             )
             .await;
 
-        let chunk = c.await.unwrap();
+        let chunk = c.receive().await.unwrap();
 
         self.write_raw(&chunk).await
     }
@@ -312,7 +312,7 @@ impl<T: Backend + 'static> Repository<T> {
             )
             .await;
 
-        let chunk = c.await.unwrap();
+        let chunk = c.receive().await.unwrap();
 
         self.write_raw_async(chunk)
     }
