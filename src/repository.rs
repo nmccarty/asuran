@@ -43,7 +43,6 @@
 
 use anyhow::{anyhow, Result};
 use futures::executor::ThreadPool;
-use futures::future::join_all;
 use futures::prelude::Future;
 use futures::task::SpawnExt;
 use rmp_serde::{Deserializer, Serializer};
@@ -266,23 +265,6 @@ impl<T: Backend + 'static> Repository<T> {
         self.write_chunk_with_id(data.consuming_data(), id).await
     }
 
-    pub async fn write_unpacked_chunk_async(
-        &self,
-        data: UnpackedChunk,
-    ) -> impl Future<Output = Result<(ChunkID, bool)>> {
-        let id = data.id();
-        self.write_chunk_with_id_async(data.consuming_data(), id)
-            .await
-    }
-
-    /// Writes multiple unpacked chunks to the repository in parallel
-    pub async fn write_unpacked_chunks_parallel(
-        &self,
-        data: Vec<UnpackedChunk>,
-    ) -> Vec<Result<(ChunkID, bool)>> {
-        join_all(join_all(data.into_iter().map(|x| self.write_unpacked_chunk_async(x))).await).await
-    }
-
     #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
@@ -461,44 +443,6 @@ mod tests {
             assert_eq!(data2, out2);
             assert_eq!(data3, out3);
         });
-    }
-
-    #[test]
-    fn repository_add_read_parallel() {
-        block_on(async {
-            let key = Key::random(32);
-
-            let size = 7 * 10_u64.pow(3);
-            let mut data1 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data1);
-            let mut data2 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data2);
-            let mut data3 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data3);
-
-            let mut repo = get_repo_mem(key.clone());
-            let cs = repo.chunk_settings();
-            let chunk1 = UnpackedChunk::new(data1.clone(), cs, &key);
-            let chunk2 = UnpackedChunk::new(data2.clone(), cs, &key);
-            let chunk3 = UnpackedChunk::new(data3.clone(), cs, &key);
-            let chunks_vec = vec![chunk1, chunk2, chunk3];
-
-            println!("Adding Chunks");
-            let keys = repo.write_unpacked_chunks_parallel(chunks_vec).await;
-            let key1 = keys[0].as_ref().unwrap().0;
-            let key2 = keys[1].as_ref().unwrap().0;
-            let key3 = keys[2].as_ref().unwrap().0;
-
-            println!("Reading Chunks");
-            let out1 = repo.read_chunk(key1).await.unwrap();
-            let out2 = repo.read_chunk(key2).await.unwrap();
-            let out3 = repo.read_chunk(key3).await.unwrap();
-
-            assert_eq!(data1, out1);
-            assert_eq!(data2, out2);
-            assert_eq!(data3, out3);
-            std::mem::drop(repo);
-        })
     }
 
     #[test]
