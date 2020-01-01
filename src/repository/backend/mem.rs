@@ -36,46 +36,46 @@ impl Mem {
         }
     }
 }
-
+#[async_trait]
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
-    fn last_modification(&self) -> DateTime<FixedOffset> {
+    async fn last_modification(&self) -> DateTime<FixedOffset> {
         let manifest = self.manifest.read();
         let archive = &manifest[manifest.len() - 1];
         archive.timestamp()
     }
-    fn chunk_settings(&self) -> ChunkSettings {
+    async fn chunk_settings(&self) -> ChunkSettings {
         *self.chunk_settings.read()
     }
-    fn archive_iterator(&self) -> Self::Iterator {
+    async fn archive_iterator(&self) -> Self::Iterator {
         self.manifest.read().clone().into_iter()
     }
-    fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
         let mut x = self.chunk_settings.write();
         *x = settings;
     }
-    fn write_archive(&mut self, archive: StoredArchive) {
+    async fn write_archive(&mut self, archive: StoredArchive) {
         let mut manifest = self.manifest.write();
         manifest.push(archive);
     }
     /// This implementation reconstructs the last modified time, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
-    fn touch(&mut self) {}
+    async fn touch(&mut self) {}
 }
-
+#[async_trait]
 impl Index for Mem {
-    fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
+    async fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
         self.index.read().get(&id).copied()
     }
-    fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
+    async fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
         self.index.write().insert(id, location);
         Ok(())
     }
     /// This format is not persistant so this does nothing
-    fn commit_index(&self) -> Result<()> {
+    async fn commit_index(&self) -> Result<()> {
         Ok(())
     }
-    fn count_chunk(&self) -> usize {
+    async fn count_chunk(&self) -> usize {
         self.index.read().len()
     }
 }
@@ -87,12 +87,12 @@ impl Backend for Mem {
     fn get_index(&self) -> Self::Index {
         self.clone()
     }
-    fn write_key(&self, key: &EncryptedKey) -> Result<()> {
+    async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
         let mut skey = self.key.write();
         *skey = Some(key.clone());
         Ok(())
     }
-    fn read_key(&self) -> Result<EncryptedKey> {
+    async fn read_key(&self) -> Result<EncryptedKey> {
         let key: &Option<EncryptedKey> = &self.key.read();
         if let Some(k) = key {
             Ok(k.clone())
@@ -123,27 +123,32 @@ impl Backend for Mem {
 mod tests {
     use super::*;
     use crate::repository::*;
+    use futures::executor::block_on;
 
     /// Makes sure accessing an unset key panics
     #[test]
     #[should_panic]
     fn bad_key_access() {
-        let pool = ThreadPool::new().unwrap();
-        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-        backend.read_key().unwrap();
+        block_on(async {
+            let pool = ThreadPool::new().unwrap();
+            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
+            backend.read_key().await.unwrap();
+        });
     }
 
     /// Checks to make sure setting and retriving a key works
     #[test]
     fn key_sanity() {
-        let pool = ThreadPool::new().unwrap();
-        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-        let key = Key::random(32);
-        let key_key = [0_u8; 128];
-        let encrypted_key =
-            EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-        backend.write_key(&encrypted_key).unwrap();
-        let output = backend.read_key().unwrap().decrypt(&key_key).unwrap();
-        assert_eq!(key, output);
+        block_on(async {
+            let pool = ThreadPool::new().unwrap();
+            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
+            let key = Key::random(32);
+            let key_key = [0_u8; 128];
+            let encrypted_key =
+                EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
+            backend.write_key(&encrypted_key).await.unwrap();
+            let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
+            assert_eq!(key, output);
+        });
     }
 }

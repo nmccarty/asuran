@@ -81,7 +81,7 @@ fn put_drop_get_mem() {
 
         {
             let mut manifest = Manifest::load(&repo);
-            manifest.set_chunk_settings(repo.chunk_settings());
+            manifest.set_chunk_settings(repo.chunk_settings()).await;
             let mut archive = Archive::new("test");
             for (i, object) in objects.iter().enumerate() {
                 archive
@@ -100,7 +100,7 @@ fn put_drop_get_mem() {
         }
 
         let manifest = Manifest::load(&repo);
-        let archive = manifest.archives()[0].load(&repo).await.unwrap();
+        let archive = manifest.archives().await[0].load(&repo).await.unwrap();
         for (i, object) in objects.iter().enumerate() {
             let mut buffer = Cursor::new(Vec::<u8>::new());
             println!("Archive: \n {:?}", archive);

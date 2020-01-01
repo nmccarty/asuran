@@ -128,10 +128,11 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// This should be called every time an archive or manifest is written, at
     /// the very least
-    pub fn commit_index(&self) {
+    pub async fn commit_index(&self) {
         self.backend
             .get_index()
             .commit_index()
+            .await
             .expect("Unable to commit index");
     }
 
@@ -146,7 +147,7 @@ impl<T: Backend + 'static> Repository<T> {
         let id = chunk.get_id();
 
         // Check if chunk exists
-        if self.has_chunk(id) && id != ChunkID::manifest_id() {
+        if self.has_chunk(id).await && id != ChunkID::manifest_id() {
             Ok((id, true))
         } else {
             let mut buff = Vec::<u8>::new();
@@ -158,7 +159,8 @@ impl<T: Backend + 'static> Repository<T> {
 
             self.backend
                 .get_index()
-                .set_chunk(chunk.get_id(), location)?;
+                .set_chunk(chunk.get_id(), location)
+                .await?;
 
             Ok((id, false))
         }
@@ -227,8 +229,8 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Determines if a chunk exists in the index
-    pub fn has_chunk(&self, id: ChunkID) -> bool {
-        self.backend.get_index().lookup_chunk(id).is_some()
+    pub async fn has_chunk(&self, id: ChunkID) -> bool {
+        self.backend.get_index().lookup_chunk(id).await.is_some()
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -237,9 +239,9 @@ impl<T: Backend + 'static> Repository<T> {
     /// Returns none if reading the chunk fails
     pub async fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
-        if self.has_chunk(id) {
+        if self.has_chunk(id).await {
             let index = self.backend.get_index();
-            let location = index.lookup_chunk(id).unwrap();
+            let location = index.lookup_chunk(id).await.unwrap();
             let chunk_bytes = self.backend.read_chunk(location).await.await??;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
@@ -254,8 +256,8 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Provides a count of the number of chunks in the repository
-    pub fn count_chunk(&self) -> usize {
-        self.backend.get_index().count_chunk()
+    pub async fn count_chunk(&self) -> usize {
+        self.backend.get_index().count_chunk().await
     }
 
     /// Returns the current default chunk settings for this repository
@@ -275,12 +277,6 @@ impl<T: Backend + 'static> Repository<T> {
     /// Provides a handle to the backend manifest
     pub fn backend_manifest(&self) -> T::Manifest {
         self.backend.get_manifest()
-    }
-}
-
-impl<T: Backend> Drop for Repository<T> {
-    fn drop(&mut self) {
-        self.commit_index();
     }
 }
 
@@ -396,14 +392,14 @@ mod tests {
             // Adding the same chunk to the repository twice shouldn't result in
             // two chunks in the repository
             let repo = get_repo_mem(Key::random(32));
-            assert_eq!(repo.count_chunk(), 0);
+            assert_eq!(repo.count_chunk().await, 0);
             let data = [1_u8; 8192];
 
             let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
             assert_eq!(unique_1, false);
-            assert_eq!(repo.count_chunk(), 1);
+            assert_eq!(repo.count_chunk().await, 1);
             let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
-            assert_eq!(repo.count_chunk(), 1);
+            assert_eq!(repo.count_chunk().await, 1);
             assert_eq!(unique_2, true);
             assert_eq!(key_1, key_2);
             std::mem::drop(repo);
