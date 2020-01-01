@@ -1,17 +1,14 @@
-use crate::repository::backend::{Segment as OtherSegment, SegmentDescriptor, TransactionType};
+use crate::repository::backend::{SegmentDescriptor, TransactionType};
 use crate::repository::ChunkID;
 use anyhow::{anyhow, Context, Result};
-use async_trait::async_trait;
 use futures::channel;
 use futures::executor::ThreadPool;
-use futures::lock::Mutex;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
-use std::sync::Arc;
 use uuid::Uuid;
 
 /// Magic number used for asuran segment files
@@ -189,15 +186,12 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn size(&mut self) -> u64 {
         self.handle.seek(SeekFrom::End(0)).unwrap()
     }
-}
 
-#[async_trait]
-impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segment<T> {
     async fn free_bytes(&mut self) -> u64 {
         let end = self.handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
-    #[allow(clippy::used_underscore_binding)]
+
     async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
@@ -206,6 +200,7 @@ impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for Segm
             .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
         Ok(data)
     }
+
     async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
         let tx = Transaction::encode_insert(chunk.to_vec(), id);
         let start = self.handle.seek(SeekFrom::End(0))?;
@@ -252,7 +247,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
             while let Some(command) = rx.next().await {
                 match command {
                     SegmentCommand::Write(data, id, ret) => {
-                        let res = OtherSegment::write_chunk(&mut segment, &data[..], id).await;
+                        let res = segment.write_chunk(&data[..], id).await;
                         let out = res.map(|(start, _)| SegmentDescriptor { segment_id, start });
                         ret.send(out).unwrap();
                     }
@@ -311,126 +306,6 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
     }
 }
 
-#[async_trait]
-impl<T: Read + Write + Seek + Send + 'static> crate::repository::backend::Segment
-    for TaskedSegment<T>
-{
-    async fn free_bytes(&mut self) -> u64 {
-        self.stats().await.await.unwrap().free
-    }
-
-    #[allow(unused_variables)]
-    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
-        let descriptor = SegmentDescriptor {
-            segment_id: 0,
-            start,
-        };
-        Self::read_chunk(self, descriptor).await.await?
-    }
-
-    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let location = Self::write_chunk(self, chunk.to_vec(), id).await.await??;
-        Ok((location.start, 0))
-    }
-}
-
-/// Generic Segment implemtation wrapping a T in Arc<Mutex<>>
-///
-/// Arc and Mutex are both required, as some types we may wish to use, such as
-/// `ssh2::File` are not thread safe, and the implementation needs to be general.
-#[derive(Clone, Debug)]
-pub struct SegmentHandle<T> {
-    handle: Arc<Mutex<T>>,
-    size_limit: u64,
-    phantom: PhantomData<T>,
-}
-
-impl<T: Read + Write + Seek> SegmentHandle<T> {
-    /// Creates a new segment given a reader and a maximum size
-    pub async fn new(handle: T, size_limit: u64) -> Result<SegmentHandle<T>> {
-        let mut s = SegmentHandle {
-            handle: Arc::new(Mutex::new(handle)),
-            size_limit,
-            phantom: PhantomData,
-        };
-        // Attempt to write the header
-        let written = s.write_header().await?;
-        if written {
-            // Segment was empty, pass along as is
-            Ok(s)
-        } else {
-            // Attempt to read the header
-            let header = s.read_header().await?;
-            // Validate it
-            if header.validate() {
-                Ok(s)
-            } else {
-                Err(anyhow!("Segment failed header validation"))
-            }
-        }
-    }
-
-    /// If the segment has zero length, will write the header and return Ok(true)
-    ///
-    /// If the segment has non-zero length, will do nothing and return Ok(false)
-    ///
-    /// An error in reading/writing will bubble up.
-    pub async fn write_header(&mut self) -> Result<bool> {
-        // Am i empty?
-        let mut handle = self.handle.lock().await;
-        let end = handle.seek(SeekFrom::End(0))?;
-        if end == 0 {
-            // If we are empty, then the handle is at the start of the file
-            let header = Header::default();
-            let mut config = bincode::config();
-            config.big_endian().serialize_into(&mut *handle, &header)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// Attempts to read the header from the Segment
-    ///
-    /// Will return error if the read fails
-    pub async fn read_header(&mut self) -> Result<Header> {
-        let mut handle = self.handle.lock().await;
-        handle.seek(SeekFrom::Start(0))?;
-        let mut config = bincode::config();
-        let header: Header = config.big_endian().deserialize_from(&mut *handle)?;
-        Ok(header)
-    }
-}
-
-#[async_trait]
-impl<T: Read + Write + Seek + Send> crate::repository::backend::Segment for SegmentHandle<T> {
-    async fn free_bytes(&mut self) -> u64 {
-        let mut handle = self.handle.lock().await;
-        let end = handle.seek(SeekFrom::End(0)).unwrap();
-        self.size_limit - end
-    }
-
-    #[allow(clippy::used_underscore_binding)]
-    async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
-        let mut handle = self.handle.lock().await;
-        handle.seek(SeekFrom::Start(start))?;
-        let tx: Transaction = rpms::decode::from_read(&mut *handle)?;
-        let data = tx
-            .take_data()
-            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
-        Ok(data)
-    }
-    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let mut handle = self.handle.lock().await;
-        let tx = Transaction::encode_insert(chunk.to_vec(), id);
-        let start = handle.seek(SeekFrom::End(0))?;
-        rpms::encode::write(&mut *handle, &tx)?;
-        let end = handle.seek(SeekFrom::End(0))?;
-        let length = end - start;
-        Ok((start, length))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -462,14 +337,6 @@ mod tests {
         let mut segment = Segment::new(cursor, 100).unwrap();
 
         assert!(segment.read_header().unwrap().validate())
-    }
-
-    #[test]
-    fn segment_handle_header_sanity() {
-        let cursor = Cursor::new(Vec::<u8>::new());
-        let mut segment = block_on(SegmentHandle::new(cursor, 100)).unwrap();
-
-        assert!(block_on(segment.read_header()).unwrap().validate())
     }
 
     #[test]

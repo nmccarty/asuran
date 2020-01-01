@@ -13,7 +13,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct Mem {
     data: common::TaskedSegment<Cursor<Vec<u8>>>,
-    index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
+    index: Arc<RwLock<HashMap<ChunkID, SegmentDescriptor>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
     key: Arc<RwLock<Option<EncryptedKey>>>,
@@ -64,10 +64,10 @@ impl Manifest for Mem {
 }
 
 impl Index for Mem {
-    fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
+    fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
         self.index.read().get(&id).copied()
     }
-    fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()> {
+    fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
         self.index.write().insert(id, location);
         Ok(())
     }
@@ -83,22 +83,7 @@ impl Index for Mem {
 #[async_trait]
 impl Backend for Mem {
     type Manifest = Self;
-    type Segment = common::TaskedSegment<Cursor<Vec<u8>>>;
     type Index = Self;
-    /// Ignores the id
-    fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
-        Ok(self.data.clone())
-    }
-    /// Returns a random number in [0,5)
-    #[cfg_attr(tarpaulin, skip)]
-    fn highest_segment(&self) -> u64 {
-        0
-    }
-    /// Only has one segement, so this does nothing
-    #[cfg_attr(tarpaulin, skip)]
-    fn make_segment(&self) -> Result<u64> {
-        Ok(self.highest_segment())
-    }
     fn get_index(&self) -> Self::Index {
         self.clone()
     }
