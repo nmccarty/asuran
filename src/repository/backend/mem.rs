@@ -2,9 +2,8 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
-use futures::channel::oneshot;
+use async_std::sync::RwLock;
 use futures::executor::ThreadPool;
-use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
@@ -17,7 +16,6 @@ pub struct Mem {
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
     key: Arc<RwLock<Option<EncryptedKey>>>,
-    count: Arc<Mutex<u64>>,
     len: u64,
 }
 
@@ -31,7 +29,6 @@ impl Mem {
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
             key: Arc::new(RwLock::new(None)),
-            count: Arc::new(Mutex::new(0)),
             len: num_cpus::get() as u64,
         }
     }
@@ -40,22 +37,22 @@ impl Mem {
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
     async fn last_modification(&self) -> DateTime<FixedOffset> {
-        let manifest = self.manifest.read();
+        let manifest = self.manifest.read().await;
         let archive = &manifest[manifest.len() - 1];
         archive.timestamp()
     }
     async fn chunk_settings(&self) -> ChunkSettings {
-        *self.chunk_settings.read()
+        *self.chunk_settings.read().await
     }
     async fn archive_iterator(&self) -> Self::Iterator {
-        self.manifest.read().clone().into_iter()
+        self.manifest.read().await.clone().into_iter()
     }
     async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
-        let mut x = self.chunk_settings.write();
+        let mut x = self.chunk_settings.write().await;
         *x = settings;
     }
     async fn write_archive(&mut self, archive: StoredArchive) {
-        let mut manifest = self.manifest.write();
+        let mut manifest = self.manifest.write().await;
         manifest.push(archive);
     }
     /// This implementation reconstructs the last modified time, so this does nothing
@@ -65,10 +62,10 @@ impl Manifest for Mem {
 #[async_trait]
 impl Index for Mem {
     async fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
-        self.index.read().get(&id).copied()
+        self.index.read().await.get(&id).copied()
     }
     async fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
-        self.index.write().insert(id, location);
+        self.index.write().await.insert(id, location);
         Ok(())
     }
     /// This format is not persistant so this does nothing
@@ -76,7 +73,7 @@ impl Index for Mem {
         Ok(())
     }
     async fn count_chunk(&self) -> usize {
-        self.index.read().len()
+        self.index.read().await.len()
     }
 }
 
@@ -88,12 +85,12 @@ impl Backend for Mem {
         self.clone()
     }
     async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
-        let mut skey = self.key.write();
+        let mut skey = self.key.write().await;
         *skey = Some(key.clone());
         Ok(())
     }
     async fn read_key(&self) -> Result<EncryptedKey> {
-        let key: &Option<EncryptedKey> = &self.key.read();
+        let key: &Option<EncryptedKey> = &*self.key.read().await;
         if let Some(k) = key {
             Ok(k.clone())
         } else {
@@ -104,16 +101,12 @@ impl Backend for Mem {
         self.clone()
     }
 
-    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    async fn read_chunk(&self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let mut data = self.data.clone();
         data.read_chunk(location).await
     }
 
-    async fn write_chunk(
-        &self,
-        chunk: Vec<u8>,
-        id: ChunkID,
-    ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
+    async fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         let mut data = self.data.clone();
         data.write_chunk(chunk, id).await
     }

@@ -3,7 +3,6 @@ use crate::repository::backend::*;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures::channel::oneshot;
 
 #[derive(Debug, Clone)]
 struct MFManifest {}
@@ -92,16 +91,12 @@ impl Backend for MultiFile {
     }
 
     /// Starts reading a chunk, and returns a oneshot recieve with the result of that process
-    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    async fn read_chunk(&self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         todo!();
     }
 
     /// Starts writing a chunk, and returns a oneshot reciever with the result of that process
-    async fn write_chunk(
-        &self,
-        chunk: Vec<u8>,
-        id: ChunkID,
-    ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
+    async fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         todo!();
     }
 }

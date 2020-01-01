@@ -271,29 +271,22 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
         }
     }
 
-    pub async fn write_chunk(
-        &mut self,
-        chunk: Vec<u8>,
-        id: ChunkID,
-    ) -> channel::oneshot::Receiver<Result<SegmentDescriptor>> {
+    pub async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         let (tx, rx) = channel::oneshot::channel();
         self.command_tx
             .send(SegmentCommand::Write(chunk, id, tx))
             .await
             .unwrap();
-        rx
+        rx.await?
     }
 
-    pub async fn read_chunk(
-        &mut self,
-        location: SegmentDescriptor,
-    ) -> channel::oneshot::Receiver<Result<Vec<u8>>> {
+    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let (tx, rx) = channel::oneshot::channel();
         self.command_tx
             .send(SegmentCommand::Read(location, tx))
             .await
             .unwrap();
-        rx
+        rx.await?
     }
 
     pub async fn stats(&mut self) -> channel::oneshot::Receiver<SegmentStats> {
@@ -352,10 +345,8 @@ mod tests {
             let location = segment
                 .write_chunk(data.clone(), ChunkID::manifest_id())
                 .await
-                .await
-                .unwrap()
                 .unwrap();
-            let out = segment.read_chunk(location).await.await.unwrap().unwrap();
+            let out = segment.read_chunk(location).await.unwrap();
 
             assert_eq!(data, out);
         });

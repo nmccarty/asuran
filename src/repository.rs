@@ -155,7 +155,7 @@ impl<T: Backend + 'static> Repository<T> {
 
             // Get highest segment and check to see if has enough space
             let backend = &self.backend;
-            let location = backend.write_chunk(buff, chunk.get_id()).await.await??;
+            let location = backend.write_chunk(buff, chunk.get_id()).await?;
 
             self.backend
                 .get_index()
@@ -242,7 +242,7 @@ impl<T: Backend + 'static> Repository<T> {
         if self.has_chunk(id).await {
             let index = self.backend.get_index();
             let location = index.lookup_chunk(id).await.unwrap();
-            let chunk_bytes = self.backend.read_chunk(location).await.await??;
+            let chunk_bytes = self.backend.read_chunk(location).await?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
