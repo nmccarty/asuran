@@ -11,7 +11,6 @@ use futures::channel::oneshot;
 use serde::{Deserialize, Serialize};
 
 pub mod common;
-pub mod filesystem;
 pub mod mem;
 pub mod multifile;
 

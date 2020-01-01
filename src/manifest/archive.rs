@@ -356,11 +356,7 @@ mod tests {
     use super::*;
     use crate::chunker::slicer::fastcdc::FastCDC;
     use crate::chunker::*;
-    use crate::repository::backend::filesystem::*;
     use crate::repository::backend::mem::Mem;
-    use crate::repository::compression::Compression;
-    use crate::repository::encryption::Encryption;
-    use crate::repository::hmac::HMAC;
     use crate::repository::ChunkSettings;
     use crate::repository::Key;
     use futures::executor::{block_on, ThreadPool};
@@ -370,20 +366,6 @@ mod tests {
     use std::io::{BufReader, Cursor, Empty, Seek, SeekFrom};
     use std::path::Path;
     use tempfile::tempdir;
-
-    fn get_repo(key: Key) -> Repository<impl Backend> {
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-
-        let backend = FileSystem::new_test(&root_path);
-        Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
-        )
-    }
 
     fn get_repo_mem(key: Key) -> Repository<impl Backend> {
         let pool = ThreadPool::new().unwrap();
@@ -418,10 +400,14 @@ mod tests {
 
             archive
                 .put_object(&chunker, &mut repo, "FileOne", &mut input_file)
-                .await;
+                .await
+                .unwrap();
 
             let mut buf = Cursor::new(Vec::<u8>::new());
-            archive.get_object(&mut repo, "FileOne", &mut buf).await;
+            archive
+                .get_object(&mut repo, "FileOne", &mut buf)
+                .await
+                .unwrap();
 
             let output = buf.into_inner();
             println!("Input length: {}", data.len());
@@ -556,7 +542,7 @@ mod tests {
             let chunker = Chunker::new(slicer.copy_settings());
             let key = Key::random(32);
 
-            let mut repo = get_repo(key);
+            let mut repo = get_repo_mem(key);
 
             let mut obj1 = Cursor::new([1_u8; 32]);
             let mut obj2 = Cursor::new([2_u8; 32]);
@@ -603,7 +589,7 @@ mod tests {
             let chunker = Chunker::new(slicer.copy_settings());
             let key = Key::random(32);
 
-            let mut repo = get_repo(key);
+            let mut repo = get_repo_mem(key);
             let mut obj1 = [0_u8; 32];
             for i in 0..obj1.len() {
                 obj1[i] = i as u8;

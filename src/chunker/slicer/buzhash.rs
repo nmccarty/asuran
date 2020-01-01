@@ -147,9 +147,8 @@ where
                         output.push(byte);
                         let hash = self.hash_byte(byte);
                         let len = output.len();
-                        split =
-                            ((hash & self.mask == 0) && (len >= self.min_size)) ||
-                            (len >= self.max_size);
+                        split = ((hash & self.mask == 0) && (len >= self.min_size))
+                            || (len >= self.max_size);
 
                         self.cursor += 1;
                     } else {

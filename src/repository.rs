@@ -49,7 +49,6 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 pub use self::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
-pub use crate::repository::backend::filesystem::FileSystem;
 pub use crate::repository::backend::{Backend, ChunkLocation, Index, Segment};
 pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
@@ -385,24 +384,6 @@ mod tests {
     use crate::repository::backend::mem::*;
     use futures::executor::block_on;
     use rand::prelude::*;
-    use tempfile::{tempdir, TempDir};
-
-    fn get_repo(key: Key) -> (Repository<FileSystem>, TempDir) {
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-
-        let backend = FileSystem::new_test(&root_path);
-        (
-            Repository::new(
-                backend,
-                Compression::ZStd { level: 1 },
-                HMAC::Blake2b,
-                Encryption::new_aes256ctr(),
-                key,
-            ),
-            root_dir,
-        )
-    }
 
     fn get_repo_mem(key: Key) -> Repository<Mem> {
         let pool = ThreadPool::new().unwrap();
@@ -428,7 +409,7 @@ mod tests {
             let mut data3 = vec![0_u8; size as usize];
             thread_rng().fill_bytes(&mut data3);
 
-            let mut repo = get_repo_mem(key);
+            let repo = get_repo_mem(key);
             println!("Adding Chunks");
             let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
             let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
@@ -445,70 +426,70 @@ mod tests {
         });
     }
 
-    #[test]
-    fn repository_add_drop_read() {
-        block_on(async {
-            let key = Key::random(32);
+    // #[test]
+    // fn repository_add_drop_read() {
+    //     block_on(async {
+    //         let key = Key::random(32);
 
-            let size = 7 * 10_u64.pow(3);
-            let mut data1 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data1);
-            let mut data2 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data2);
-            let mut data3 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data3);
+    //         let size = 7 * 10_u64.pow(3);
+    //         let mut data1 = vec![0_u8; size as usize];
+    //         thread_rng().fill_bytes(&mut data1);
+    //         let mut data2 = vec![0_u8; size as usize];
+    //         thread_rng().fill_bytes(&mut data2);
+    //         let mut data3 = vec![0_u8; size as usize];
+    //         thread_rng().fill_bytes(&mut data3);
 
-            let root_dir = tempdir().unwrap();
-            let root_path = root_dir.path().display().to_string();
-            println!("Repo root dir: {}", root_path);
+    //         let root_dir = tempdir().unwrap();
+    //         let root_path = root_dir.path().display().to_string();
+    //         println!("Repo root dir: {}", root_path);
 
-            let backend = FileSystem::new_test(&root_path);
-            let key1;
-            let key2;
-            let key3;
+    //         let backend = FileSystem::new_test(&root_path);
+    //         let key1;
+    //         let key2;
+    //         let key3;
 
-            {
-                let mut repo = Repository::new(
-                    backend,
-                    Compression::ZStd { level: 1 },
-                    HMAC::SHA256,
-                    Encryption::new_aes256cbc(),
-                    key.clone(),
-                );
+    //         {
+    //             let mut repo = Repository::new(
+    //                 backend,
+    //                 Compression::ZStd { level: 1 },
+    //                 HMAC::SHA256,
+    //                 Encryption::new_aes256cbc(),
+    //                 key.clone(),
+    //             );
 
-                println!("Adding Chunks");
-                key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
-                key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
-                key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
-            }
+    //             println!("Adding Chunks");
+    //             key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+    //             key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+    //             key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
+    //         }
 
-            let backend = FileSystem::new_test(&root_path);
+    //         let backend = FileSystem::new_test(&root_path);
 
-            let repo = Repository::new(
-                backend,
-                Compression::ZStd { level: 1 },
-                HMAC::SHA256,
-                Encryption::new_aes256cbc(),
-                key.clone(),
-            );
+    //         let repo = Repository::new(
+    //             backend,
+    //             Compression::ZStd { level: 1 },
+    //             HMAC::SHA256,
+    //             Encryption::new_aes256cbc(),
+    //             key.clone(),
+    //         );
 
-            println!("Reading Chunks");
-            let out1 = repo.read_chunk(key1).await.unwrap();
-            let out2 = repo.read_chunk(key2).await.unwrap();
-            let out3 = repo.read_chunk(key3).await.unwrap();
+    //         println!("Reading Chunks");
+    //         let out1 = repo.read_chunk(key1).await.unwrap();
+    //         let out2 = repo.read_chunk(key2).await.unwrap();
+    //         let out3 = repo.read_chunk(key3).await.unwrap();
 
-            assert_eq!(data1, out1);
-            assert_eq!(data2, out2);
-            assert_eq!(data3, out3);
-        });
-    }
+    //         assert_eq!(data1, out1);
+    //         assert_eq!(data2, out2);
+    //         assert_eq!(data3, out3);
+    //     });
+    // }
 
     #[test]
     fn double_add() {
         block_on(async {
             // Adding the same chunk to the repository twice shouldn't result in
             // two chunks in the repository
-            let mut repo = get_repo_mem(Key::random(32));
+            let repo = get_repo_mem(Key::random(32));
             assert_eq!(repo.count_chunk(), 0);
             let data = [1_u8; 8192];
 
@@ -521,18 +502,5 @@ mod tests {
             assert_eq!(key_1, key_2);
             std::mem::drop(repo);
         });
-    }
-
-    #[test]
-    fn repo_send_sync() {}
-    #[test]
-    fn immediate_drop() {
-        // This was resulting in a SIG
-        let key = Key::random(32);
-        let (mut repo, root_dir) = get_repo(key);
-        repo.commit_index();
-        println!("Index comiitted!");
-        std::mem::drop(repo);
-        assert!(true);
     }
 }

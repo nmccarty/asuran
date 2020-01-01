@@ -157,7 +157,7 @@ mod tests {
         let key_key = [0_u8; 128];
         let encrypted_key =
             EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-        backend.write_key(&encrypted_key);
+        backend.write_key(&encrypted_key).unwrap();
         let output = backend.read_key().unwrap().decrypt(&key_key).unwrap();
         assert_eq!(key, output);
     }

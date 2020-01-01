@@ -112,7 +112,7 @@ mod tests {
         let key = Key::random(32);
         let repo = Repository::with(backend.clone(), settings, key, pool);
 
-        let mut manifest = Manifest::load(&repo);
+        let manifest = Manifest::load(&repo);
 
         let dummy1 = StoredArchive::dummy_archive();
         backend.get_manifest().write_archive(dummy1);
