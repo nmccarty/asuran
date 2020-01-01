@@ -3,6 +3,7 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::io::Read;
 
+#[derive(Clone)]
 pub struct BuzHash<R: Read> {
     /// Internal reader
     reader: Option<R>,
@@ -34,6 +35,7 @@ pub struct BuzHash<R: Read> {
     finished: bool,
 }
 
+#[derive(Clone)]
 pub struct BuzHashSettings {
     table: [u64; 256],
     window_size: u32,
@@ -45,7 +47,7 @@ pub struct BuzHashSettings {
 
 impl<R> SlicerSettings<R> for BuzHashSettings
 where
-    R: Read,
+    R: Read + Send + Clone,
 {
     type Slicer = BuzHash<R>;
     fn to_slicer(&self, reader: R) -> Self::Slicer {
@@ -68,7 +70,7 @@ where
     }
 }
 
-impl<R: Read> BuzHash<R> {
+impl<R: Read + Send + Clone> BuzHash<R> {
     pub fn new(nonce: u64, window_size: u32, mask_bits: u32) -> BuzHash<R> {
         let mut table = [0_u64; 256];
         let mut rand = SmallRng::seed_from_u64(nonce);
@@ -125,7 +127,7 @@ impl<R: Read> BuzHash<R> {
 
 impl<R> Slicer<R> for BuzHash<R>
 where
-    R: Read,
+    R: Read + Send + Clone,
 {
     type Settings = BuzHashSettings;
     fn add_reader(&mut self, reader: R) {
@@ -184,7 +186,7 @@ where
     }
 }
 
-impl<R: Read> Iterator for BuzHash<R> {
+impl<R: Read + Send + Clone> Iterator for BuzHash<R> {
     type Item = Vec<u8>;
     fn next(&mut self) -> Option<Vec<u8>> {
         self.take_slice()

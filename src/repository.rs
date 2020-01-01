@@ -42,7 +42,9 @@
 //! effectivly preventing the storage of duplicate chunks.
 
 use anyhow::{anyhow, Result};
-use rayon::prelude::*;
+use futures::executor::ThreadPool;
+use futures::prelude::Future;
+use futures::task::SpawnExt;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +55,7 @@ pub use crate::repository::compression::Compression;
 pub use crate::repository::encryption::Encryption;
 pub use crate::repository::hmac::HMAC;
 pub use crate::repository::key::{EncryptedKey, Key};
+use crate::repository::pipeline::Pipeline;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -63,6 +66,7 @@ pub mod compression;
 pub mod encryption;
 pub mod hmac;
 pub mod key;
+pub mod pipeline;
 
 /// Provides an interface to the storage-backed key value store
 ///
@@ -80,9 +84,13 @@ pub struct Repository<T: Backend> {
     encryption: Encryption,
     /// Encryption key for this repo
     key: Key,
+    /// Threadpool used by the repository executor
+    pool: ThreadPool,
+    /// Pipeline used for chunking
+    pipeline: Pipeline,
 }
 
-impl<T: Backend> Repository<T> {
+impl<T: Backend + 'static> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
     pub fn new(
         backend: T,
@@ -91,12 +99,30 @@ impl<T: Backend> Repository<T> {
         encryption: Encryption,
         key: Key,
     ) -> Repository<T> {
+        let pool = ThreadPool::new().unwrap();
+        let pipeline = Pipeline::new(pool.clone());
         Repository {
             backend,
             compression,
             hmac,
             encryption,
             key,
+            pool,
+            pipeline,
+        }
+    }
+
+    /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
+    pub fn with(backend: T, settings: ChunkSettings, key: Key, pool: ThreadPool) -> Repository<T> {
+        let pipeline = Pipeline::new(pool.clone());
+        Repository {
+            backend,
+            key,
+            pool,
+            pipeline,
+            compression: settings.compression,
+            hmac: settings.hmac,
+            encryption: settings.encryption,
         }
     }
 
@@ -119,7 +145,7 @@ impl<T: Backend> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -140,14 +166,14 @@ impl<T: Backend> Repository<T> {
             } else {
                 test_segment?
             };
-            let mut segment = if test_segment.free_bytes() <= buff.len() as u64 {
+            let mut segment = if test_segment.free_bytes().await <= buff.len() as u64 {
                 seg_id = backend.make_segment()?;
                 backend.get_segment(seg_id)?
             } else {
                 test_segment
             };
 
-            let (start, length) = segment.write_chunk(&buff, id)?;
+            let (start, length) = segment.write_chunk(&buff, id).await?;
             let location = ChunkLocation {
                 segment_id: seg_id,
                 start,
@@ -157,6 +183,54 @@ impl<T: Backend> Repository<T> {
 
             Ok((id, false))
         }
+    }
+
+    /// The same as write_raw, but using the new backend api to do the writing
+    ///
+    /// FIXME: After getting rid of the old filesystem backend, merge this into write_raw
+    pub fn write_raw_async(&self, chunk: Chunk) -> impl Future<Output = Result<(ChunkID, bool)>> {
+        let repo = self.clone();
+        self.pool
+            .spawn_with_handle(async move {
+                let id = chunk.get_id();
+
+                // Check if chunk exists
+                if repo.has_chunk(id) && id != ChunkID::manifest_id() {
+                    Ok((id, true))
+                } else {
+                    let mut buff = Vec::<u8>::new();
+                    chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
+
+                    // Get highest segment and check to see if has enough space
+                    let backend = &repo.backend;
+                    let mut seg_id = backend.highest_segment();
+                    let test_segment = backend.get_segment(seg_id);
+                    // If no segments exist, we must create one
+                    let mut test_segment = if test_segment.is_err() {
+                        seg_id = backend.make_segment()?;
+                        backend.get_segment(seg_id)?
+                    } else {
+                        test_segment?
+                    };
+                    let mut segment = if test_segment.free_bytes().await <= buff.len() as u64 {
+                        seg_id = backend.make_segment()?;
+                        backend.get_segment(seg_id)?
+                    } else {
+                        test_segment
+                    };
+
+                    let (start, length) = segment.write_chunk(&buff, id).await?;
+                    let location = ChunkLocation {
+                        segment_id: seg_id,
+                        start,
+                        length,
+                    };
+                    repo.backend.get_index().set_chunk(id, location)?;
+
+                    Ok((id, false))
+                }
+            })
+            .unwrap()
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -169,43 +243,26 @@ impl<T: Backend> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
-        let chunk = Chunk::pack(
-            data,
-            self.compression,
-            self.encryption.new_iv(),
-            self.hmac,
-            &self.key,
-        );
-
-        self.write_raw(&chunk)
+    pub async fn write_chunk(&self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
+        let (i, c) = self
+            .pipeline
+            .process(
+                data,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+        i.receive().await.unwrap();
+        let chunk = c.receive().await.unwrap();
+        self.write_raw(&chunk).await
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
-    pub fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_unpacked_chunk(&self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
-        if self.has_chunk(id) && id != ChunkID::manifest_id() {
-            Ok((id, true))
-        } else {
-            self.write_chunk_with_id(data.consuming_data(), id)
-        }
-    }
-
-    /// Writes multiple unpacked chunks to the repository in parallel
-    pub fn write_unpacked_chunks_parallel(
-        &self,
-        data: Vec<UnpackedChunk>,
-    ) -> Vec<Result<(ChunkID, bool)>> {
-        data.into_par_iter()
-            .map(|x| {
-                let id = x.id();
-                if self.has_chunk(id) && id != ChunkID::manifest_id() {
-                    Ok((id, true))
-                } else {
-                    self.write_chunk_with_id(x.consuming_data(), id)
-                }
-            })
-            .collect()
+        self.write_chunk_with_id(data.consuming_data(), id).await
     }
 
     #[cfg_attr(feature = "profile", flame)]
@@ -220,17 +277,44 @@ impl<T: Backend> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
-        let chunk = Chunk::pack_with_id(
-            data,
-            self.compression,
-            self.encryption.new_iv(),
-            self.hmac,
-            &self.key,
-            id,
-        );
+    pub async fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
+        let c = self
+            .pipeline
+            .process_with_id(
+                data,
+                id,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
 
-        self.write_raw(&chunk)
+        let chunk = c.receive().await.unwrap();
+
+        self.write_raw(&chunk).await
+    }
+
+    pub async fn write_chunk_with_id_async(
+        &self,
+        data: Vec<u8>,
+        id: ChunkID,
+    ) -> impl Future<Output = Result<(ChunkID, bool)>> {
+        let c = self
+            .pipeline
+            .process_with_id(
+                data,
+                id,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+
+        let chunk = c.receive().await.unwrap();
+
+        self.write_raw_async(chunk)
     }
 
     /// Determines if a chunk exists in the index
@@ -242,7 +326,7 @@ impl<T: Backend> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
-    pub fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
+    pub async fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id) {
             let index = self.backend.get_index();
@@ -251,7 +335,7 @@ impl<T: Backend> Repository<T> {
             let start = location.start;
             let length = location.length;
             let mut segment = self.backend.get_segment(seg_id)?;
-            let chunk_bytes = segment.read_chunk(start, length)?;
+            let chunk_bytes = segment.read_chunk(start, length).await?;
 
             let mut de = Deserializer::new(&chunk_bytes[..]);
             let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
@@ -299,6 +383,7 @@ impl<T: Backend> Drop for Repository<T> {
 mod tests {
     use super::*;
     use crate::repository::backend::mem::*;
+    use futures::executor::block_on;
     use rand::prelude::*;
     use tempfile::{tempdir, TempDir};
 
@@ -320,108 +405,86 @@ mod tests {
     }
 
     fn get_repo_mem(key: Key) -> Repository<Mem> {
+        let pool = ThreadPool::new().unwrap();
         let settings = ChunkSettings {
             compression: Compression::ZStd { level: 1 },
             hmac: HMAC::Blake2b,
             encryption: Encryption::new_aes256ctr(),
         };
-        let backend = Mem::new(settings);
-        Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::Blake2b,
-            Encryption::new_aes256ctr(),
-            key,
-        )
+        let backend = Mem::new(settings, &pool);
+        Repository::with(backend, settings, key, pool)
     }
 
     #[test]
     fn repository_add_read() {
-        let key = Key::random(32);
+        block_on(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo_mem(key);
-        println!("Adding Chunks");
-        let key1 = repo.write_chunk(data1.clone()).unwrap().0;
-        let key2 = repo.write_chunk(data2.clone()).unwrap().0;
-        let key3 = repo.write_chunk(data3.clone()).unwrap().0;
+            let mut repo = get_repo_mem(key);
+            println!("Adding Chunks");
+            let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+            let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+            let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
 
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
-    }
-
-    #[test]
-    fn repository_add_read_parallel() {
-        let key = Key::random(32);
-
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
-
-        let mut repo = get_repo_mem(key.clone());
-        let cs = repo.chunk_settings();
-        let chunk1 = UnpackedChunk::new(data1.clone(), &cs, &key);
-        let chunk2 = UnpackedChunk::new(data2.clone(), &cs, &key);
-        let chunk3 = UnpackedChunk::new(data3.clone(), &cs, &key);
-        let chunks_vec = vec![chunk1, chunk2, chunk3];
-
-        println!("Adding Chunks");
-        let keys = repo.write_unpacked_chunks_parallel(chunks_vec);
-        let key1 = keys[0].as_ref().unwrap().0;
-        let key2 = keys[1].as_ref().unwrap().0;
-        let key3 = keys[2].as_ref().unwrap().0;
-
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
-
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
-        std::mem::drop(repo);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+        });
     }
 
     #[test]
     fn repository_add_drop_read() {
-        let key = Key::random(32);
+        block_on(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let root_dir = tempdir().unwrap();
-        let root_path = root_dir.path().display().to_string();
-        println!("Repo root dir: {}", root_path);
+            let root_dir = tempdir().unwrap();
+            let root_path = root_dir.path().display().to_string();
+            println!("Repo root dir: {}", root_path);
 
-        let backend = FileSystem::new_test(&root_path);
-        let key1;
-        let key2;
-        let key3;
+            let backend = FileSystem::new_test(&root_path);
+            let key1;
+            let key2;
+            let key3;
 
-        {
-            let mut repo = Repository::new(
+            {
+                let mut repo = Repository::new(
+                    backend,
+                    Compression::ZStd { level: 1 },
+                    HMAC::SHA256,
+                    Encryption::new_aes256cbc(),
+                    key.clone(),
+                );
+
+                println!("Adding Chunks");
+                key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+                key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+                key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
+            }
+
+            let backend = FileSystem::new_test(&root_path);
+
+            let repo = Repository::new(
                 backend,
                 Compression::ZStd { level: 1 },
                 HMAC::SHA256,
@@ -429,48 +492,35 @@ mod tests {
                 key.clone(),
             );
 
-            println!("Adding Chunks");
-            key1 = repo.write_chunk(data1.clone()).unwrap().0;
-            key2 = repo.write_chunk(data2.clone()).unwrap().0;
-            key3 = repo.write_chunk(data3.clone()).unwrap().0;
-        }
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        let backend = FileSystem::new_test(&root_path);
-
-        let repo = Repository::new(
-            backend,
-            Compression::ZStd { level: 1 },
-            HMAC::SHA256,
-            Encryption::new_aes256cbc(),
-            key.clone(),
-        );
-
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).unwrap();
-        let out2 = repo.read_chunk(key2).unwrap();
-        let out3 = repo.read_chunk(key3).unwrap();
-
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+        });
     }
 
     #[test]
     fn double_add() {
-        // Adding the same chunk to the repository twice shouldn't result in
-        // two chunks in the repository
-        let mut repo = get_repo_mem(Key::random(32));
-        assert_eq!(repo.count_chunk(), 0);
-        let data = [1_u8; 8192];
+        block_on(async {
+            // Adding the same chunk to the repository twice shouldn't result in
+            // two chunks in the repository
+            let mut repo = get_repo_mem(Key::random(32));
+            assert_eq!(repo.count_chunk(), 0);
+            let data = [1_u8; 8192];
 
-        let (key_1, unique_1) = repo.write_chunk(data.to_vec()).unwrap();
-        assert_eq!(unique_1, false);
-        assert_eq!(repo.count_chunk(), 1);
-        let (key_2, unique_2) = repo.write_chunk(data.to_vec()).unwrap();
-        assert_eq!(repo.count_chunk(), 1);
-        assert_eq!(unique_2, true);
-        assert_eq!(key_1, key_2);
-        std::mem::drop(repo);
+            let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(unique_1, false);
+            assert_eq!(repo.count_chunk(), 1);
+            let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(repo.count_chunk(), 1);
+            assert_eq!(unique_2, true);
+            assert_eq!(key_1, key_2);
+            std::mem::drop(repo);
+        });
     }
 
     #[test]

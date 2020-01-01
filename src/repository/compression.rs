@@ -29,6 +29,11 @@ impl Compression {
         }
     }
 
+    /// Identical to `compress` but async
+    pub async fn compress_async(self, data: Vec<u8>) -> Vec<u8> {
+        self.compress(data)
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Decompresses the given data
     ///

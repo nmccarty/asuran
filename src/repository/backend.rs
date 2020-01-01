@@ -5,7 +5,9 @@ use crate::repository::ChunkID;
 use crate::repository::ChunkSettings;
 use crate::repository::EncryptedKey;
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::prelude::*;
+use futures::channel::oneshot;
 use serde::{Deserialize, Serialize};
 
 pub mod common;
@@ -13,25 +15,36 @@ pub mod filesystem;
 pub mod mem;
 pub mod multifile;
 
+/// Describes the segment id and location there in of a chunk
+///
+/// This does not store the lenght, as segments are responsible for storing chunks in a format
+/// that does not require prior knowlege of the chunk lenght.
+#[derive(Debug)]
+pub struct SegmentDescriptor {
+    pub segment_id: u64,
+    pub start: u64,
+}
+
 /// Segments are abstract blocks of chunks
 ///
 /// Backends are free to arrange chunks within segements any way they wish,
 ///
 /// Segement compaction must happen through writing new segments and deleting
 /// the old ones
-pub trait Segment {
+#[async_trait]
+pub trait Segment: Send {
     /// Returns the free bytes in this segment
-    fn free_bytes(&mut self) -> u64;
+    async fn free_bytes(&mut self) -> u64;
     /// Reads a chunk from the segment into a bytestring
     ///
     /// Requires the start and end positions for the chunk
     ///
     /// Will return None if the read fails
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
+    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
     /// Writes a chunk to the segment
     ///
     /// Retuns Some(start,length), or None if writing fails
-    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
+    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
 }
 
 /// Manifest trait
@@ -86,10 +99,11 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 ///
 /// Cloning a backend should result in a new view over the same storage, and clones
 /// should play nice with multithreaded access.
-pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
-    type Manifest: Manifest;
-    type Segment: Segment;
-    type Index: Index;
+#[async_trait]
+pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
+    type Manifest: Manifest + 'static;
+    type Segment: Segment + 'static;
+    type Index: Index + 'static;
     /// Gets a particular segment
     ///
     /// Returns Err if it does not exist or can not be found
@@ -111,6 +125,20 @@ pub trait Backend: Send + Sync + Clone + std::fmt::Debug {
     fn read_key(&self) -> Result<EncryptedKey>;
     /// Returns a view of this respository's manifest
     fn get_manifest(&self) -> Self::Manifest;
+    /// Starts reading a chunk from the backend
+    ///
+    /// The chunk will be written to the oneshot once reading is complete
+    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>>;
+    /// Starts writing a chunk to the backend
+    ///
+    /// A segment descriptor describing it will be written to oneshot once reading is complete
+    ///
+    /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
+    async fn write_chunk(
+        &self,
+        chunk: Vec<u8>,
+        id: ChunkID,
+    ) -> oneshot::Receiver<Result<SegmentDescriptor>>;
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

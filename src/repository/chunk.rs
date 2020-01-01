@@ -92,9 +92,10 @@ impl UnpackedChunk {
     /// HMAC algorthim used for chunkid is specified by chunksettings
     ///
     /// Key used for ChunkID generation is determined by key
-    pub fn new(data: Vec<u8>, settings: &ChunkSettings, key: &Key) -> UnpackedChunk {
-        let id = ChunkID::new(&settings.hmac.id(data.as_slice(), key));
-        UnpackedChunk { data, id }
+    pub fn new(data: Vec<u8>, settings: ChunkSettings, key: &Key) -> UnpackedChunk {
+        let id = settings.hmac.id(data.as_slice(), &key);
+        let cid = ChunkID::new(&id);
+        UnpackedChunk { data, id: cid }
     }
 
     /// Returns the chunkid
@@ -116,7 +117,7 @@ impl UnpackedChunk {
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Chunk {
     /// The data of the chunk, stored as a vec of raw bytes
     #[serde(with = "serde_bytes")]
@@ -161,11 +162,54 @@ impl Chunk {
         }
     }
 
+    /// Constructs a chunk from its parts
+    pub fn from_parts(
+        data: Vec<u8>,
+        compression: Compression,
+        encryption: Encryption,
+        hmac: HMAC,
+        mac: Vec<u8>,
+        id: ChunkID,
+    ) -> Chunk {
+        Chunk {
+            data,
+            compression,
+            encryption,
+            hmac,
+            mac,
+            id,
+        }
+    }
+
     #[cfg_attr(feature = "profile", flame)]
     /// Will pack a chunk, but manually setting the id instead of hashing
     ///
     /// This function should be used carefully, as it has potentiall to do major damage to the repository
     pub fn pack_with_id(
+        data: Vec<u8>,
+        compression: Compression,
+        encryption: Encryption,
+        hmac: HMAC,
+        key: &Key,
+        id: ChunkID,
+    ) -> Chunk {
+        let compressed_data = compression.compress(data);
+        let data = encryption.encrypt(&compressed_data, key);
+        let mac = hmac.mac(&data, key);
+        Chunk {
+            data,
+            compression,
+            encryption,
+            hmac,
+            mac,
+            id,
+        }
+    }
+
+    /// Will pack a chunk, but manually setting the id instead of hashing
+    ///
+    /// This function should be used carefully, as it has potentiall to do major damage to the repository
+    pub async fn pack_with_id_async(
         data: Vec<u8>,
         compression: Compression,
         encryption: Encryption,

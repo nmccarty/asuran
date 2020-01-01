@@ -64,7 +64,7 @@ impl BackupTarget<File> for FileSystemTarget {
             file_object.direct_add_range(
                 0,
                 meta.len() - 1,
-                File::open(path.clone()).expect("Unable to open file"),
+                File::open(path).expect("Unable to open file"),
             );
         }
         output.insert("".to_string(), file_object);

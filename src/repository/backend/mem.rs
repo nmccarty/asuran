@@ -2,33 +2,37 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
-use parking_lot::RwLock;
+use futures::channel::oneshot;
+use futures::executor::ThreadPool;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
 use std::sync::Arc;
 
-type CursorSegment = Cursor<Vec<u8>>;
-
 #[derive(Clone, Debug)]
 pub struct Mem {
-    data: common::SegmentHandle<CursorSegment>,
+    data: common::TaskedSegment<Cursor<Vec<u8>>>,
     index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
     key: Arc<RwLock<Option<EncryptedKey>>>,
+    count: Arc<Mutex<u64>>,
+    len: u64,
 }
 
 impl Mem {
-    pub fn new(chunk_settings: ChunkSettings) -> Mem {
+    pub fn new(chunk_settings: ChunkSettings, pool: &ThreadPool) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let segment = common::Segment::new(Cursor::new(Vec::new()), max).unwrap();
+        let data = common::TaskedSegment::new(Cursor::new(Vec::new()), max, 0, pool);
         Mem {
-            data: segment.into_handle(),
+            data,
             index: Arc::new(RwLock::new(HashMap::new())),
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
             key: Arc::new(RwLock::new(None)),
+            count: Arc::new(Mutex::new(0)),
+            len: num_cpus::get() as u64,
         }
     }
 }
@@ -76,15 +80,16 @@ impl Index for Mem {
     }
 }
 
+#[async_trait]
 impl Backend for Mem {
     type Manifest = Self;
-    type Segment = common::SegmentHandle<CursorSegment>;
+    type Segment = common::TaskedSegment<Cursor<Vec<u8>>>;
     type Index = Self;
     /// Ignores the id
     fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
         Ok(self.data.clone())
     }
-    /// Always returns 0
+    /// Returns a random number in [0,5)
     #[cfg_attr(tarpaulin, skip)]
     fn highest_segment(&self) -> u64 {
         0
@@ -92,7 +97,7 @@ impl Backend for Mem {
     /// Only has one segement, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
     fn make_segment(&self) -> Result<u64> {
-        Ok(0)
+        Ok(self.highest_segment())
     }
     fn get_index(&self) -> Self::Index {
         self.clone()
@@ -113,6 +118,20 @@ impl Backend for Mem {
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
     }
+
+    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+        let mut data = self.data.clone();
+        data.read_chunk(location).await
+    }
+
+    async fn write_chunk(
+        &self,
+        chunk: Vec<u8>,
+        id: ChunkID,
+    ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
+        let mut data = self.data.clone();
+        data.write_chunk(chunk, id).await
+    }
 }
 
 #[cfg(test)]
@@ -124,14 +143,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn bad_key_access() {
-        let backend = Mem::new(ChunkSettings::lightweight());
+        let pool = ThreadPool::new().unwrap();
+        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
         backend.read_key().unwrap();
     }
 
     /// Checks to make sure setting and retriving a key works
     #[test]
     fn key_sanity() {
-        let backend = Mem::new(ChunkSettings::lightweight());
+        let pool = ThreadPool::new().unwrap();
+        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
         let key = Key::random(32);
         let key_key = [0_u8; 128];
         let encrypted_key =

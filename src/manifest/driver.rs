@@ -3,25 +3,30 @@ use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
 use anyhow::Result;
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
 
 /// Collection of abstract methods for moving data from a storage target to a repository
 ///
 /// This trait provides reasonable default versions of the functions for you
-pub trait BackupDriver<T: Read>: BackupTarget<T> {
+#[async_trait]
+pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
     /// Inserts an object into the repository using the output from BackupTarget::backup_object
     ///
     /// This method should only really be used directly when you want to change the data in route,
     /// otherwise use store_object.
     ///
     /// Stores objects in sub-namespaces of the namespace of the archive object provided
-    fn raw_store_object(
+    async fn raw_store_object<
+        B: Backend,
+        C: SlicerSettings<Empty> + SlicerSettings<T> + 'static,
+    >(
         &self,
-        repo: &mut Repository<impl Backend>,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<T>>,
+        repo: &mut Repository<B>,
+        chunker: Chunker<C>,
         archive: &Archive,
-        path: &str,
+        path: String,
         objects: HashMap<String, BackupObject<T>>,
     ) -> Result<()> {
         for (namespace, backup_object) in objects {
@@ -34,10 +39,10 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
             // Determine sparsity and load object into repository
             let range_count = ranges.len();
             if range_count == 0 {
-                archive.put_empty(path);
+                archive.put_empty(&path);
             } else if range_count == 1 {
                 let object = ranges.remove(0).object;
-                archive.put_object(chunker, repo, path, object)?;
+                archive.put_object(&chunker, repo, &path, object).await?;
             } else {
                 let mut readers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges {
@@ -48,7 +53,9 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
                     let object = object.object;
                     readers.push((extent, object));
                 }
-                archive.put_sparse_object(chunker, repo, path, readers)?;
+                archive
+                    .put_sparse_object(&chunker, repo, &path, readers)
+                    .await?;
             }
         }
         Ok(())
@@ -56,31 +63,33 @@ pub trait BackupDriver<T: Read>: BackupTarget<T> {
 
     /// Stores an object, performing the calls to BackupTarget::backup_object and raw_store_obejct
     /// for you.
-    fn store_object(
+    async fn store_object<B: Backend, C: SlicerSettings<Empty> + SlicerSettings<T> + 'static>(
         &self,
-        repo: &mut Repository<impl Backend>,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<T>>,
+        repo: &mut Repository<B>,
+        chunker: Chunker<C>,
         archive: &Archive,
-        path: &str,
+        path: String,
     ) -> Result<()> {
-        let objects = self.backup_object(path);
+        let objects = self.backup_object(&path);
         self.raw_store_object(repo, chunker, archive, path, objects)
+            .await
     }
 }
 
 /// Collection of abstract methods for moving data from a storage target to a reposiotry
 ///
 /// This trait provides resasonable default versions for you
-pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
+#[async_trait(?Send)]
+pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// Retrives an object from the repository using the output from RestoreTarget::restore_object
     ///
     /// This method should really only be used directly when you want to change the data in route,
     /// otherwise use retrive_object.
     ///
     /// Retrives objects from the stub-namespaces of the namespace of the object provided
-    fn raw_retrieve_object(
+    async fn raw_retrieve_object<B: Backend>(
         &self,
-        repo: &Repository<impl Backend>,
+        repo: &Repository<B>,
         archive: &Archive,
         path: &str,
         objects: HashMap<String, RestoreObject<T>>,
@@ -97,8 +106,9 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
             // an empty object
             if range_count == 1 {
                 let object = ranges.remove(0).object;
-                archive.get_object(repo, path, object)?;
-            } else if range_count > 1 {
+                archive.get_object(&repo, &path, object).await?;
+            // This used to be a if range count > 1, this may cause issues
+            } else {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
                 for object in ranges {
                     let extent = Extent {
@@ -108,7 +118,7 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
                     let object = object.object;
                     writers.push((extent, object));
                 }
-                archive.get_sparse_object(repo, path, writers)?;
+                archive.get_sparse_object(&repo, &path, writers).await?;
             }
         }
         Ok(())
@@ -116,13 +126,13 @@ pub trait RestoreDriver<T: Write>: RestoreTarget<T> {
 
     /// Retrieves an object, performing the call to BackupTarget::restore_object and raw_retrive_object
     /// for you.
-    fn retrieve_object(
+    async fn retrieve_object<B: Backend>(
         &self,
-        repo: &Repository<impl Backend>,
+        repo: &Repository<B>,
         archive: &Archive,
         path: &str,
     ) -> Result<()> {
         let objects = self.restore_object(path);
-        self.raw_retrieve_object(repo, archive, path, objects)
+        self.raw_retrieve_object(repo, archive, path, objects).await
     }
 }

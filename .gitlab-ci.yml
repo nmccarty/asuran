@@ -25,7 +25,7 @@ test:test:linux:
   script:
     - rustc --version
     - cargo --version
-    - cargo test --verbose
+    - cargo test
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
@@ -39,12 +39,17 @@ test:test:windows:
   script:
     - rustc --version
     - cargo --version
-    - cargo test --verbose
+    - cargo junit --name windows.xml
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
       - ~/.cargo
       - target
+  artifacts:
+    paths:
+      - windows.xml
+    reports:
+      junit: windows.xml
   tags:
     - windows
 
@@ -52,7 +57,7 @@ test:tarpaulin:
   stage: test
   image: "thatonelutenist/rust-nathan:latest"
   script:
-    - cargo tarpaulin --out Xml -t 360 --ignore-tests --force-clean
+    - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
     - bash <(curl -s https://codecov.io/bash)
   cache:
     key: "$CI_COMMIT_REF_SLUG-tarp"

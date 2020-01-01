@@ -6,7 +6,7 @@ use rand::Rng;
 use std::io::Read;
 use std::time::Duration;
 
-fn fast_cdc_chunk(r: impl Read) {
+fn fast_cdc_chunk(r: impl Read + Send + Clone) {
     let mut slicer = FastCDC::new_defaults();
     slicer.add_reader(r);
     for s in slicer {
@@ -14,7 +14,7 @@ fn fast_cdc_chunk(r: impl Read) {
     }
 }
 
-fn buzhash_chunk(r: impl Read) {
+fn buzhash_chunk(r: impl Read + Send + Clone) {
     let mut slicer = BuzHash::new_defaults(0);
     slicer.add_reader(r);
     for s in slicer {

@@ -4,6 +4,8 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use crate::repository::{Compression, Encryption, HMAC};
 use anyhow::{Context, Result};
+use async_trait::async_trait;
+use futures::channel::oneshot;
 use parking_lot::RwLock;
 use rmp_serde::encode::write;
 use rmp_serde::{from_read, to_vec};
@@ -174,6 +176,7 @@ impl FileSystem {
     }
 }
 
+#[async_trait]
 impl Backend for FileSystem {
     type Manifest = Self;
     type Segment = FileSystemSegment;
@@ -237,6 +240,20 @@ impl Backend for FileSystem {
 
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
+    }
+
+    #[allow(clippy::used_underscore_binding)]
+    async fn read_chunk(&self, _location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+        unimplemented!();
+    }
+
+    #[allow(clippy::used_underscore_binding)]
+    async fn write_chunk(
+        &self,
+        _chunk: Vec<u8>,
+        _id: ChunkID,
+    ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
+        unimplemented!();
     }
 }
 
@@ -358,8 +375,9 @@ pub struct FileSystemSegment {
     max_size: u64,
 }
 
+#[async_trait]
 impl Segment for FileSystemSegment {
-    fn free_bytes(&mut self) -> u64 {
+    async fn free_bytes(&mut self) -> u64 {
         let file_size = self.file.metadata().unwrap().len();
         if file_size > self.max_size {
             0
@@ -368,14 +386,15 @@ impl Segment for FileSystemSegment {
         }
     }
 
-    fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let mut output = vec![0_u8; length as usize];
         self.file.seek(SeekFrom::Start(start))?;
         self.file.read_exact(&mut output)?;
         Ok(output)
     }
 
-    fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
+    #[allow(clippy::used_underscore_binding)]
+    async fn write_chunk(&mut self, chunk: &[u8], _id: ChunkID) -> Result<(u64, u64)> {
         let length = chunk.len() as u64;
         let location = self.file.seek(SeekFrom::End(1))?;
         self.file.write_all(chunk)?;
