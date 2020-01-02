@@ -1,5 +1,6 @@
 use futures::executor::ThreadPool;
 use futures_intrusive::channel::shared::*;
+use num_cpus;
 
 use crate::repository::{Chunk, ChunkID, Compression, Encryption, Key, HMAC};
 
@@ -22,10 +23,11 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn new(pool: ThreadPool) -> Pipeline {
-        let id_count = 4;
-        let compress_count = 4;
-        let encryption_count = 6;
-        let mac_count = 4;
+        let physical_cores = num_cpus::get_physical();
+        let id_count = physical_cores;
+        let compress_count = physical_cores;
+        let encryption_count = physical_cores;
+        let mac_count = physical_cores;
         let (input, id_rx) = channel(100);
         let (id_tx, compress_rx) = channel(100);
         let input_id = id_tx.clone();
