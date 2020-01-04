@@ -43,6 +43,7 @@
 
 use anyhow::{anyhow, Result};
 use futures::executor::ThreadPool;
+use futures::task::Spawn;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -71,7 +72,7 @@ pub mod pipeline;
 /// use roughly the same format, but leeway is made for cases such as S3 having
 /// a flat directory structure
 #[derive(Clone)]
-pub struct Repository<T: Backend> {
+pub struct Repository<T> {
     backend: T,
     /// Default compression for new chunks
     compression: Compression,
@@ -81,8 +82,6 @@ pub struct Repository<T: Backend> {
     encryption: Encryption,
     /// Encryption key for this repo
     key: Key,
-    /// Threadpool used by the repository executor
-    pool: ThreadPool,
     /// Pipeline used for chunking
     pipeline: Pipeline,
 }
@@ -97,25 +96,23 @@ impl<T: Backend + 'static> Repository<T> {
         key: Key,
     ) -> Repository<T> {
         let pool = ThreadPool::new().unwrap();
-        let pipeline = Pipeline::new(pool.clone());
+        let pipeline = Pipeline::new(pool);
         Repository {
             backend,
             compression,
             hmac,
             encryption,
             key,
-            pool,
             pipeline,
         }
     }
 
     /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
-    pub fn with(backend: T, settings: ChunkSettings, key: Key, pool: ThreadPool) -> Repository<T> {
-        let pipeline = Pipeline::new(pool.clone());
+    pub fn with(backend: T, settings: ChunkSettings, key: Key, pool: impl Spawn) -> Repository<T> {
+        let pipeline = Pipeline::new(pool);
         Repository {
             backend,
             key,
-            pool,
             pipeline,
             compression: settings.compression,
             hmac: settings.hmac,

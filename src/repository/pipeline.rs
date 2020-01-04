@@ -1,4 +1,4 @@
-use futures::executor::ThreadPool;
+use futures::task::{Spawn, SpawnExt};
 use futures_intrusive::channel::shared::*;
 use num_cpus;
 
@@ -16,13 +16,12 @@ struct Message {
 
 #[derive(Clone)]
 pub struct Pipeline {
-    pool: ThreadPool,
     input: Sender<(Vec<u8>, Message)>,
     input_id: Sender<(ChunkID, Vec<u8>, Message)>,
 }
 
 impl Pipeline {
-    pub fn new(pool: ThreadPool) -> Pipeline {
+    pub fn new(pool: impl Spawn) -> Pipeline {
         let physical_cores = num_cpus::get_physical();
         let id_count = physical_cores;
         let compress_count = physical_cores;
@@ -38,7 +37,7 @@ impl Pipeline {
             // ID stage
             let id_rx = id_rx.clone();
             let id_tx = id_tx.clone();
-            pool.spawn_ok(async move {
+            pool.spawn(async move {
                 while let Some(input) = id_rx.receive().await {
                     let (data, mut message): (Vec<u8>, Message) = input;
                     let id = message.hmac.id(&data[..], &message.key);
@@ -46,39 +45,42 @@ impl Pipeline {
                     message.ret_id.take().unwrap().send(cid).unwrap();
                     id_tx.send((cid, data, message)).await.unwrap();
                 }
-            });
+            })
+            .expect("Spawing a ChunkID task failed!");
         }
 
         for _ in 0..compress_count {
             let compress_rx = compress_rx.clone();
             let compress_tx = compress_tx.clone();
             // Compression stage
-            pool.spawn_ok(async move {
+            pool.spawn(async move {
                 while let Some(input) = compress_rx.receive().await {
                     let (cid, data, message) = input;
                     let cdata = message.compression.compress(data);
                     compress_tx.send((cid, cdata, message)).await.unwrap();
                 }
-            });
+            })
+            .expect("Spawing a compression task failed!");
         }
 
         // Encryption stage
         for _ in 0..encryption_count {
             let enc_rx = enc_rx.clone();
             let enc_tx = enc_tx.clone();
-            pool.spawn_ok(async move {
+            pool.spawn(async move {
                 while let Some(input) = enc_rx.receive().await {
                     let (cid, data, message) = input;
                     let edata = message.encryption.encrypt(&data[..], &message.key);
                     enc_tx.send((cid, edata, message)).await.unwrap();
                 }
-            });
+            })
+            .expect("Spawining an encryption task failed!");
         }
 
         // Mac stage
         for _ in 0..mac_count {
             let mac_rx = mac_rx.clone();
-            pool.spawn_ok(async move {
+            pool.spawn(async move {
                 while let Some(input) = mac_rx.receive().await {
                     let (cid, data, message) = input;
                     let mac = message.hmac.mac(&data, &message.key);
@@ -92,14 +94,11 @@ impl Pipeline {
                     );
                     message.ret_chunk.send(chunk).unwrap();
                 }
-            });
+            })
+            .expect("Spawning a MAC task failed!");
         }
 
-        Pipeline {
-            pool,
-            input,
-            input_id,
-        }
+        Pipeline { input, input_id }
     }
 
     pub async fn process(
