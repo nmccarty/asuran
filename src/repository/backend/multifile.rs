@@ -4,6 +4,9 @@ use crate::repository::backend::*;
 use anyhow::Result;
 use async_trait::async_trait;
 
+pub mod index;
+pub mod manifest;
+
 #[derive(Debug, Clone)]
 struct MFManifest {}
 
