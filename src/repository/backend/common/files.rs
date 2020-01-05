@@ -1,11 +1,13 @@
 use anyhow::Result;
 use std::fs::{remove_file, File, OpenOptions};
+use std::io::{Read, Seek, Write};
 use std::ops::{Deref, DerefMut, Drop};
 use std::path::{Path, PathBuf};
 
 /// Wraps a file with its paired lock file.
 ///
 /// The lock file is deleted upon dropping
+#[derive(Debug)]
 pub struct LockedFile {
     file: File,
     path: PathBuf,
@@ -68,5 +70,26 @@ impl Drop for LockedFile {
                 self.path
             )
         });
+    }
+}
+
+impl Read for LockedFile {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.file.read(buf)
+    }
+}
+
+impl Write for LockedFile {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.file.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.flush()
+    }
+}
+
+impl Seek for LockedFile {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.file.seek(pos)
     }
 }
