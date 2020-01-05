@@ -42,35 +42,12 @@ impl Manifest for MFManifest {
 }
 
 #[derive(Debug, Clone)]
-struct MFIndex {}
-
-#[async_trait]
-impl Index for MFIndex {
-    /// Provides the location of a chunk in the repository
-    async fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
-        todo!()
-    }
-    /// Sets the location of a chunk in the repository
-    async fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
-        todo!()
-    }
-    /// Commits the index
-    async fn commit_index(&self) -> Result<()> {
-        todo!()
-    }
-    /// Returns the total number of chunks in the index
-    async fn count_chunk(&self) -> usize {
-        todo!()
-    }
-}
-
-#[derive(Debug, Clone)]
 struct MultiFile {}
 
 #[async_trait]
 impl Backend for MultiFile {
     type Manifest = MFManifest;
-    type Index = MFIndex;
+    type Index = index::Index;
 
     /// Clones the internal MFManifest
     fn get_index(&self) -> Self::Index {
