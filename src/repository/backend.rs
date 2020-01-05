@@ -17,7 +17,7 @@ pub mod multifile;
 ///
 /// This does not store the lenght, as segments are responsible for storing chunks in a format
 /// that does not require prior knowlege of the chunk lenght.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SegmentDescriptor {
     pub segment_id: u64,
     pub start: u64,
@@ -53,13 +53,13 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
 #[async_trait]
 pub trait Index: Send + Sync + Clone + std::fmt::Debug {
     /// Provides the location of a chunk in the repository
-    async fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor>;
+    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     /// Sets the location of a chunk in the repository
-    async fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
+    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
     /// Commits the index
-    async fn commit_index(&self) -> Result<()>;
+    async fn commit_index(&mut self) -> Result<()>;
     /// Returns the total number of chunks in the index
-    async fn count_chunk(&self) -> usize;
+    async fn count_chunk(&mut self) -> usize;
 }
 
 /// Repository backend

@@ -237,7 +237,7 @@ impl<T: Backend + 'static> Repository<T> {
     pub async fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id).await {
-            let index = self.backend.get_index();
+            let mut index = self.backend.get_index();
             let location = index.lookup_chunk(id).await.unwrap();
             let chunk_bytes = self.backend.read_chunk(location).await?;
 

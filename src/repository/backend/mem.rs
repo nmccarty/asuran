@@ -61,18 +61,18 @@ impl Manifest for Mem {
 }
 #[async_trait]
 impl Index for Mem {
-    async fn lookup_chunk(&self, id: ChunkID) -> Option<SegmentDescriptor> {
+    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
         self.index.read().await.get(&id).copied()
     }
-    async fn set_chunk(&self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
+    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
         self.index.write().await.insert(id, location);
         Ok(())
     }
     /// This format is not persistant so this does nothing
-    async fn commit_index(&self) -> Result<()> {
+    async fn commit_index(&mut self) -> Result<()> {
         Ok(())
     }
-    async fn count_chunk(&self) -> usize {
+    async fn count_chunk(&mut self) -> usize {
         self.index.read().await.len()
     }
 }
