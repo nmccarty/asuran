@@ -174,7 +174,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
     pub async fn write_chunk(&self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
-        let (i, c) = self
+        let (_, chunk) = self
             .pipeline
             .process(
                 data,
@@ -184,9 +184,25 @@ impl<T: Backend + 'static> Repository<T> {
                 self.key.clone(),
             )
             .await;
-        i.receive().await.unwrap();
-        let chunk = c.receive().await.unwrap();
         self.write_raw(&chunk).await
+    }
+
+    pub async fn write_chunks(&self, data: Vec<Vec<u8>>) -> Result<Vec<(ChunkID, bool)>> {
+        let chunks = self
+            .pipeline
+            .process_multiple(
+                data,
+                self.compression,
+                self.encryption,
+                self.hmac,
+                self.key.clone(),
+            )
+            .await;
+        let mut results = Vec::new();
+        for chunk in chunks {
+            results.push(self.write_raw(&chunk).await?)
+        }
+        Ok(results)
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
@@ -208,7 +224,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Primiarly intended for writing the manifest
     pub async fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
-        let c = self
+        let chunk = self
             .pipeline
             .process_with_id(
                 data,
@@ -219,9 +235,6 @@ impl<T: Backend + 'static> Repository<T> {
                 self.key.clone(),
             )
             .await;
-
-        let chunk = c.receive().await.unwrap();
-
         self.write_raw(&chunk).await
     }
 
