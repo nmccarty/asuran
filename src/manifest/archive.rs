@@ -1,5 +1,7 @@
 use crate::chunker::{Chunker, Slice, SlicerSettings};
+use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
+
 use anyhow::Result;
 use chrono::prelude::*;
 use parking_lot::RwLock;
@@ -60,6 +62,16 @@ impl StoredArchive {
     /// Returns the timestamp of the archive
     pub fn timestamp(&self) -> DateTime<FixedOffset> {
         self.timestamp
+    }
+}
+
+impl From<ManifestTransaction> for StoredArchive {
+    fn from(item: ManifestTransaction) -> Self {
+        StoredArchive {
+            name: item.name().to_string(),
+            id: item.pointer(),
+            timestamp: item.timestamp(),
+        }
     }
 }
 
