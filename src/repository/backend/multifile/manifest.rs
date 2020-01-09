@@ -48,11 +48,13 @@ impl InternalManifest {
         let manifest_path = repository_path.as_ref().join("manifest");
         // Check to see if it exists
         if Path::exists(&manifest_path) {
-            // If it is a path, return failure
-            return Err(anyhow!(
-                "Failed to load manifest, {:?} is a file, not a directory",
-                manifest_path
-            ));
+            // If it is a file, return failure
+            if Path::is_file(&manifest_path) {
+                return Err(anyhow!(
+                    "Failed to load manifest, {:?} is a file, not a directory",
+                    manifest_path
+                ));
+            }
         } else {
             // Create the manifest directory
             create_dir(&manifest_path)?;
@@ -419,4 +421,165 @@ impl backend::Manifest for Manifest {
     }
     // This does nothing with this implementation
     async fn touch(&mut self) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::StoredArchive;
+    use crate::repository::{ChunkSettings, Key};
+    use backend::Manifest as OtherManifest;
+    use futures::executor::{LocalPool, LocalSpawner};
+    use std::path::PathBuf;
+    use std::{thread, time};
+    use tempfile::{tempdir, TempDir};
+    use walkdir::WalkDir;
+
+    // Utility function, gets a tempdir, its path, an executor, and a spawner
+    fn setup() -> (TempDir, PathBuf, LocalPool, LocalSpawner) {
+        let tempdir = tempdir().unwrap();
+        let path = tempdir.path().to_path_buf();
+        let executor = LocalPool::new();
+        let spawner = executor.spawner();
+        (tempdir, path, executor, spawner)
+    }
+
+    // Test to make sure creating an manifest in an empty folder
+    // 1. Doesn't Panic or error
+    // 2. Creates the manifest directory
+    // 3. Creates the initial manifest file (manifest/0)
+    // 4. Locks the initial manifest file (manifest/0.lock)
+    #[test]
+    fn creation_works() {
+        let (tempdir, path, executor, spawner) = setup();
+        let settings = ChunkSettings::lightweight();
+        let key = Key::random(32);
+        // Create the manifest
+        let manifest = Manifest::open(&path, Some(settings), &key, &spawner)
+            .expect("Manifest creation failed");
+        // Walk the directory and print some debugging info
+        for entry in WalkDir::new(&path) {
+            let entry = entry.unwrap();
+            println!("{}", entry.path().display());
+        }
+        // Check for the manifest directory
+        let manifest_dir = path.join("manifest");
+        assert!(manifest_dir.exists());
+        assert!(manifest_dir.is_dir());
+        // Check for the initial manifest file
+        let manifest_file = manifest_dir.join("0");
+        assert!(manifest_file.exists());
+        assert!(manifest_file.is_file());
+        // Check for the initial manifest lock file
+        let manifest_lock = manifest_dir.join("0.lock");
+        assert!(manifest_lock.exists());
+        assert!(manifest_lock.is_file());
+    }
+
+    // Test to make sure creating a second manifest while the first is open
+    // 1. Doesn't panic or error
+    // 2. Creates and locks a second manifest file
+    #[test]
+    fn double_creation_works() {
+        let (tempdir, path, executor, spawner) = setup();
+        // Create the first manifest
+        let settings = ChunkSettings::lightweight();
+        let key = Key::random(32);
+        // Create the manifest
+        let manifest1 = Manifest::open(&path, Some(settings), &key, &spawner)
+            .expect("Manifest 1 creation failed");
+        let manifest2 = Manifest::open(&path, Some(settings), &key, &spawner)
+            .expect("Manifest 2 creation failed");
+        // Walk the directory and print some debugging info
+        for entry in WalkDir::new(&path) {
+            let entry = entry.unwrap();
+            println!("{}", entry.path().display());
+        }
+        // Get manifest dir and check for manifest files
+        let manifest_dir = path.join("manifest");
+        let mf1 = manifest_dir.join("0");
+        let mf2 = manifest_dir.join("1");
+        let ml1 = manifest_dir.join("0.lock");
+        let ml2 = manifest_dir.join("1.lock");
+        assert!(mf1.exists() && mf1.is_file());
+        assert!(mf2.exists() && mf2.is_file());
+        assert!(ml1.exists() && ml1.is_file());
+        assert!(ml2.exists() && ml2.is_file());
+    }
+
+    // Test to make sure that dropping an Manifest unlocks the manifest file
+    // Note: since we are using a single threaded executor, we must manually run all tasks to
+    // completion.
+    #[test]
+    fn unlock_on_drop() {
+        let (tempdir, path, mut executor, spawner) = setup();
+        // Open an manifest and drop it
+        let settings = ChunkSettings::lightweight();
+        let key = Key::random(32);
+        // Create the manifest
+        let manifest = Manifest::open(&path, Some(settings), &key, &spawner)
+            .expect("Manifest 1 creation failed");
+        std::mem::drop(manifest);
+        // Run all tasks to completion
+        executor.run();
+        // check for the manifest file and the absense of the lock file
+        let manifest_dir = path.join("manifest");
+        let manifest_file = manifest_dir.join("0");
+        let manifest_lock = manifest_dir.join("0.lock");
+        assert!(manifest_file.exists() && manifest_file.is_file());
+        assert!(!manifest_lock.exists());
+    }
+
+    // Test to verify that:
+    // 1. Writing to a proplerly setup manifest does not Err or Panic
+    // 2. Reading transactions we have inserted into a properly setup manifest does not Err or Panic
+    // 3. Writing transactions to the manifest, dropping it, and reopening it passes verification
+    // 4. Transactions are still present in the manifest after dropping and reloading from the same
+    //    directory
+    #[test]
+    fn write_drop_read() {
+        let (tempdir, path, mut executor, spawner) = setup();
+        let settings = ChunkSettings::lightweight();
+        let key = Key::random(32);
+        // Create the manifest
+        let mut manifest = Manifest::open(&path, Some(settings), &key, &spawner)
+            .expect("Manifest creation failed");
+
+        // Create some dummy archives
+        let len = 10;
+        let mut archives = Vec::new();
+        let mut archive_set = HashSet::new();
+        for _ in 0..len {
+            let archive = StoredArchive::dummy_archive();
+            archives.push(archive.clone());
+            archive_set.insert(archive);
+            // Pause for a bit to make sure the next one has a sufficently differnt timestamp
+            thread::sleep(time::Duration::from_millis(5));
+        }
+
+        // write them into the manifest
+        spawner
+            .spawn(async move {
+                for archive in archives {
+                    manifest.write_archive(archive).await
+                }
+            })
+            .unwrap();
+
+        // Manifest has been moved into the task, run it to completion and allow it to drop
+        executor.run();
+
+        // Reopen the manifest
+        let mut manifest =
+            Manifest::open(&path, Some(settings), &key, &spawner).expect("Manifest reopen failed");
+        // Pull the archives out of it
+        let archives: Vec<StoredArchive> =
+            executor.run_until(manifest.archive_iterator()).collect();
+        // Make sure we have the correct number of archives
+        assert_eq!(archives.len(), len);
+        // Make sure we have all the correct archives
+        for archive in archives {
+            assert!(archive_set.contains(&archive));
+        }
+    }
 }

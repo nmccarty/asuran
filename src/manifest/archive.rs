@@ -27,7 +27,7 @@ pub struct Extent {
 }
 
 /// Pointer to an archive in a repository
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StoredArchive {
     /// The name of the archive
     name: String,
