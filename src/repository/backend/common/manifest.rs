@@ -5,7 +5,7 @@ use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
 
 /// Wrapper around [u8; 32] used for transaction hashes
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
 pub struct ManifestID([u8; 32]);
 
 /// Describes a transaction in a manifest
@@ -93,8 +93,8 @@ impl ManifestTransaction {
     }
 
     /// Returns the HMAC value tag of this transaction
-    pub fn tag(&self) -> &ManifestID {
-        &self.tag
+    pub fn tag(&self) -> ManifestID {
+        self.tag
     }
 
     /// Verifies the hmac of the transaction

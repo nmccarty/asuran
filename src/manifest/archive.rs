@@ -63,6 +63,16 @@ impl StoredArchive {
     pub fn timestamp(&self) -> DateTime<FixedOffset> {
         self.timestamp
     }
+
+    /// Returns the pointer to the archive
+    pub fn id(&self) -> ChunkID {
+        self.id
+    }
+
+    /// Returns the name of the archive
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl From<ManifestTransaction> for StoredArchive {
