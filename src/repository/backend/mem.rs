@@ -36,15 +36,15 @@ impl Mem {
 #[async_trait]
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
-    async fn last_modification(&self) -> DateTime<FixedOffset> {
+    async fn last_modification(&mut self) -> DateTime<FixedOffset> {
         let manifest = self.manifest.read().await;
         let archive = &manifest[manifest.len() - 1];
         archive.timestamp()
     }
-    async fn chunk_settings(&self) -> ChunkSettings {
+    async fn chunk_settings(&mut self) -> ChunkSettings {
         *self.chunk_settings.read().await
     }
-    async fn archive_iterator(&self) -> Self::Iterator {
+    async fn archive_iterator(&mut self) -> Self::Iterator {
         self.manifest.read().await.clone().into_iter()
     }
     async fn write_chunk_settings(&mut self, settings: ChunkSettings) {

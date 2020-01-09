@@ -107,7 +107,7 @@ fn backup_restore_no_empty_dirs_mem() {
         let mut manifest = Manifest::load(&repo);
         manifest.commit_archive(&mut repo, archive).await;
 
-        let manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&repo);
         let stored_archives = &manifest.archives().await;
         let stored_archive = &stored_archives[0];
         let archive = stored_archive.load(&repo).await.unwrap();

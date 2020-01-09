@@ -99,7 +99,7 @@ fn put_drop_get_mem() {
             println!("Manifest: \n {:?}", manifest);
         }
 
-        let manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&repo);
         let archive = manifest.archives().await[0].load(&repo).await.unwrap();
         for (i, object) in objects.iter().enumerate() {
             let mut buffer = Cursor::new(Vec::<u8>::new());

@@ -8,45 +8,11 @@ pub mod index;
 pub mod manifest;
 
 #[derive(Debug, Clone)]
-struct MFManifest {}
-
-#[async_trait]
-impl Manifest for MFManifest {
-    type Iterator = std::iter::Empty<StoredArchive>;
-    /// Timestamp of the last modification
-    async fn last_modification(&self) -> DateTime<FixedOffset> {
-        todo!()
-    }
-    /// Returns the default settings for new chunks in this repository
-    async fn chunk_settings(&self) -> ChunkSettings {
-        todo!()
-    }
-    /// Returns an iterator over the list of archives in this repository, in reverse chronological
-    /// order (newest first).
-    async fn archive_iterator(&self) -> Self::Iterator {
-        todo!()
-    }
-
-    /// Sets the chunk settings in the repository
-    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
-        todo!()
-    }
-    /// Adds an archive to the manifest
-    async fn write_archive(&mut self, archive: StoredArchive) {
-        todo!()
-    }
-    /// Updates the timestamp without performing any other operations
-    async fn touch(&mut self) {
-        todo!()
-    }
-}
-
-#[derive(Debug, Clone)]
 struct MultiFile {}
 
 #[async_trait]
 impl Backend for MultiFile {
-    type Manifest = MFManifest;
+    type Manifest = manifest::Manifest;
     type Index = index::Index;
 
     /// Clones the internal MFManifest

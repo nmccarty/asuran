@@ -48,7 +48,7 @@ impl<T: Backend> Manifest<T> {
     }
 
     /// Gets the default Chunk Settings for the repository
-    pub async fn chunk_settings(&self) -> ChunkSettings {
+    pub async fn chunk_settings(&mut self) -> ChunkSettings {
         self.internal_manifest.chunk_settings().await
     }
 
@@ -68,12 +68,12 @@ impl<T: Backend> Manifest<T> {
     /// Returns a copy of the list of archives in this repository
     ///
     /// Theses can be converted into full archives with StoredArchive::load
-    pub async fn archives(&self) -> Vec<StoredArchive> {
+    pub async fn archives(&mut self) -> Vec<StoredArchive> {
         self.internal_manifest.archive_iterator().await.collect()
     }
 
     /// Provides the timestamp of the manifest's last modification
-    pub async fn timestamp(&self) -> DateTime<FixedOffset> {
+    pub async fn timestamp(&mut self) -> DateTime<FixedOffset> {
         self.internal_manifest.last_modification().await
     }
 }
@@ -116,7 +116,7 @@ mod tests {
             let key = Key::random(32);
             let repo = Repository::with(backend.clone(), settings, key, pool);
 
-            let manifest = Manifest::load(&repo);
+            let mut manifest = Manifest::load(&repo);
 
             let dummy1 = StoredArchive::dummy_archive();
             backend.get_manifest().write_archive(dummy1).await;

@@ -142,7 +142,7 @@ mod tests {
     #[should_panic]
     fn verify_wrong_key() {
         let key = Key::random(32);
-        let mut tx = create_tx("test", &key);
+        let tx = create_tx("test", &key);
         let bad_key = Key::random(32);
         assert!(tx.verify(&bad_key));
     }

@@ -5,7 +5,13 @@ use crate::repository::backend::common::*;
 use crate::repository::{ChunkSettings, Key};
 
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 use chrono::prelude::*;
+use futures::channel::mpsc;
+use futures::channel::oneshot;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use futures::task::{Spawn, SpawnExt};
 use petgraph::Graph;
 use rmp_serde as rmps;
 use std::collections::{HashMap, HashSet};
@@ -267,4 +273,150 @@ impl InternalManifest {
         // Update our heads to only contain this transaction
         self.heads = vec![id]
     }
+}
+
+enum ManifestCommand {
+    LastMod(oneshot::Sender<DateTime<FixedOffset>>),
+    ChunkSettings(oneshot::Sender<ChunkSettings>),
+    ArchiveIterator(oneshot::Sender<std::vec::IntoIter<StoredArchive>>),
+    WriteChunkSettings(ChunkSettings, oneshot::Sender<()>),
+    WriteArchive(StoredArchive, oneshot::Sender<()>),
+}
+
+/// A message-passing handle to a running manifest
+///
+/// # Warnings
+///
+/// 1. In order to ensure that file locks are freed and data is writeen properly, you must ensure
+///    that your executor runs all futures to completion before your program terminates
+#[derive(Clone)]
+pub struct Manifest {
+    input: mpsc::Sender<ManifestCommand>,
+    path: String,
+}
+
+impl Manifest {
+    /// Opens and reads the manifest, creating it if it does not exist
+    ///
+    /// Note that the repository path is the root path of the repository, not the path of the index
+    /// folder.
+    ///
+    /// This method will create the manifest folder if it does not exist.
+    ///
+    /// Files whose names are not strictly base 10 integers are ignored, and will not be added to
+    /// the state or written to.
+    ///
+    /// This method only creates the event loop, the actual manifest is created by
+    /// `InternalManifest::open`
+    ///
+    /// This method can optinally set the chunksettings for the manifest, but it is an error to not
+    /// provide chunk settings if the manifest has not been created yet
+    ///
+    /// # Errors
+    ///
+    /// Will return Err if
+    ///
+    /// 1. The manifest folder does not exist and creating it failed
+    /// 2. There are no unlocked manifest folders and creating one fails
+    /// 3. There is a file called "manifest" in the repository folder
+    /// 4. Some other IO error (shuch as lack of permissions) occurs
+    /// 5. The path contains non-utf8 characters
+    ///
+    /// # TODOs
+    /// 1. Return an error if deserializing a transaciton fails before the end of the file is reached
+    /// 2. This function can currently panic if we have to create a new manifest file, but someone
+    ///    else creates the same file we are trying to first.
+    pub fn open(
+        repository_path: impl AsRef<Path>,
+        chunk_settings: Option<ChunkSettings>,
+        key: &Key,
+        pool: impl Spawn,
+    ) -> Result<Manifest> {
+        let mut manifest = InternalManifest::open(repository_path.as_ref(), key, chunk_settings)?;
+        let (input, mut output) = mpsc::channel(100);
+        pool.spawn(async move {
+            while let Some(command) = output.next().await {
+                match command {
+                    ManifestCommand::LastMod(ret) => {
+                        ret.send(manifest.last_modification()).unwrap();
+                    }
+                    ManifestCommand::ChunkSettings(ret) => {
+                        ret.send(manifest.chunk_settings()).unwrap();
+                    }
+                    ManifestCommand::ArchiveIterator(ret) => {
+                        ret.send(manifest.archive_iterator()).unwrap();
+                    }
+                    ManifestCommand::WriteChunkSettings(settings, ret) => {
+                        manifest.write_chunk_settings(settings);
+                        ret.send(()).unwrap();
+                    }
+                    ManifestCommand::WriteArchive(archive, ret) => {
+                        manifest.write_archive(archive);
+                        ret.send(()).unwrap();
+                    }
+                }
+            }
+        })
+        .expect("Failed to spawn the manifest task");
+
+        Ok(Manifest {
+            input,
+            path: repository_path
+                .as_ref()
+                .join("manifest")
+                .to_str()
+                .unwrap()
+                .to_string(),
+        })
+    }
+}
+
+impl std::fmt::Debug for Manifest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Manifest: {:?}", self.path)
+    }
+}
+
+#[async_trait]
+impl backend::Manifest for Manifest {
+    type Iterator = std::vec::IntoIter<StoredArchive>;
+    async fn last_modification(&mut self) -> DateTime<FixedOffset> {
+        let (i, o) = oneshot::channel();
+        self.input.send(ManifestCommand::LastMod(i)).await.unwrap();
+        o.await.unwrap()
+    }
+    async fn chunk_settings(&mut self) -> ChunkSettings {
+        let (i, o) = oneshot::channel();
+        self.input
+            .send(ManifestCommand::ChunkSettings(i))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn archive_iterator(&mut self) -> Self::Iterator {
+        let (i, o) = oneshot::channel();
+        self.input
+            .send(ManifestCommand::ArchiveIterator(i))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+        let (i, o) = oneshot::channel();
+        self.input
+            .send(ManifestCommand::WriteChunkSettings(settings, i))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn write_archive(&mut self, archive: StoredArchive) {
+        let (i, o) = oneshot::channel();
+        self.input
+            .send(ManifestCommand::WriteArchive(archive, i))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    // This does nothing with this implementation
+    async fn touch(&mut self) {}
 }

@@ -32,12 +32,12 @@ pub struct SegmentDescriptor {
 pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive>;
     /// Timestamp of the last modification
-    async fn last_modification(&self) -> DateTime<FixedOffset>;
+    async fn last_modification(&mut self) -> DateTime<FixedOffset>;
     /// Returns the default settings for new chunks in this repository
-    async fn chunk_settings(&self) -> ChunkSettings;
+    async fn chunk_settings(&mut self) -> ChunkSettings;
     /// Returns an iterator over the list of archives in this repository, in reverse chronological
     /// order (newest first).
-    async fn archive_iterator(&self) -> Self::Iterator;
+    async fn archive_iterator(&mut self) -> Self::Iterator;
 
     /// Sets the chunk settings in the repository
     async fn write_chunk_settings(&mut self, settings: ChunkSettings);
