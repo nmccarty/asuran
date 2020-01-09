@@ -17,6 +17,7 @@ pub enum HMAC {
     SHA256,
     Blake2b,
     Blake2bp,
+    Blake3,
 }
 
 impl HMAC {
@@ -42,6 +43,11 @@ impl HMAC {
                 .hash(data)
                 .as_bytes()
                 .to_vec(),
+            HMAC::Blake3 => {
+                let mut tmp_key = [0_u8; 32];
+                tmp_key.copy_from_slice(&key[..32]);
+                blake3::keyed_hash(&tmp_key, data).as_bytes().to_vec()
+            }
         }
     }
 
@@ -76,6 +82,15 @@ impl HMAC {
             HMAC::Blake2bp => {
                 let hash = blake2bp::Params::new().hash_length(64).key(key).hash(data);
                 hash.eq(input_mac)
+            }
+            HMAC::Blake3 => {
+                let mut tmp_hash = [0_u8; 32];
+                tmp_hash.copy_from_slice(&input_mac[..32]);
+                let mut tmp_key = [0_u8; 32];
+                tmp_key.copy_from_slice(&key[..32]);
+                let input_hash = blake3::Hash::from(tmp_hash);
+                let output_hash = blake3::keyed_hash(&tmp_key, data);
+                output_hash.eq(&input_hash)
             }
         }
     }
