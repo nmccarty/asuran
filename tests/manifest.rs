@@ -28,7 +28,7 @@ mod common;
 //         }
 
 //         {
-//             let mut manifest = Manifest::load(&repo);
+//             let mut manifest = Manifest::load(&mut repo);
 //             manifest.set_chunk_settings(repo.chunk_settings());
 //             let mut archive = Archive::new("test");
 //             for (i, object) in objects.iter().enumerate() {
@@ -47,13 +47,13 @@ mod common;
 //             println!("Manifest: \n {:?}", manifest);
 //         }
 
-//         let manifest = Manifest::load(&repo);
-//         let archive = manifest.archives()[0].load(&repo).await.unwrap();
+//         let manifest = Manifest::load(&mut repo);
+//         let archive = manifest.archives()[0].load(&mut repo).await.unwrap();
 //         for (i, object) in objects.iter().enumerate() {
 //             let mut buffer = Cursor::new(Vec::<u8>::new());
 //             println!("Archive: \n {:?}", archive);
 //             archive
-//                 .get_object(&repo, &i.to_string(), &mut buffer)
+//                 .get_object(&mut repo, &i.to_string(), &mut buffer)
 //                 .await
 //                 .unwrap();
 //             let buffer = buffer.into_inner();
@@ -80,7 +80,7 @@ fn put_drop_get_mem() {
         }
 
         {
-            let mut manifest = Manifest::load(&repo);
+            let mut manifest = Manifest::load(&mut repo);
             manifest.set_chunk_settings(repo.chunk_settings()).await;
             let mut archive = Archive::new("test");
             for (i, object) in objects.iter().enumerate() {
@@ -99,13 +99,13 @@ fn put_drop_get_mem() {
             println!("Manifest: \n {:?}", manifest);
         }
 
-        let mut manifest = Manifest::load(&repo);
-        let archive = manifest.archives().await[0].load(&repo).await.unwrap();
+        let mut manifest = Manifest::load(&mut repo);
+        let archive = manifest.archives().await[0].load(&mut repo).await.unwrap();
         for (i, object) in objects.iter().enumerate() {
             let mut buffer = Cursor::new(Vec::<u8>::new());
             println!("Archive: \n {:?}", archive);
             archive
-                .get_object(&repo, &i.to_string(), &mut buffer)
+                .get_object(&mut repo, &i.to_string(), &mut buffer)
                 .await
                 .unwrap();
             let buffer = buffer.into_inner();

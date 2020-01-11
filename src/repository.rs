@@ -140,7 +140,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub async fn write_raw(&self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_raw(&mut self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
         // Check if chunk exists
@@ -151,7 +151,7 @@ impl<T: Backend + 'static> Repository<T> {
             chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
             // Get highest segment and check to see if has enough space
-            let backend = &self.backend;
+            let backend = &mut self.backend;
             let location = backend.write_chunk(buff, chunk.get_id()).await?;
 
             self.backend
@@ -173,7 +173,7 @@ impl<T: Backend + 'static> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
-    pub async fn write_chunk(&self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
+    pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
         let (_, chunk) = self
             .pipeline
             .process(
@@ -187,7 +187,7 @@ impl<T: Backend + 'static> Repository<T> {
         self.write_raw(&chunk).await
     }
 
-    pub async fn write_chunks(&self, data: Vec<Vec<u8>>) -> Result<Vec<(ChunkID, bool)>> {
+    pub async fn write_chunks(&mut self, data: Vec<Vec<u8>>) -> Result<Vec<(ChunkID, bool)>> {
         let chunks = self
             .pipeline
             .process_multiple(
@@ -206,7 +206,7 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
-    pub async fn write_unpacked_chunk(&self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
         self.write_chunk_with_id(data.consuming_data(), id).await
     }
@@ -223,7 +223,11 @@ impl<T: Backend + 'static> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
-    pub async fn write_chunk_with_id(&self, data: Vec<u8>, id: ChunkID) -> Result<(ChunkID, bool)> {
+    pub async fn write_chunk_with_id(
+        &mut self,
+        data: Vec<u8>,
+        id: ChunkID,
+    ) -> Result<(ChunkID, bool)> {
         let chunk = self
             .pipeline
             .process_with_id(
@@ -247,7 +251,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
-    pub async fn read_chunk(&self, id: ChunkID) -> Result<Vec<u8>> {
+    pub async fn read_chunk(&mut self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id).await {
             let mut index = self.backend.get_index();
@@ -321,7 +325,7 @@ mod tests {
             let mut data3 = vec![0_u8; size as usize];
             thread_rng().fill_bytes(&mut data3);
 
-            let repo = get_repo_mem(key);
+            let mut repo = get_repo_mem(key);
             println!("Adding Chunks");
             let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
             let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
@@ -377,7 +381,7 @@ mod tests {
 
     //         let backend = FileSystem::new_test(&root_path);
 
-    //         let repo = Repository::new(
+    //         let mut repo = Repository::new(
     //             backend,
     //             Compression::ZStd { level: 1 },
     //             HMAC::SHA256,
@@ -401,7 +405,7 @@ mod tests {
         block_on(async {
             // Adding the same chunk to the repository twice shouldn't result in
             // two chunks in the repository
-            let repo = get_repo_mem(Key::random(32));
+            let mut repo = get_repo_mem(Key::random(32));
             assert_eq!(repo.count_chunk().await, 0);
             let data = [1_u8; 8192];
 

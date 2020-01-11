@@ -222,7 +222,7 @@ impl InternalSegmentHandler {
     /// Attempts to read a chunk from its associated segment
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let segment_id = location.segment_id;
-        let mut segment = self.open_segement_read(segment_id)?;
+        let segment = self.open_segement_read(segment_id)?;
         // FIXME: This implementation doesnt use the second argument, but still has it for legacy
         // reasons, this should be refactored out at some point, but for now we just feed it a 0
         segment.1.read_chunk(location.start, 0)

@@ -101,12 +101,12 @@ impl Backend for Mem {
         self.clone()
     }
 
-    async fn read_chunk(&self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let mut data = self.data.clone();
         data.read_chunk(location).await
     }
 
-    async fn write_chunk(&self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         let mut data = self.data.clone();
         data.write_chunk(chunk, id).await
     }

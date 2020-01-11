@@ -47,13 +47,13 @@ mod common;
 
 //         let listing = input_target.backup_listing();
 
-//         let mut manifest = Manifest::load(&repo);
+//         let mut manifest = Manifest::load(&mut repo);
 //         manifest.commit_archive(&mut repo, archive).await;
 //         repo.commit_index();
 
-//         let manifest = Manifest::load(&repo);
+//         let manifest = Manifest::load(&mut repo);
 //         let stored_archive = &manifest.archives()[0];
-//         let archive = stored_archive.load(&repo).await.unwrap();
+//         let archive = stored_archive.load(&mut repo).await.unwrap();
 
 //         let mut output_target =
 //             FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");
@@ -63,7 +63,7 @@ mod common;
 //         for path in paths {
 //             println!("Restoring: {}", path);
 //             output_target
-//                 .retrieve_object(&repo, &archive, &path)
+//                 .retrieve_object(&mut repo, &archive, &path)
 //                 .await
 //                 .unwrap();
 //         }
@@ -104,13 +104,13 @@ fn backup_restore_no_empty_dirs_mem() {
 
         let listing = input_target.backup_listing();
 
-        let mut manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&mut repo);
         manifest.commit_archive(&mut repo, archive).await;
 
-        let mut manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&mut repo);
         let stored_archives = &manifest.archives().await;
         let stored_archive = &stored_archives[0];
-        let archive = stored_archive.load(&repo).await.unwrap();
+        let archive = stored_archive.load(&mut repo).await.unwrap();
         println!("{:?}", archive);
 
         let mut output_target =
@@ -121,7 +121,7 @@ fn backup_restore_no_empty_dirs_mem() {
         for path in paths {
             println!("Restoring: {}", path);
             output_target
-                .retrieve_object(&repo, &archive, &path)
+                .retrieve_object(&mut repo, &archive, &path)
                 .await
                 .unwrap();
         }

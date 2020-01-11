@@ -41,7 +41,7 @@ pub struct StoredArchive {
 
 impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
-    pub async fn load(&self, repo: &Repository<impl Backend>) -> Result<Archive> {
+    pub async fn load(&self, repo: &mut Repository<impl Backend>) -> Result<Archive> {
         let bytes = repo.read_chunk(self.id).await?;
         let mut de = Deserializer::new(&bytes[..]);
         let archive: Archive =
@@ -223,7 +223,7 @@ impl Archive {
     #[cfg_attr(feature = "profile", flame)]
     pub async fn get_object(
         &self,
-        repository: &Repository<impl Backend>,
+        repository: &mut Repository<impl Backend>,
         path: &str,
         mut restore_to: impl Write,
     ) -> Result<()> {
@@ -263,7 +263,7 @@ impl Archive {
     /// Will write past the end of the last chunk ends after the extent
     pub async fn get_extent(
         &self,
-        repository: &Repository<impl Backend>,
+        repository: &mut Repository<impl Backend>,
         path: &str,
         extent: Extent,
         mut restore_to: impl Write,
@@ -308,7 +308,7 @@ impl Archive {
     /// Will not write to extents that are not specified
     pub async fn get_sparse_object(
         &self,
-        repository: &Repository<impl Backend>,
+        repository: &mut Repository<impl Backend>,
         path: &str,
         mut to_writers: Vec<(Extent, impl Write)>,
     ) -> Result<()> {
@@ -517,7 +517,7 @@ mod tests {
                     .seek(SeekFrom::Start(extent.start))
                     .expect("Out of bounds");
                 archive
-                    .get_extent(&repo, "test", *extent, &mut cursor)
+                    .get_extent(&mut repo, "test", *extent, &mut cursor)
                     .await
                     .expect("Archive Get Failed");
             }
@@ -583,13 +583,13 @@ mod tests {
 
             let mut restore_1 = Cursor::new(Vec::<u8>::new());
             archive_2
-                .get_object(&repo, "1", &mut restore_1)
+                .get_object(&mut repo, "1", &mut restore_1)
                 .await
                 .unwrap();
 
             let mut restore_2 = Cursor::new(Vec::<u8>::new());
             archive_1
-                .get_object(&repo, "2", &mut restore_2)
+                .get_object(&mut repo, "2", &mut restore_2)
                 .await
                 .unwrap();
 
@@ -628,13 +628,13 @@ mod tests {
             let stored_archive = archive.store(&mut repo).await;
 
             let archive = stored_archive
-                .load(&repo)
+                .load(&mut repo)
                 .await
                 .expect("Unable to load archive from repository");
 
             let mut obj_restore = Cursor::new(Vec::new());
             archive
-                .get_object(&repo, "1", &mut obj_restore)
+                .get_object(&mut repo, "1", &mut obj_restore)
                 .await
                 .expect("Unable to restore object from archive");
 
