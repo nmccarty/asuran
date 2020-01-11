@@ -79,6 +79,10 @@ impl InternalSegmentHandler {
     ) -> Result<InternalSegmentHandler> {
         // Construct the path of the data foler
         let data_path = repository_path.as_ref().join("data");
+        // Create it if it does not exist
+        if !data_path.exists() {
+            create_dir(&data_path)?;
+        }
 
         // Walk the data directory to find the higest numbered segment
         let max_segment = WalkDir::new(&data_path)

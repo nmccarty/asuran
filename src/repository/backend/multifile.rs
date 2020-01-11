@@ -34,10 +34,12 @@ impl MultiFile {
     ) -> Result<MultiFile> {
         let size_limit = 500_000_000;
         let segments_per_directory = 100;
-        let index_handle = index::Index::open(&path, &pool)?;
-        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key, &pool)?;
+        let index_handle = index::Index::open(&path, &pool).context("Failure opening index")?;
+        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key, &pool)
+            .context("Failure opening manifest")?;
         let segment_handle =
-            segment::SegmentHandler::open(&path, size_limit, segments_per_directory, &pool)?;
+            segment::SegmentHandler::open(&path, size_limit, segments_per_directory, &pool)
+                .context("Failure opening segment handler")?;
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {
             index_handle,
