@@ -7,11 +7,9 @@ use crate::repository::EncryptedKey;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::prelude::*;
-use futures::channel::oneshot;
 use serde::{Deserialize, Serialize};
 
 pub mod common;
-pub mod filesystem;
 pub mod mem;
 pub mod multifile;
 
@@ -19,32 +17,10 @@ pub mod multifile;
 ///
 /// This does not store the lenght, as segments are responsible for storing chunks in a format
 /// that does not require prior knowlege of the chunk lenght.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SegmentDescriptor {
     pub segment_id: u64,
     pub start: u64,
-}
-
-/// Segments are abstract blocks of chunks
-///
-/// Backends are free to arrange chunks within segements any way they wish,
-///
-/// Segement compaction must happen through writing new segments and deleting
-/// the old ones
-#[async_trait]
-pub trait Segment: Send {
-    /// Returns the free bytes in this segment
-    async fn free_bytes(&mut self) -> u64;
-    /// Reads a chunk from the segment into a bytestring
-    ///
-    /// Requires the start and end positions for the chunk
-    ///
-    /// Will return None if the read fails
-    async fn read_chunk(&mut self, start: u64, length: u64) -> Result<Vec<u8>>;
-    /// Writes a chunk to the segment
-    ///
-    /// Retuns Some(start,length), or None if writing fails
-    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)>;
 }
 
 /// Manifest trait
@@ -52,44 +28,38 @@ pub trait Segment: Send {
 /// Keeps track of which archives are in the repository.
 ///
 /// All writing methods should commit to hard storage prior to returning
+#[async_trait]
 pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive>;
     /// Timestamp of the last modification
-    fn last_modification(&self) -> DateTime<FixedOffset>;
+    async fn last_modification(&mut self) -> DateTime<FixedOffset>;
     /// Returns the default settings for new chunks in this repository
-    fn chunk_settings(&self) -> ChunkSettings;
+    async fn chunk_settings(&mut self) -> ChunkSettings;
     /// Returns an iterator over the list of archives in this repository, in reverse chronological
     /// order (newest first).
-    fn archive_iterator(&self) -> Self::Iterator;
+    async fn archive_iterator(&mut self) -> Self::Iterator;
 
     /// Sets the chunk settings in the repository
-    fn write_chunk_settings(&mut self, settings: ChunkSettings);
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings);
     /// Adds an archive to the manifest
-    fn write_archive(&mut self, archive: StoredArchive);
+    async fn write_archive(&mut self, archive: StoredArchive);
     /// Updates the timestamp without performing any other operations
-    fn touch(&mut self);
-}
-
-/// Holder type for `chunkIDs` in the (`segementID`, start, length) format
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct ChunkLocation {
-    pub segment_id: u64,
-    pub start: u64,
-    pub length: u64,
+    async fn touch(&mut self);
 }
 
 /// Index Trait
 ///
 /// Keeps track of where chunks are in the backend
+#[async_trait]
 pub trait Index: Send + Sync + Clone + std::fmt::Debug {
     /// Provides the location of a chunk in the repository
-    fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation>;
+    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     /// Sets the location of a chunk in the repository
-    fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()>;
+    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
     /// Commits the index
-    fn commit_index(&self) -> Result<()>;
+    async fn commit_index(&mut self) -> Result<()>;
     /// Returns the total number of chunks in the index
-    fn count_chunk(&self) -> usize;
+    async fn count_chunk(&mut self) -> usize;
 }
 
 /// Repository backend
@@ -102,43 +72,27 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 #[async_trait]
 pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     type Manifest: Manifest + 'static;
-    type Segment: Segment + 'static;
     type Index: Index + 'static;
-    /// Gets a particular segment
-    ///
-    /// Returns Err if it does not exist or can not be found
-    fn get_segment(&self, id: u64) -> Result<Self::Segment>;
-    /// Returns the id of the higest segment
-    fn highest_segment(&self) -> u64;
-    /// Creates a new segment
-    ///
-    /// Returns Some(id) with the segement if it can be created
-    /// Returns None if creation fails.
-    fn make_segment(&self) -> Result<u64>;
     /// Returns a view of the index of the repository
     fn get_index(&self) -> Self::Index;
     /// Writes the specified encrypted key to the backend
     ///
     /// Returns Err if the key could not be written
-    fn write_key(&self, key: &EncryptedKey) -> Result<()>;
+    async fn write_key(&self, key: &EncryptedKey) -> Result<()>;
     /// Attempts to read the encrypted key from the backend.
-    fn read_key(&self) -> Result<EncryptedKey>;
+    async fn read_key(&self) -> Result<EncryptedKey>;
     /// Returns a view of this respository's manifest
     fn get_manifest(&self) -> Self::Manifest;
     /// Starts reading a chunk from the backend
     ///
     /// The chunk will be written to the oneshot once reading is complete
-    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>>;
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>>;
     /// Starts writing a chunk to the backend
     ///
     /// A segment descriptor describing it will be written to oneshot once reading is complete
     ///
     /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
-    async fn write_chunk(
-        &self,
-        chunk: Vec<u8>,
-        id: ChunkID,
-    ) -> oneshot::Receiver<Result<SegmentDescriptor>>;
+    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor>;
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

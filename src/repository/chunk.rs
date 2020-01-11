@@ -286,8 +286,6 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
-    use tempfile::{tempdir, TempDir};
 
     fn chunk_with_settings(compression: Compression, encryption: Encryption, hmac: HMAC) {
         let data_string =

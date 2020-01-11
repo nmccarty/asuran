@@ -2,9 +2,8 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
-use futures::channel::oneshot;
+use async_std::sync::RwLock;
 use futures::executor::ThreadPool;
-use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
@@ -13,11 +12,10 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct Mem {
     data: common::TaskedSegment<Cursor<Vec<u8>>>,
-    index: Arc<RwLock<HashMap<ChunkID, ChunkLocation>>>,
+    index: Arc<RwLock<HashMap<ChunkID, SegmentDescriptor>>>,
     manifest: Arc<RwLock<Vec<StoredArchive>>>,
     chunk_settings: Arc<RwLock<ChunkSettings>>,
     key: Arc<RwLock<Option<EncryptedKey>>>,
-    count: Arc<Mutex<u64>>,
     len: u64,
 }
 
@@ -31,84 +29,68 @@ impl Mem {
             manifest: Arc::new(RwLock::new(Vec::new())),
             chunk_settings: Arc::new(RwLock::new(chunk_settings)),
             key: Arc::new(RwLock::new(None)),
-            count: Arc::new(Mutex::new(0)),
             len: num_cpus::get() as u64,
         }
     }
 }
-
+#[async_trait]
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
-    fn last_modification(&self) -> DateTime<FixedOffset> {
-        let manifest = self.manifest.read();
+    async fn last_modification(&mut self) -> DateTime<FixedOffset> {
+        let manifest = self.manifest.read().await;
         let archive = &manifest[manifest.len() - 1];
         archive.timestamp()
     }
-    fn chunk_settings(&self) -> ChunkSettings {
-        *self.chunk_settings.read()
+    async fn chunk_settings(&mut self) -> ChunkSettings {
+        *self.chunk_settings.read().await
     }
-    fn archive_iterator(&self) -> Self::Iterator {
-        self.manifest.read().clone().into_iter()
+    async fn archive_iterator(&mut self) -> Self::Iterator {
+        self.manifest.read().await.clone().into_iter()
     }
-    fn write_chunk_settings(&mut self, settings: ChunkSettings) {
-        let mut x = self.chunk_settings.write();
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+        let mut x = self.chunk_settings.write().await;
         *x = settings;
     }
-    fn write_archive(&mut self, archive: StoredArchive) {
-        let mut manifest = self.manifest.write();
+    async fn write_archive(&mut self, archive: StoredArchive) {
+        let mut manifest = self.manifest.write().await;
         manifest.push(archive);
     }
     /// This implementation reconstructs the last modified time, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
-    fn touch(&mut self) {}
+    async fn touch(&mut self) {}
 }
-
+#[async_trait]
 impl Index for Mem {
-    fn lookup_chunk(&self, id: ChunkID) -> Option<ChunkLocation> {
-        self.index.read().get(&id).copied()
+    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
+        self.index.read().await.get(&id).copied()
     }
-    fn set_chunk(&self, id: ChunkID, location: ChunkLocation) -> Result<()> {
-        self.index.write().insert(id, location);
+    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
+        self.index.write().await.insert(id, location);
         Ok(())
     }
     /// This format is not persistant so this does nothing
-    fn commit_index(&self) -> Result<()> {
+    async fn commit_index(&mut self) -> Result<()> {
         Ok(())
     }
-    fn count_chunk(&self) -> usize {
-        self.index.read().len()
+    async fn count_chunk(&mut self) -> usize {
+        self.index.read().await.len()
     }
 }
 
 #[async_trait]
 impl Backend for Mem {
     type Manifest = Self;
-    type Segment = common::TaskedSegment<Cursor<Vec<u8>>>;
     type Index = Self;
-    /// Ignores the id
-    fn get_segment(&self, _id: u64) -> Result<Self::Segment> {
-        Ok(self.data.clone())
-    }
-    /// Returns a random number in [0,5)
-    #[cfg_attr(tarpaulin, skip)]
-    fn highest_segment(&self) -> u64 {
-        0
-    }
-    /// Only has one segement, so this does nothing
-    #[cfg_attr(tarpaulin, skip)]
-    fn make_segment(&self) -> Result<u64> {
-        Ok(self.highest_segment())
-    }
     fn get_index(&self) -> Self::Index {
         self.clone()
     }
-    fn write_key(&self, key: &EncryptedKey) -> Result<()> {
-        let mut skey = self.key.write();
+    async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
+        let mut skey = self.key.write().await;
         *skey = Some(key.clone());
         Ok(())
     }
-    fn read_key(&self) -> Result<EncryptedKey> {
-        let key: &Option<EncryptedKey> = &self.key.read();
+    async fn read_key(&self) -> Result<EncryptedKey> {
+        let key: &Option<EncryptedKey> = &*self.key.read().await;
         if let Some(k) = key {
             Ok(k.clone())
         } else {
@@ -119,16 +101,12 @@ impl Backend for Mem {
         self.clone()
     }
 
-    async fn read_chunk(&self, location: SegmentDescriptor) -> oneshot::Receiver<Result<Vec<u8>>> {
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let mut data = self.data.clone();
         data.read_chunk(location).await
     }
 
-    async fn write_chunk(
-        &self,
-        chunk: Vec<u8>,
-        id: ChunkID,
-    ) -> oneshot::Receiver<Result<SegmentDescriptor>> {
+    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         let mut data = self.data.clone();
         data.write_chunk(chunk, id).await
     }
@@ -138,27 +116,32 @@ impl Backend for Mem {
 mod tests {
     use super::*;
     use crate::repository::*;
+    use futures::executor::block_on;
 
     /// Makes sure accessing an unset key panics
     #[test]
     #[should_panic]
     fn bad_key_access() {
-        let pool = ThreadPool::new().unwrap();
-        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-        backend.read_key().unwrap();
+        block_on(async {
+            let pool = ThreadPool::new().unwrap();
+            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
+            backend.read_key().await.unwrap();
+        });
     }
 
     /// Checks to make sure setting and retriving a key works
     #[test]
     fn key_sanity() {
-        let pool = ThreadPool::new().unwrap();
-        let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-        let key = Key::random(32);
-        let key_key = [0_u8; 128];
-        let encrypted_key =
-            EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-        backend.write_key(&encrypted_key);
-        let output = backend.read_key().unwrap().decrypt(&key_key).unwrap();
-        assert_eq!(key, output);
+        block_on(async {
+            let pool = ThreadPool::new().unwrap();
+            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
+            let key = Key::random(32);
+            let key_key = [0_u8; 128];
+            let encrypted_key =
+                EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
+            backend.write_key(&encrypted_key).await.unwrap();
+            let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
+            assert_eq!(key, output);
+        });
     }
 }

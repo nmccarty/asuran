@@ -89,7 +89,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// Retrives objects from the stub-namespaces of the namespace of the object provided
     async fn raw_retrieve_object<B: Backend>(
         &self,
-        repo: &Repository<B>,
+        repo: &mut Repository<B>,
         archive: &Archive,
         path: &str,
         objects: HashMap<String, RestoreObject<T>>,
@@ -106,7 +106,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
             // an empty object
             if range_count == 1 {
                 let object = ranges.remove(0).object;
-                archive.get_object(&repo, &path, object).await?;
+                archive.get_object(repo, &path, object).await?;
             // This used to be a if range count > 1, this may cause issues
             } else {
                 let mut writers: Vec<(Extent, T)> = Vec::new();
@@ -118,7 +118,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
                     let object = object.object;
                     writers.push((extent, object));
                 }
-                archive.get_sparse_object(&repo, &path, writers).await?;
+                archive.get_sparse_object(repo, &path, writers).await?;
             }
         }
         Ok(())
@@ -128,7 +128,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// for you.
     async fn retrieve_object<B: Backend>(
         &self,
-        repo: &Repository<B>,
+        repo: &mut Repository<B>,
         archive: &Archive,
         path: &str,
     ) -> Result<()> {

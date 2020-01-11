@@ -132,8 +132,6 @@ mod tests {
     use super::*;
     use dir_diff;
     use std::fs::{create_dir, File};
-    use std::process::Command;
-    use std::str;
     use tempfile::{tempdir, TempDir};
 
     fn make_test_directory() -> TempDir {
@@ -192,8 +190,8 @@ mod tests {
             output_target.restore_object(&entry);
         }
 
-        let input_path = input_dir.path().display().to_string();
-        let output_path = output_dir.path().display().to_string();
+        let _input_path = input_dir.path().display().to_string();
+        let _output_path = output_dir.path().display().to_string();
 
         assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
     }

@@ -23,7 +23,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
         let repo_root = tempdir().unwrap();
         let repo_root_path = repo_root.path().to_str().unwrap();
         let key = Key::random(32);
-        let mut repo = common::get_repo_bare(repo_root_path, key);
+        let (mut repo, _pool) = common::get_repo_bare(repo_root_path, key);
         let slicer: FastCDC<Empty> = FastCDC::new_defaults();
         let chunker = Chunker::new(slicer.copy_settings());
 
@@ -47,13 +47,13 @@ fn backup_restore_no_empty_dirs_filesystem() {
 
         let listing = input_target.backup_listing();
 
-        let mut manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&mut repo);
         manifest.commit_archive(&mut repo, archive).await;
-        repo.commit_index();
+        repo.commit_index().await;
 
-        let manifest = Manifest::load(&repo);
-        let stored_archive = &manifest.archives()[0];
-        let archive = stored_archive.load(&repo).await.unwrap();
+        let mut manifest = Manifest::load(&mut repo);
+        let stored_archive = &manifest.archives().await[0];
+        let archive = stored_archive.load(&mut repo).await.unwrap();
 
         let mut output_target =
             FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");
@@ -63,12 +63,13 @@ fn backup_restore_no_empty_dirs_filesystem() {
         for path in paths {
             println!("Restoring: {}", path);
             output_target
-                .retrieve_object(&repo, &archive, &path)
+                .retrieve_object(&mut repo, &archive, &path)
                 .await
                 .unwrap();
         }
 
-        assert!(!dir_diff::is_different(&input_dir, &output_dir).unwrap())
+        assert!(!dir_diff::is_different(&input_dir, &output_dir).unwrap());
+        std::mem::drop(repo);
     });
 }
 
@@ -104,12 +105,13 @@ fn backup_restore_no_empty_dirs_mem() {
 
         let listing = input_target.backup_listing();
 
-        let mut manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&mut repo);
         manifest.commit_archive(&mut repo, archive).await;
 
-        let manifest = Manifest::load(&repo);
-        let stored_archive = &manifest.archives()[0];
-        let archive = stored_archive.load(&repo).await.unwrap();
+        let mut manifest = Manifest::load(&mut repo);
+        let stored_archives = &manifest.archives().await;
+        let stored_archive = &stored_archives[0];
+        let archive = stored_archive.load(&mut repo).await.unwrap();
         println!("{:?}", archive);
 
         let mut output_target =
@@ -120,7 +122,7 @@ fn backup_restore_no_empty_dirs_mem() {
         for path in paths {
             println!("Restoring: {}", path);
             output_target
-                .retrieve_object(&repo, &archive, &path)
+                .retrieve_object(&mut repo, &archive, &path)
                 .await
                 .unwrap();
         }

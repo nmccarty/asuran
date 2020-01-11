@@ -43,13 +43,13 @@ impl<T: Backend> Manifest<T> {
     }
 
     /// Set the Chunk Settings used by the repository
-    pub fn set_chunk_settings(&mut self, settings: ChunkSettings) {
-        self.internal_manifest.write_chunk_settings(settings);
+    pub async fn set_chunk_settings(&mut self, settings: ChunkSettings) {
+        self.internal_manifest.write_chunk_settings(settings).await;
     }
 
     /// Gets the default Chunk Settings for the repository
-    pub fn chunk_settings(&self) -> ChunkSettings {
-        self.internal_manifest.chunk_settings()
+    pub async fn chunk_settings(&mut self) -> ChunkSettings {
+        self.internal_manifest.chunk_settings().await
     }
 
     /// Commits an archive to the manifest, then the manifest to the repository
@@ -61,20 +61,20 @@ impl<T: Backend> Manifest<T> {
     /// Will panic if commiting the archive to the repository fails
     pub async fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
         let stored_archive = archive.store(repo).await;
-        self.internal_manifest.write_archive(stored_archive);
-        repo.commit_index();
+        self.internal_manifest.write_archive(stored_archive).await;
+        repo.commit_index().await;
     }
 
     /// Returns a copy of the list of archives in this repository
     ///
     /// Theses can be converted into full archives with StoredArchive::load
-    pub fn archives(&self) -> Vec<StoredArchive> {
-        self.internal_manifest.archive_iterator().collect()
+    pub async fn archives(&mut self) -> Vec<StoredArchive> {
+        self.internal_manifest.archive_iterator().await.collect()
     }
 
     /// Provides the timestamp of the manifest's last modification
-    pub fn timestamp(&self) -> DateTime<FixedOffset> {
-        self.internal_manifest.last_modification()
+    pub async fn timestamp(&mut self) -> DateTime<FixedOffset> {
+        self.internal_manifest.last_modification().await
     }
 }
 
@@ -82,46 +82,51 @@ impl<T: Backend> Manifest<T> {
 mod tests {
     use super::*;
     use crate::repository::*;
+    use futures::executor::block_on;
     use futures::executor::ThreadPool;
 
     #[test]
     fn chunk_settings_sanity() {
-        let settings = ChunkSettings {
-            encryption: Encryption::NoEncryption,
-            compression: Compression::NoCompression,
-            hmac: HMAC::Blake2b,
-        };
+        block_on(async {
+            let settings = ChunkSettings {
+                encryption: Encryption::NoEncryption,
+                compression: Compression::NoCompression,
+                hmac: HMAC::Blake2b,
+            };
 
-        let pool = ThreadPool::new().unwrap();
-        let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
-        let key = Key::random(32);
-        let repo = Repository::with(backend, settings, key, pool);
-        let mut manifest = Manifest::load(&repo);
+            let pool = ThreadPool::new().unwrap();
+            let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
+            let key = Key::random(32);
+            let repo = Repository::with(backend, settings, key, pool);
+            let mut manifest = Manifest::load(&repo);
 
-        manifest.set_chunk_settings(settings);
-        let new_settings = manifest.chunk_settings();
+            manifest.set_chunk_settings(settings).await;
+            let new_settings = manifest.chunk_settings().await;
 
-        assert_eq!(settings, new_settings);
+            assert_eq!(settings, new_settings);
+        });
     }
 
     #[test]
     fn new_archive_updates_time() {
-        let settings = ChunkSettings::lightweight();
-        let pool = ThreadPool::new().unwrap();
-        let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
-        let key = Key::random(32);
-        let repo = Repository::with(backend.clone(), settings, key, pool);
+        block_on(async {
+            let settings = ChunkSettings::lightweight();
+            let pool = ThreadPool::new().unwrap();
+            let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
+            let key = Key::random(32);
+            let repo = Repository::with(backend.clone(), settings, key, pool);
 
-        let mut manifest = Manifest::load(&repo);
+            let mut manifest = Manifest::load(&repo);
 
-        let dummy1 = StoredArchive::dummy_archive();
-        backend.get_manifest().write_archive(dummy1);
-        let time1 = manifest.timestamp();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        let dummy2 = StoredArchive::dummy_archive();
-        backend.get_manifest().write_archive(dummy2);
-        let time2 = manifest.timestamp();
+            let dummy1 = StoredArchive::dummy_archive();
+            backend.get_manifest().write_archive(dummy1).await;
+            let time1 = manifest.timestamp().await;
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            let dummy2 = StoredArchive::dummy_archive();
+            backend.get_manifest().write_archive(dummy2).await;
+            let time2 = manifest.timestamp().await;
 
-        assert!(time2 > time1);
+            assert!(time2 > time1);
+        });
     }
 }
