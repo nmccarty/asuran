@@ -192,7 +192,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         self.size_limit - end
     }
 
-    async fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
+    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
         let data = tx
@@ -201,7 +201,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         Ok(data)
     }
 
-    async fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
+    pub fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
         let tx = Transaction::encode_insert(chunk.to_vec(), id);
         let start = self.handle.seek(SeekFrom::End(0))?;
         rpms::encode::write(&mut self.handle, &tx)?;
@@ -247,12 +247,12 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
             while let Some(command) = rx.next().await {
                 match command {
                     SegmentCommand::Write(data, id, ret) => {
-                        let res = segment.write_chunk(&data[..], id).await;
+                        let res = segment.write_chunk(&data[..], id);
                         let out = res.map(|(start, _)| SegmentDescriptor { segment_id, start });
                         ret.send(out).unwrap();
                     }
                     SegmentCommand::Read(location, ret) => {
-                        let chunk = segment.read_chunk(location.start, 0).await;
+                        let chunk = segment.read_chunk(location.start, 0);
                         ret.send(chunk).unwrap();
                     }
                     SegmentCommand::Stats(ret) => {

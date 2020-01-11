@@ -6,6 +6,7 @@ use async_trait::async_trait;
 
 pub mod index;
 pub mod manifest;
+pub mod segment;
 
 #[derive(Debug, Clone)]
 struct MultiFile {}
