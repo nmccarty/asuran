@@ -4,6 +4,11 @@ use crate::repository::backend::SegmentDescriptor;
 use crate::repository::ChunkID;
 
 use anyhow::{anyhow, Context, Result};
+use futures::channel::mpsc;
+use futures::channel::oneshot;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use futures::task::{Spawn, SpawnExt};
 use lru::LruCache;
 use std::fs::{create_dir, File};
 use std::path::{Path, PathBuf};
@@ -245,5 +250,79 @@ impl InternalSegmentHandler {
             self.current_segment = None
         }
         Ok(descriptor)
+    }
+}
+
+enum SegmentHandlerCommand {
+    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
+    WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+}
+
+#[derive(Clone)]
+pub struct SegmentHandler {
+    input: mpsc::Sender<SegmentHandlerCommand>,
+    path: String,
+}
+
+/// Segment handler with lock free multithreading
+///
+/// # Warnings
+///
+/// 1. In order to ensure file locks are freed and all data is written to disk, you must ensure your
+///    executor runs all futures to completion before your program terminates
+impl SegmentHandler {
+    /// Opens a segmenthandler, creating the data directory and the inital segment if it does not exist
+    pub fn open(
+        repository_path: impl AsRef<Path>,
+        size_limit: u64,
+        segments_per_directory: u64,
+        pool: impl Spawn,
+    ) -> Result<SegmentHandler> {
+        // Create the internal handler
+        let mut handler =
+            InternalSegmentHandler::open(repository_path, size_limit, segments_per_directory)?;
+        // get the path from it
+        let path = handler.path.to_str().unwrap().to_string();
+        // Create the communication channel and open the event processing loop in its own task
+        let (input, mut output) = mpsc::channel(100);
+        pool.spawn(async move {
+            while let Some(command) = output.next().await {
+                match command {
+                    SegmentHandlerCommand::ReadChunk(location, ret) => {
+                        ret.send(handler.read_chunk(location)).unwrap();
+                    }
+                    SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
+                        ret.send(handler.write_chunk(&chunk, id)).unwrap();
+                    }
+                }
+            }
+        })
+        .expect("Failed to spawn segment handler task");
+
+        Ok(SegmentHandler { input, path })
+    }
+
+    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+        let (input, output) = oneshot::channel();
+        self.input
+            .send(SegmentHandlerCommand::ReadChunk(location, input))
+            .await
+            .unwrap();
+        output.await.unwrap()
+    }
+
+    pub async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+        let (input, output) = oneshot::channel();
+        self.input
+            .send(SegmentHandlerCommand::WriteChunk(chunk, id, input))
+            .await
+            .unwrap();
+        output.await.unwrap()
+    }
+}
+
+impl std::fmt::Debug for SegmentHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SegmentHandler: {:?}", self.path)
     }
 }
