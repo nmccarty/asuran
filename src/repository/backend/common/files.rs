@@ -63,13 +63,17 @@ impl DerefMut for LockedFile {
 
 impl Drop for LockedFile {
     fn drop(&mut self) {
-        // Delete the lock file
-        remove_file(&self.lock_file_path).unwrap_or_else(|_| {
-            panic!(
-                "Unable to delete lock file for {:?}, something went wrong",
-                self.path
-            )
-        });
+        // Check to see if the lock file exists before doing anything, if it is already gone (i.e.
+        // if it was in a now dropped tempdir) we dont need to do anything
+        if self.lock_file_path.exists() {
+            // Delete the lock file
+            remove_file(&self.lock_file_path).unwrap_or_else(|_| {
+                panic!(
+                    "Unable to delete lock file for {:?}, something went wrong",
+                    self.path
+                )
+            });
+        }
     }
 }
 
