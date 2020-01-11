@@ -131,7 +131,7 @@ pages:
   stage: doc
   image: "thatonelutenist/rust-nathan:latest"
   script:
-    - cargo doc --no-deps
+    - cargo doc --no-deps --document-private-items
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
   artifacts:
