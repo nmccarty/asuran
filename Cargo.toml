@@ -2,7 +2,7 @@
 name = "libasuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "MIT"
-version = "0.0.2"
+version = "0.0.3"
 repository = "https://gitlab.com/asuran-rs/libasuran/"
 documentation = "https://docs.rs/crate/libasuran"
 homepage = "https://asuran.rs"
