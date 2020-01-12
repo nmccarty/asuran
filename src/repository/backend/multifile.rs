@@ -48,6 +48,17 @@ impl MultiFile {
             path,
         })
     }
+
+    /// Reads the encrypted key off the disk
+    ///
+    /// Does not require that the repository be opened first
+    ///
+    /// Note: this path is the repository root path, not the key path
+    pub fn read_key(path: impl AsRef<Path>) -> Result<EncryptedKey> {
+        let key_path = path.as_ref().join("key");
+        let file = File::open(&key_path)?;
+        rmps::decode::from_read(&file).context("Unable to deserialize key")
+    }
 }
 
 #[async_trait]
