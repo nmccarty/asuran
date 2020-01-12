@@ -39,17 +39,12 @@ test:test:windows:
   script:
     - rustc --version
     - cargo --version
-    - cargo junit --name windows.xml
+    - cargo test 
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
       - ~/.cargo
       - target
-  artifacts:
-    paths:
-      - windows.xml
-    reports:
-      junit: windows.xml
   tags:
     - windows
 
