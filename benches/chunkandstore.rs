@@ -28,7 +28,7 @@ async fn slice_and_store<'a>(
         buffer.push(slice);
         if count >= size {
             let old_buffer = std::mem::replace(&mut buffer, Vec::new());
-            let repo = repo.clone();
+            let mut repo = repo.clone();
 
             futs.push(
                 pool.spawn_with_handle(async move { repo.write_chunks(old_buffer).await })
