@@ -70,7 +70,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
         archive: &Archive,
         path: String,
     ) -> Result<()> {
-        let objects = self.backup_object(&path);
+        let objects = self.backup_object(&path).await;
         self.raw_store_object(repo, chunker, archive, path, objects)
             .await
     }
@@ -132,7 +132,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
         archive: &Archive,
         path: &str,
     ) -> Result<()> {
-        let objects = self.restore_object(path);
+        let objects = self.restore_object(path).await;
         self.raw_retrieve_object(repo, archive, path, objects).await
     }
 }

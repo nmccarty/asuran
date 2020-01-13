@@ -2,6 +2,7 @@ pub mod filesystem;
 
 pub use filesystem::FileSystemTarget;
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 
@@ -126,6 +127,7 @@ impl<T: Write> RestoreObject<T> {
 /// As the work of commiting objects to an archive may be split among several
 /// threads, it is important that the target use a shared state among clones
 /// and be tread safe
+#[async_trait]
 pub trait BackupTarget<T: Read>: Clone + Send + Sync {
     /// Returns a list of object paths in the backend
     ///
@@ -133,7 +135,7 @@ pub trait BackupTarget<T: Read>: Clone + Send + Sync {
     /// These paths are treated like file paths, and usually will be filepaths, but
     /// are not required to represent actual file locations, instead they simply define
     /// a hierarchy of objects.
-    fn backup_paths(&self) -> Vec<String>;
+    async fn backup_paths(&self) -> Vec<String>;
 
     /// Takes a path and returns a reader for the path this object represents
     ///
@@ -146,11 +148,11 @@ pub trait BackupTarget<T: Read>: Clone + Send + Sync {
     /// Additional pieces of metatdata, such as filesystem permissions
     /// should be stored in a namespace roughly matching the path of the
     /// datastructure that represents them, e.g. filesystem:permissions:
-    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<T>>;
+    async fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<T>>;
 
     /// Returns a serialized listing that should be stored in an archive at
     /// archive:listing
-    fn backup_listing(&self) -> Vec<u8>;
+    async fn backup_listing(&self) -> Vec<u8>;
 }
 
 /// Collection of methods that a restore target has to implement in order for a
@@ -159,17 +161,18 @@ pub trait BackupTarget<T: Read>: Clone + Send + Sync {
 ///
 /// As the work of restoring an archive should be split among serveral threads,
 /// it is important that targets be thread-aware and thread safe.Into
+#[async_trait]
 pub trait RestoreTarget<T: Write>: Clone + Send + Sync {
     /// Loads an object listing and creates a new restore target from it
     ///
     /// Will return None if deserializing the listing fails.
-    fn load_listing(listing: &[u8]) -> Option<Self>;
+    async fn load_listing(listing: &[u8]) -> Option<Self>;
 
     /// Takes an object path
     ///
     /// Returns a hashmap, keyed by namespace, of the various parts of this object
-    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<T>>;
+    async fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<T>>;
 
     /// Provides a list of the path strings
-    fn restore_listing(&self) -> Vec<String>;
+    async fn restore_listing(&self) -> Vec<String>;
 }

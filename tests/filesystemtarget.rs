@@ -30,7 +30,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
         let archive = Archive::new("test");
 
         let input_target = FileSystemTarget::new(input_dir.to_str().unwrap());
-        let paths = input_target.backup_paths();
+        let paths = input_target.backup_paths().await;
         for path in paths {
             println!("Backing up: {}", path);
             if fs::metadata(input_dir.join(Path::new(&path)))
@@ -45,7 +45,7 @@ fn backup_restore_no_empty_dirs_filesystem() {
             }
         }
 
-        let listing = input_target.backup_listing();
+        let listing = input_target.backup_listing().await;
 
         let mut manifest = Manifest::load(&mut repo);
         manifest.commit_archive(&mut repo, archive).await;
@@ -55,11 +55,12 @@ fn backup_restore_no_empty_dirs_filesystem() {
         let stored_archive = &manifest.archives().await[0];
         let archive = stored_archive.load(&mut repo).await.unwrap();
 
-        let mut output_target =
-            FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");
+        let mut output_target = FileSystemTarget::load_listing(&listing)
+            .await
+            .expect("Unable to reload listing");
         output_target.set_root_directory(&output_dir.to_str().unwrap());
         println!("Restoring to: {}", output_dir.to_str().unwrap());
-        let paths = output_target.restore_listing();
+        let paths = output_target.restore_listing().await;
         for path in paths {
             println!("Restoring: {}", path);
             output_target
@@ -88,7 +89,7 @@ fn backup_restore_no_empty_dirs_mem() {
         let archive = Archive::new("test");
 
         let input_target = FileSystemTarget::new(input_dir.to_str().unwrap());
-        let paths = input_target.backup_paths();
+        let paths = input_target.backup_paths().await;
         for path in paths {
             println!("Backing up: {}", path);
             if fs::metadata(input_dir.join(Path::new(&path)))
@@ -103,7 +104,7 @@ fn backup_restore_no_empty_dirs_mem() {
             }
         }
 
-        let listing = input_target.backup_listing();
+        let listing = input_target.backup_listing().await;
 
         let mut manifest = Manifest::load(&mut repo);
         manifest.commit_archive(&mut repo, archive).await;
@@ -114,11 +115,12 @@ fn backup_restore_no_empty_dirs_mem() {
         let archive = stored_archive.load(&mut repo).await.unwrap();
         println!("{:?}", archive);
 
-        let mut output_target =
-            FileSystemTarget::load_listing(&listing).expect("Unable to reload listing");
+        let mut output_target = FileSystemTarget::load_listing(&listing)
+            .await
+            .expect("Unable to reload listing");
         output_target.set_root_directory(&output_dir.to_str().unwrap());
         println!("Restoring to: {}", output_dir.to_str().unwrap());
-        let paths = output_target.restore_listing();
+        let paths = output_target.restore_listing().await;
         for path in paths {
             println!("Restoring: {}", path);
             output_target

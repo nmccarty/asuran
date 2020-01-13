@@ -46,7 +46,7 @@ impl StoredArchive {
         let mut de = Deserializer::new(&bytes[..]);
         let dumb_archive: InactiveArchive =
             Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
-        let archive = dumb_archive.to_archive();
+        let archive = dumb_archive.into_archive();
         Ok(archive)
     }
 
@@ -116,7 +116,7 @@ pub struct InactiveArchive {
 }
 
 impl InactiveArchive {
-    pub fn to_archive(self) -> Archive {
+    pub fn into_archive(self) -> Archive {
         Archive {
             name: self.name,
             objects: Arc::new(RwLock::new(self.objects)),

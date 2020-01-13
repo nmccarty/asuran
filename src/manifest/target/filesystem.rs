@@ -4,7 +4,8 @@ pub use metadata::*;
 
 use super::*;
 use crate::manifest::driver::*;
-use parking_lot::Mutex;
+use async_std::sync::Mutex;
+use async_trait::async_trait;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, metadata, File};
@@ -31,8 +32,9 @@ impl FileSystemTarget {
     }
 }
 
+#[async_trait]
 impl BackupTarget<File> for FileSystemTarget {
-    fn backup_paths(&self) -> Vec<String> {
+    async fn backup_paths(&self) -> Vec<String> {
         let mut output = Vec::new();
         for entry in WalkDir::new(&self.root_directory)
             .into_iter()
@@ -46,7 +48,7 @@ impl BackupTarget<File> for FileSystemTarget {
         output
     }
 
-    fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<File>> {
+    async fn backup_object(&self, path: &str) -> HashMap<String, BackupObject<File>> {
         let mut output = HashMap::new();
         // Get the actual path on the filesystem this refers to
         let root_path = Path::new(&self.root_directory);
@@ -70,13 +72,14 @@ impl BackupTarget<File> for FileSystemTarget {
         output.insert("".to_string(), file_object);
         self.listing
             .lock()
+            .await
             .push(rel_path.to_str().unwrap().to_string());
         output
     }
 
-    fn backup_listing(&self) -> Vec<u8> {
+    async fn backup_listing(&self) -> Vec<u8> {
         let mut buff = Vec::<u8>::new();
-        let listing = self.listing.lock();
+        let listing = self.listing.lock().await;
         let listing = Vec::clone(&listing);
         listing.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
@@ -84,8 +87,9 @@ impl BackupTarget<File> for FileSystemTarget {
     }
 }
 
+#[async_trait]
 impl RestoreTarget<File> for FileSystemTarget {
-    fn load_listing(listing: &[u8]) -> Option<FileSystemTarget> {
+    async fn load_listing(listing: &[u8]) -> Option<FileSystemTarget> {
         let mut de = Deserializer::new(listing);
         let listing: Vec<String> = Deserialize::deserialize(&mut de).ok()?;
         Some(FileSystemTarget {
@@ -94,7 +98,7 @@ impl RestoreTarget<File> for FileSystemTarget {
         })
     }
 
-    fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<File>> {
+    async fn restore_object(&self, path: &str) -> HashMap<String, RestoreObject<File>> {
         let mut output = HashMap::new();
         // Get the actual path on the filesystem this refers to
         let root_path = Path::new(&self.root_directory);
@@ -119,8 +123,8 @@ impl RestoreTarget<File> for FileSystemTarget {
         output
     }
 
-    fn restore_listing(&self) -> Vec<String> {
-        self.listing.lock().clone()
+    async fn restore_listing(&self) -> Vec<String> {
+        self.listing.lock().await.clone()
     }
 }
 
@@ -131,6 +135,7 @@ impl RestoreDriver<File> for FileSystemTarget {}
 mod tests {
     use super::*;
     use dir_diff;
+    use futures::executor::block_on;
     use std::fs::{create_dir, File};
     use tempfile::{tempdir, TempDir};
 
@@ -154,45 +159,48 @@ mod tests {
 
     #[test]
     fn backup_restore_structure() {
-        let input_dir = make_test_directory();
-        let root_path = input_dir.path().to_owned();
+        block_on(async {
+            let input_dir = make_test_directory();
+            let root_path = input_dir.path().to_owned();
 
-        let input_target = FileSystemTarget::new(&root_path.display().to_string());
+            let input_target = FileSystemTarget::new(&root_path.display().to_string());
 
-        for item in WalkDir::new(&root_path)
-            .into_iter()
-            .map(|e| e.unwrap())
-            .filter(|e| e.file_type().is_file())
-        {
-            let rel_path = item
-                .path()
-                .strip_prefix(&root_path)
-                .unwrap()
-                .display()
-                .to_string();
-            println!("Backing up: {}", &rel_path);
-            input_target.backup_object(&rel_path);
-        }
+            for item in WalkDir::new(&root_path)
+                .into_iter()
+                .map(|e| e.unwrap())
+                .filter(|e| e.file_type().is_file())
+            {
+                let rel_path = item
+                    .path()
+                    .strip_prefix(&root_path)
+                    .unwrap()
+                    .display()
+                    .to_string();
+                println!("Backing up: {}", &rel_path);
+                input_target.backup_object(&rel_path).await;
+            }
 
-        let listing = input_target.backup_listing();
+            let listing = input_target.backup_listing().await;
 
-        let output_dir = tempdir().unwrap();
+            let output_dir = tempdir().unwrap();
 
-        let mut output_target =
-            FileSystemTarget::load_listing(&listing).expect("Failed to unwrap packed listing");
-        output_target.set_root_directory(&output_dir.path().display().to_string());
+            let mut output_target = FileSystemTarget::load_listing(&listing)
+                .await
+                .expect("Failed to unwrap packed listing");
+            output_target.set_root_directory(&output_dir.path().display().to_string());
 
-        let output_listing = output_target.restore_listing();
-        for entry in output_listing {
-            println!();
-            println!("Restore listing:");
-            println!(" - {}", &entry);
-            output_target.restore_object(&entry);
-        }
+            let output_listing = output_target.restore_listing().await;
+            for entry in output_listing {
+                println!();
+                println!("Restore listing:");
+                println!(" - {}", &entry);
+                output_target.restore_object(&entry).await;
+            }
 
-        let _input_path = input_dir.path().display().to_string();
-        let _output_path = output_dir.path().display().to_string();
+            let _input_path = input_dir.path().display().to_string();
+            let _output_path = output_dir.path().display().to_string();
 
-        assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
+            assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
+        });
     }
 }
