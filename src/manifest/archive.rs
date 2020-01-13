@@ -3,8 +3,8 @@ use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
 use anyhow::Result;
+use async_std::sync::RwLock;
 use chrono::prelude::*;
-use parking_lot::RwLock;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -44,8 +44,9 @@ impl StoredArchive {
     pub async fn load(&self, repo: &mut Repository<impl Backend>) -> Result<Archive> {
         let bytes = repo.read_chunk(self.id).await?;
         let mut de = Deserializer::new(&bytes[..]);
-        let archive: Archive =
+        let dumb_archive: InactiveArchive =
             Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
+        let archive = dumb_archive.to_archive();
         Ok(archive)
     }
 
@@ -105,7 +106,36 @@ impl Ord for ChunkLocation {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+/// An inactive archive, used for serializing and deserializing
+#[derive(Serialize, Deserialize)]
+pub struct InactiveArchive {
+    name: String,
+    objects: HashMap<String, Vec<ChunkLocation>>,
+    namespace: Vec<String>,
+    timestamp: DateTime<FixedOffset>,
+}
+
+impl InactiveArchive {
+    pub fn to_archive(self) -> Archive {
+        Archive {
+            name: self.name,
+            objects: Arc::new(RwLock::new(self.objects)),
+            namespace: self.namespace,
+            timestamp: self.timestamp,
+        }
+    }
+
+    pub async fn from_archive(archive: Archive) -> InactiveArchive {
+        InactiveArchive {
+            name: archive.name,
+            objects: archive.objects.read().await.clone(),
+            namespace: archive.namespace,
+            timestamp: archive.timestamp,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 /// An active Archive
 pub struct Archive {
     /// The name of this archive
@@ -169,7 +199,7 @@ impl Archive {
         #[cfg(feature = "profile")]
         flame::end("Packing chunks");
 
-        let mut objects = self.objects.write();
+        let mut objects = self.objects.write().await;
 
         objects.insert(path.to_string(), locations);
 
@@ -204,16 +234,16 @@ impl Archive {
             }
         }
 
-        let mut objects = self.objects.write();
+        let mut objects = self.objects.write().await;
         objects.insert(path.to_string(), locations);
 
         Ok(())
     }
 
     /// Inserts an object into the archive without writing any bytes
-    pub fn put_empty(&mut self, path: &str) {
+    pub async fn put_empty(&mut self, path: &str) {
         let locations: Vec<ChunkLocation> = Vec::new();
-        let mut objects = self.objects.write();
+        let mut objects = self.objects.write().await;
         objects.insert(path.to_string(), locations);
     }
 
@@ -229,7 +259,7 @@ impl Archive {
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
-        let objects = self.objects.read();
+        let objects = self.objects.read().await;
         println!("{:?}", path);
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {
@@ -269,7 +299,7 @@ impl Archive {
         mut restore_to: impl Write,
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
-        let objects = self.objects.read();
+        let objects = self.objects.read().await;
 
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {
@@ -340,8 +370,10 @@ impl Archive {
     ///
     /// Returns the key of the serialized archive in the repository
     pub async fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
+        let dumb_archive = InactiveArchive::from_archive(self).await;
         let mut bytes = Vec::<u8>::new();
-        self.serialize(&mut Serializer::new(&mut bytes))
+        dumb_archive
+            .serialize(&mut Serializer::new(&mut bytes))
             .expect("Unable to serialize archive.");
 
         let id = repo
@@ -354,8 +386,8 @@ impl Archive {
 
         StoredArchive {
             id,
-            name: self.name,
-            timestamp: self.timestamp,
+            name: dumb_archive.name,
+            timestamp: dumb_archive.timestamp,
         }
     }
 

@@ -39,7 +39,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
             // Determine sparsity and load object into repository
             let range_count = ranges.len();
             if range_count == 0 {
-                archive.put_empty(&path);
+                archive.put_empty(&path).await;
             } else if range_count == 1 {
                 let object = ranges.remove(0).object;
                 archive.put_object(&chunker, repo, &path, object).await?;
