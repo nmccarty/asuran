@@ -79,7 +79,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
 /// Collection of abstract methods for moving data from a storage target to a reposiotry
 ///
 /// This trait provides resasonable default versions for you
-#[async_trait(?Send)]
+#[async_trait]
 pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// Retrives an object from the repository using the output from RestoreTarget::restore_object
     ///
