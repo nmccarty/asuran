@@ -110,6 +110,11 @@ impl Backend for Mem {
         let mut data = self.data.clone();
         data.write_chunk(chunk, id).await
     }
+
+    /// This backend does not persist, so a clean close is not required
+    ///
+    /// As such, we do nothing
+    async fn close(self) {}
 }
 
 #[cfg(test)]

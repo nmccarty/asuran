@@ -101,4 +101,10 @@ impl Backend for MultiFile {
     async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
         self.segment_handle.write_chunk(chunk, id).await
     }
+
+    /// Closes out the index, segment handler, and manifest cleanly, making sure all operations are
+    /// completed and all drop impls from inside the tasks are called
+    async fn close(self) {
+        todo!()
+    }
 }

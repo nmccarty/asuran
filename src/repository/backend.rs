@@ -91,8 +91,14 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     ///
     /// A segment descriptor describing it will be written to oneshot once reading is complete
     ///
-    /// This must be passed owned data because it will be sent into a task, so the caller has no control over drop time
+    /// This must be passed owned data because it will be sent into a task, so the caller has no
+    /// control over drop time
     async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor>;
+    /// Consumes the current backend handle, and does any work nessicary to close out the backend
+    /// properly
+    ///
+    /// This is seperate from Drop due to the current lack of async drop
+    async fn close(self);
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

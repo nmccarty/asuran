@@ -231,6 +231,7 @@ pub enum SegmentCommand {
     ),
     Read(SegmentDescriptor, channel::oneshot::Sender<Result<Vec<u8>>>),
     Stats(channel::oneshot::Sender<SegmentStats>),
+    Close(channel::oneshot::Sender<()>),
 }
 
 #[derive(Clone, Debug)]
@@ -244,6 +245,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
         let (tx, mut rx) = channel::mpsc::channel(100);
         pool.spawn_ok(async move {
             let mut segment = Segment::new(reader, size_limit).unwrap();
+            let mut final_ret = None;
             while let Some(command) = rx.next().await {
                 match command {
                     SegmentCommand::Write(data, id, ret) => {
@@ -262,8 +264,18 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
                         let stats = SegmentStats { size, free, quota };
                         ret.send(stats).unwrap();
                     }
+                    SegmentCommand::Close(ret) => {
+                        final_ret = Some(ret);
+                        break;
+                    }
                 }
             }
+            // Ensure that our internals are dropped before returning
+            std::mem::drop(segment);
+            std::mem::drop(rx);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
+            };
         });
         TaskedSegment {
             command_tx: tx,
@@ -296,6 +308,15 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
             .await
             .unwrap();
         rx
+    }
+
+    pub async fn close(&mut self) {
+        let (tx, rx) = channel::oneshot::channel();
+        self.command_tx
+            .send(SegmentCommand::Close(tx))
+            .await
+            .unwrap();
+        rx.await.unwrap();
     }
 }
 

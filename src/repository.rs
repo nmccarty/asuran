@@ -292,6 +292,14 @@ impl<T: Backend + 'static> Repository<T> {
     pub fn backend_manifest(&self) -> T::Manifest {
         self.backend.get_manifest()
     }
+
+    /// Performs any work that would normally be done in a drop impl, but needs to be done
+    /// asyncronsyly.
+    ///
+    /// Calls into the backend's implementation
+    pub async fn close(self) {
+        self.backend.close().await;
+    }
 }
 
 #[cfg(test)]
