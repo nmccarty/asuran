@@ -104,7 +104,9 @@ impl Backend for MultiFile {
 
     /// Closes out the index, segment handler, and manifest cleanly, making sure all operations are
     /// completed and all drop impls from inside the tasks are called
-    async fn close(self) {
-        todo!()
+    async fn close(mut self) {
+        self.index_handle.close().await;
+        self.manifest_handle.close().await;
+        self.segment_handle.close().await;
     }
 }

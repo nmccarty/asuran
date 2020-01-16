@@ -260,6 +260,7 @@ impl InternalSegmentHandler {
 enum SegmentHandlerCommand {
     ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
     WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    Close(oneshot::Sender<()>),
 }
 
 #[derive(Clone)]
@@ -290,6 +291,7 @@ impl SegmentHandler {
         // Create the communication channel and open the event processing loop in its own task
         let (input, mut output) = mpsc::channel(100);
         pool.spawn(async move {
+            let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
                     SegmentHandlerCommand::ReadChunk(location, ret) => {
@@ -298,7 +300,18 @@ impl SegmentHandler {
                     SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
                         ret.send(handler.write_chunk(&chunk, id)).unwrap();
                     }
+                    SegmentHandlerCommand::Close(ret) => {
+                        final_ret = Some(ret);
+                        break;
+                    }
                 }
+            }
+            // Make sure all internals are dropped before sending the signal to a possible close
+            // call
+            std::mem::drop(handler);
+            std::mem::drop(output);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
             }
         })
         .expect("Failed to spawn segment handler task");
@@ -322,6 +335,15 @@ impl SegmentHandler {
             .await
             .unwrap();
         output.await.unwrap()
+    }
+
+    pub async fn close(&mut self) {
+        let (input, output) = oneshot::channel();
+        self.input
+            .send(SegmentHandlerCommand::Close(input))
+            .await
+            .unwrap();
+        output.await.unwrap();
     }
 }
 

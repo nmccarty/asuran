@@ -120,6 +120,7 @@ enum IndexCommand {
     Set(ChunkID, SegmentDescriptor, oneshot::Sender<Result<()>>),
     Commit(oneshot::Sender<Result<()>>),
     Count(oneshot::Sender<usize>),
+    Close(oneshot::Sender<()>),
 }
 
 #[derive(Clone)]
@@ -172,6 +173,7 @@ impl Index {
         // Create the communication channel and open the event processing loop in it own task
         let (input, mut output) = mpsc::channel(100);
         pool.spawn(async move {
+            let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
                     IndexCommand::Lookup(id, ret) => {
@@ -193,8 +195,19 @@ impl Index {
                     IndexCommand::Commit(ret) => {
                         ret.send({ index.drain_changes() }).unwrap();
                     }
+                    IndexCommand::Close(ret) => {
+                        final_ret = Some(ret);
+                        break;
+                    }
                 }
             }
+            // Make sure that our internals are dropped before sending the completion signal to a
+            // possible close call
+            std::mem::drop(index);
+            std::mem::drop(output);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
+            };
         })
         .expect("Failed to spawn index task.");
 
@@ -202,6 +215,12 @@ impl Index {
             input,
             path: repository_path.as_ref().to_str().unwrap().to_string(),
         })
+    }
+
+    pub async fn close(&mut self) {
+        let (tx, rx) = oneshot::channel();
+        self.input.send(IndexCommand::Close(tx)).await.unwrap();
+        rx.await.unwrap();
     }
 }
 

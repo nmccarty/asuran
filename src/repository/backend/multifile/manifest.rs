@@ -283,6 +283,7 @@ enum ManifestCommand {
     ArchiveIterator(oneshot::Sender<std::vec::IntoIter<StoredArchive>>),
     WriteChunkSettings(ChunkSettings, oneshot::Sender<()>),
     WriteArchive(StoredArchive, oneshot::Sender<()>),
+    Close(oneshot::Sender<()>),
 }
 
 /// A message-passing handle to a running manifest
@@ -337,6 +338,7 @@ impl Manifest {
         let mut manifest = InternalManifest::open(repository_path.as_ref(), key, chunk_settings)?;
         let (input, mut output) = mpsc::channel(100);
         pool.spawn(async move {
+            let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
                     ManifestCommand::LastMod(ret) => {
@@ -356,8 +358,19 @@ impl Manifest {
                         manifest.write_archive(archive);
                         ret.send(()).unwrap();
                     }
+                    ManifestCommand::Close(ret) => {
+                        final_ret = Some(ret);
+                        break;
+                    }
                 }
             }
+            // Make sure that our internals are dropped before sending the signal to a possible
+            // close call
+            std::mem::drop(manifest);
+            std::mem::drop(output);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
+            };
         })
         .expect("Failed to spawn the manifest task");
 
@@ -370,6 +383,12 @@ impl Manifest {
                 .unwrap()
                 .to_string(),
         })
+    }
+
+    pub async fn close(&mut self) {
+        let (i, o) = oneshot::channel();
+        self.input.send(ManifestCommand::Close(i)).await.unwrap();
+        o.await.unwrap();
     }
 }
 
