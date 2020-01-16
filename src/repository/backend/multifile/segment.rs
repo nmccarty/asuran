@@ -208,6 +208,35 @@ impl InternalSegmentHandler {
             while self.segment_exists(self.highest_segment) {
                 self.highest_segment += 1;
             }
+
+            // First check the previous segment and return early if it is lockable
+            //
+            // FIXME: This is a janky fix for the library creating a new data file every time you
+            // open a repository with a multifile backend, this really needs to be rewritten to
+            // check for the first unlocked, non-full data file
+            //
+            // We do, however, skip this step if there are no segments
+            if self.highest_segment > 0 {
+                let segment_id = self.highest_segment - 1;
+                // Find the folder that the segment needs to go into, creating it if it does not exist
+                let folder_id = segment_id / self.segments_per_directory;
+                let folder_path = self.path.join(folder_id.to_string());
+                if !folder_path.exists() {
+                    create_dir(&folder_path)?;
+                }
+                // Construct the path for the segment proper, and construct the segment
+                let segment_path = folder_path.join(segment_id.to_string());
+                let segment_file = LockedFile::open_read_write(&segment_path)?;
+                if let Some(segment_file) = segment_file {
+                    let mut segment =
+                        SegmentPair(segment_id, Segment::new(segment_file, self.size_limit)?);
+                    if segment.1.size() < self.size_limit {
+                        self.current_segment = Some(segment);
+                        return Ok(self.current_segment.as_mut().unwrap());
+                    }
+                }
+            }
+
             let segment_id = self.highest_segment;
             // Find the folder that the segment needs to go into, creating it if it does not exist
             let folder_id = segment_id / self.segments_per_directory;
@@ -250,7 +279,7 @@ impl InternalSegmentHandler {
             start,
         };
         // If we have exceeded the max size, close out the current segment
-        if start + length >= self.size_limit {
+        if segment.1.size() >= self.size_limit {
             self.current_segment = None
         }
         Ok(descriptor)
