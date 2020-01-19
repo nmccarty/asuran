@@ -260,7 +260,6 @@ impl Archive {
         let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
         let objects = self.objects.read().await;
-        println!("{:?}", path);
         let locations = objects.get(&path.to_string()).cloned();
         let mut locations = if let Some(locations) = locations {
             locations
