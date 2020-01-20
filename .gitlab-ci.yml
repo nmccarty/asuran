@@ -68,6 +68,7 @@ test:coverage:
   stage: coverage
   image: "thatonelutenist/rust-nathan:latest"
   script:
+    - cargo check
     - cargo kcov
     - bash <(curl -s https://codecov.io/bash) -s target/cov
   cache:
