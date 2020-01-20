@@ -13,6 +13,7 @@ pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
     LZ4 { level: u32 },
+    LZMA { level: u32 },
 }
 
 impl Compression {
@@ -40,6 +41,7 @@ impl Compression {
                 result.unwrap();
                 cursor.into_inner()
             }
+            Compression::LZMA { level } => lzma::compress(&data[..], level).unwrap(),
         }
     }
 
@@ -63,6 +65,7 @@ impl Compression {
                 result?;
                 Ok(output.into_inner())
             }
+            Compression::LZMA { .. } => Ok(lzma::decompress(&data[..])?),
         }
     }
 }

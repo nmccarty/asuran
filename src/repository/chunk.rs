@@ -285,6 +285,7 @@ mod tests {
             Compression::NoCompression,
             Compression::ZStd { level: 1 },
             Compression::LZ4 { level: 1 },
+            Compression::LZMA { level: 1 },
         ];
         let encryptions = [
             Encryption::NoEncryption,
