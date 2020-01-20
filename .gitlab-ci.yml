@@ -1,24 +1,31 @@
 stages:
+  - format
+  - lint
   - test
+  - coverage
   - build
+  - bench
   - doc
 
-test:lint:clippy:
-  stage: test
-  image: "thatonelutenist/rust-nathan:latest"
-  script:
-    - cargo clippy -- -D warnings
-  tags:
-    - linux
-
 test:lint:rustfmt:
-  stage: test
+  stage: format
   image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo fmt --all -- --check
   tags:
     - linux
+  allow_failure: true
+    
+test:lint:clippy:
+  stage: lint
+  image: "thatonelutenist/rust-nathan:latest"
+  script:
+    - cargo clippy -- -D warnings
+  tags:
+    - linux
+  allow_failure: true
 
+    
 test:test:linux:
   stage: test
   image: "thatonelutenist/rust-nathan:latest"
@@ -33,6 +40,8 @@ test:test:linux:
       - target
   tags:
     - linux
+  needs: ["test:lint:rustfmt", "test:lint:clippy"]
+  allow_failure: true
 
 test:test:windows:
   stage: test
@@ -47,9 +56,11 @@ test:test:windows:
       - target
   tags:
     - windows
+  needs: ["test:lint:rustfmt", "test:lint:clippy"]
+  allow_failure: true
 
-test:tarpaulin:
-  stage: test
+test:coverage:
+  stage: coverage
   image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
@@ -60,7 +71,8 @@ test:tarpaulin:
       - ~/.cargo
       - target
   tags:
-    - linux 
+    - linux
+  needs: ["test:test:linux"]
 
 build:build:linux:
   stage: build
@@ -77,6 +89,7 @@ build:build:linux:
       - target
   tags:
     - linux
+  needs: ["test:test:linux"]
 
 build:build:windows:
   stage: build
@@ -92,9 +105,10 @@ build:build:windows:
       - target
   tags:
     - windows
+  needs: ["test:test:windows"]
 
 build:bench:linux:
-  stage: build
+  stage: bench
   image: "thatonelutenist/rust-nathan:latest"
   variables:
     RUSTFLAGS: "-C target-cpu=native"
@@ -107,9 +121,10 @@ build:bench:linux:
       - target
   tags:
     - linux
+  needs: ["build:build:linux"]
 
 build:bench:windows:
-  stage: build
+  stage: bench
   variables:
     RUSTFLAGS: "-C target-cpu=native"
   script:
@@ -121,6 +136,7 @@ build:bench:windows:
       - target
   tags:
     - windows
+  needs: ["build:build:windows"]
 
 pages:
   stage: doc
@@ -134,7 +150,5 @@ pages:
       - public
       - target
   tags:
-    - linux 
-
-
-
+    - linux
+  when: always
