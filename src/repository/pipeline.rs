@@ -4,6 +4,8 @@ use tokio::task;
 
 use crate::repository::{Chunk, ChunkID, Compression, Encryption, Key, HMAC};
 
+use tracing::{event, instrument, span, Level};
+
 #[derive(Debug)]
 struct Message {
     compression: Compression,
@@ -25,6 +27,7 @@ impl Pipeline {
     ///
     /// Gets a pass on too_many lines for now
     #[allow(clippy::too_many_lines)]
+    #[instrument]
     pub fn new() -> Pipeline {
         let base_threads = match num_cpus::get() / 2 {
             0 => 1,
@@ -39,13 +42,15 @@ impl Pipeline {
         let (compress_tx, enc_rx) = channel(50);
         let (enc_tx, mac_rx) = channel(50);
 
-        for _ in 0..light_count {
+        for i in 0..light_count {
             // ID stage
             let id_rx = id_rx.clone();
             let id_tx = id_tx.clone();
             let compress_tx = compress_tx.clone();
             let enc_tx = enc_tx.clone();
             task::spawn(async move {
+                let span = span!(Level::TRACE, "ID Stage", i);
+                let _enter = span.enter();
                 while let Some(input) = id_rx.receive().await {
                     let (data, mut message): (Vec<Vec<u8>>, Message) = input;
                     let mut cids = Vec::new();
@@ -53,6 +58,7 @@ impl Pipeline {
                         let id = message.hmac.id(&chunk[..], &message.key);
                         cids.push(ChunkID::new(&id[..]));
                     }
+                    event!(Level::DEBUG, ?cids);
                     // Go ahead and send the chunkIDs
                     message.ret_id.take().unwrap().send(cids.clone()).unwrap();
                     let compression = message.compression;
@@ -74,14 +80,17 @@ impl Pipeline {
             });
         }
 
-        for _ in 0..heavy_count {
+        for i in 0..heavy_count {
             let compress_rx = compress_rx.clone();
             let compress_tx = compress_tx.clone();
             let enc_tx = enc_tx.clone();
             // Compression stage
             task::spawn(async move {
+                let span = span!(Level::TRACE, "Compression Stage", i);
+                let _enter = span.enter();
                 while let Some(input) = compress_rx.receive().await {
                     let (cids, data, message) = input;
+                    event!(Level::DEBUG, ?cids);
                     let mut cdatas = Vec::new();
                     for chunk in data {
                         let cdata = message.compression.compress(chunk);
@@ -100,12 +109,15 @@ impl Pipeline {
         }
 
         // Encryption stage
-        for _ in 0..heavy_count {
+        for i in 0..heavy_count {
             let enc_rx = enc_rx.clone();
             let enc_tx = enc_tx.clone();
             task::spawn(async move {
+                let span = span!(Level::TRACE, "Encryption Stage", i);
+                let _enter = span.enter();
                 while let Some(input) = enc_rx.receive().await {
                     let (cids, data, message) = input;
+                    event!(Level::DEBUG, ?cids);
                     let mut edatas = Vec::new();
                     for chunk in data {
                         let edata = message.encryption.encrypt(&chunk[..], &message.key);
@@ -117,11 +129,14 @@ impl Pipeline {
         }
 
         // Mac stage
-        for _ in 0..light_count {
+        for i in 0..light_count {
             let mac_rx = mac_rx.clone();
             task::spawn(async move {
+                let span = span!(Level::TRACE, "Encryption Stage", i);
+                let _enter = span.enter();
                 while let Some(input) = mac_rx.receive().await {
                     let (cids, data, message) = input;
+                    event!(Level::DEBUG, ?cids);
                     let mut chunks = Vec::new();
                     for (index, chunk) in data.into_iter().enumerate() {
                         let mac = message.hmac.mac(&chunk, &message.key);
@@ -143,6 +158,7 @@ impl Pipeline {
         Pipeline { input, input_id }
     }
 
+    #[instrument(skip(self, data))]
     pub async fn process(
         &self,
         data: Vec<u8>,
@@ -169,6 +185,7 @@ impl Pipeline {
         )
     }
 
+    #[instrument(skip(self, data))]
     pub async fn process_with_id(
         &self,
         data: Vec<u8>,

@@ -53,6 +53,8 @@ pub use crate::repository::hmac::HMAC;
 pub use crate::repository::key::{EncryptedKey, Key};
 use crate::repository::pipeline::Pipeline;
 
+use tracing::instrument;
+
 #[cfg(feature = "profile")]
 use flamer::*;
 
@@ -86,6 +88,7 @@ pub struct Repository<T> {
 
 impl<T: Backend + 'static> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
+    #[instrument]
     pub fn new(
         backend: T,
         compression: Compression,
@@ -105,6 +108,7 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
+    #[instrument]
     pub fn with(backend: T, settings: ChunkSettings, key: Key) -> Repository<T> {
         let pipeline = Pipeline::new();
         Repository {
@@ -122,6 +126,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// This should be called every time an archive or manifest is written, at
     /// the very least
+    #[instrument(skip(self))]
     pub async fn commit_index(&self) {
         self.backend
             .get_index()
@@ -137,6 +142,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
+    #[instrument(skip(self))]
     pub async fn write_raw(&mut self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
 
@@ -170,6 +176,7 @@ impl<T: Backend + 'static> Repository<T> {
 
     /// Bool in return value will be true if the chunk already existed in the
     /// Repository, and false otherwise
+    #[instrument(skip(self, data))]
     pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
         let (_, chunk) = self
             .pipeline
@@ -185,6 +192,7 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
+    #[instrument(skip(self, data))]
     pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();
         self.write_chunk_with_id(data.consuming_data(), id).await
@@ -202,6 +210,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// This should be used carefully, as it has potential to damage the repository.
     ///
     /// Primiarly intended for writing the manifest
+    #[instrument(skip(self, data))]
     pub async fn write_chunk_with_id(
         &mut self,
         data: Vec<u8>,
@@ -222,6 +231,7 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Determines if a chunk exists in the index
+    #[instrument(skip(self))]
     pub async fn has_chunk(&self, id: ChunkID) -> bool {
         self.backend.get_index().lookup_chunk(id).await.is_some()
     }
@@ -230,6 +240,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
+    #[instrument(skip(self))]
     pub async fn read_chunk(&mut self, id: ChunkID) -> Result<Vec<u8>> {
         // First, check if the chunk exists
         if self.has_chunk(id).await {
@@ -249,11 +260,13 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Provides a count of the number of chunks in the repository
+    #[instrument(skip(self))]
     pub async fn count_chunk(&self) -> usize {
         self.backend.get_index().count_chunk().await
     }
 
     /// Returns the current default chunk settings for this repository
+    #[instrument(skip(self))]
     pub fn chunk_settings(&self) -> ChunkSettings {
         ChunkSettings {
             encryption: self.encryption,
@@ -263,11 +276,13 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Gets a refrence to the repository's key
+    #[instrument(skip(self))]
     pub fn key(&self) -> &Key {
         &self.key
     }
 
     /// Provides a handle to the backend manifest
+    #[instrument(skip(self))]
     pub fn backend_manifest(&self) -> T::Manifest {
         self.backend.get_manifest()
     }
@@ -276,6 +291,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// asyncronsyly.
     ///
     /// Calls into the backend's implementation
+    #[instrument(skip(self))]
     pub async fn close(self) {
         self.backend.close().await;
     }
