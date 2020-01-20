@@ -108,3 +108,44 @@ impl Backend for MultiFile {
         self.segment_handle.close().await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::Encryption;
+    use tempfile::{tempdir, TempDir};
+
+    // Utility function, sets up a tempdir and opens a MultiFile Backend
+    fn setup(key: &Key) -> (TempDir, MultiFile) {
+        let tempdir = tempdir().unwrap();
+        let path = tempdir.path().to_path_buf();
+        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), key).unwrap();
+        (tempdir, mf)
+    }
+
+    #[tokio::test]
+    async fn key_store_load() {
+        let key = Key::random(32);
+        let (tempdir, mf) = setup(&key);
+        // Encrypt the key and store it
+        let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), b"");
+        mf.write_key(&enc_key).await.expect("Unable to write key");
+        // Load the key back out without unloading
+        let enc_key = mf
+            .read_key()
+            .await
+            .expect("Unable to read key (before drop)");
+        // Decrypt it and verify equality
+        let new_key = enc_key
+            .decrypt(b"")
+            .expect("Unable to decrypt key (before drop)");
+        assert_eq!(key, new_key);
+        // Drop the backend and try reading it from scratch
+        mf.close().await;
+        let enc_key = MultiFile::read_key(tempdir.path()).expect("Unable to read key (after drop)");
+        let new_key = enc_key
+            .decrypt(b"")
+            .expect("Unable to decrypt key (after drop)");
+        assert_eq!(key, new_key);
+    }
+}
