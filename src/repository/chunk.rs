@@ -305,13 +305,17 @@ mod tests {
 
     #[test]
     fn all_combos() {
-        let compressions = [Compression::NoCompression, Compression::ZStd { level: 1 }];
+        let compressions = [
+            Compression::NoCompression,
+            Compression::ZStd { level: 1 },
+            Compression::LZ4 { level: 1 },
+        ];
         let encryptions = [
             Encryption::NoEncryption,
             Encryption::new_aes256cbc(),
             Encryption::new_aes256ctr(),
         ];
-        let hmacs = [HMAC::SHA256, HMAC::Blake2b, HMAC::Blake2bp];
+        let hmacs = [HMAC::SHA256, HMAC::Blake2b, HMAC::Blake2bp, HMAC::Blake3];
         for c in compressions.iter() {
             for e in encryptions.iter() {
                 for h in hmacs.iter() {

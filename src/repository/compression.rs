@@ -1,5 +1,8 @@
 use anyhow::Result;
+use lz4::{Decoder, EncoderBuilder};
 use serde::{Deserialize, Serialize};
+use std::io::copy;
+use std::io::Cursor;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -9,6 +12,7 @@ use flamer::*;
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
+    LZ4 { level: u32 },
 }
 
 impl Compression {
@@ -25,6 +29,16 @@ impl Compression {
                 let mut output = Vec::<u8>::with_capacity(data.len());
                 zstd::stream::copy_encode(data.as_slice(), &mut output, level).unwrap();
                 output
+            }
+            Compression::LZ4 { level } => {
+                let ouput = Vec::<u8>::with_capacity(data.len());
+                let cursor = Cursor::new(ouput);
+                let mut encoder = EncoderBuilder::new().level(level).build(cursor).unwrap();
+                let mut data = Cursor::new(data);
+                copy(&mut data, &mut encoder).unwrap();
+                let (cursor, result) = encoder.finish();
+                result.unwrap();
+                cursor.into_inner()
             }
         }
     }
@@ -45,6 +59,14 @@ impl Compression {
                 let mut output = Vec::<u8>::new();
                 zstd::stream::copy_decode(data.as_slice(), &mut output)?;
                 Ok(output)
+            }
+            Compression::LZ4 { .. } => {
+                let mut output = Cursor::new(Vec::<u8>::new());
+                let mut decoder = Decoder::new(Cursor::new(data))?;
+                copy(&mut decoder, &mut output)?;
+                let (_output, result) = decoder.finish();
+                result?;
+                Ok(output.into_inner())
             }
         }
     }

@@ -36,6 +36,7 @@ futures-intrusive = "0.2.2"
 hmac = "0.7.1"
 lazy_static = "1.4.0"
 lru = "0.4.3"
+lz4 = "1.23.1"
 num_cpus = "1.11.1"
 petgraph = "0.5.0"
 rand = { version = "0.7.3", features = ["small_rng"] }
