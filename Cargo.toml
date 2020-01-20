@@ -44,6 +44,7 @@ rust-argon2 = "0.6.1"
 serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
 sha2 = "0.8.1"
+sha3 = "0.8.2"
 tokio = { version = "0.2.9", features = ["rt-core","rt-threaded", "macros", "sync"] }
 tracing = "0.1.12"
 tracing-futures = "0.2.1"

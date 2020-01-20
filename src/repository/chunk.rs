@@ -291,7 +291,13 @@ mod tests {
             Encryption::new_aes256cbc(),
             Encryption::new_aes256ctr(),
         ];
-        let hmacs = [HMAC::SHA256, HMAC::Blake2b, HMAC::Blake2bp, HMAC::Blake3];
+        let hmacs = [
+            HMAC::SHA256,
+            HMAC::Blake2b,
+            HMAC::Blake2bp,
+            HMAC::Blake3,
+            HMAC::SHA3,
+        ];
         for c in compressions.iter() {
             for e in encryptions.iter() {
                 for h in hmacs.iter() {

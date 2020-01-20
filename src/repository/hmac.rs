@@ -3,6 +3,7 @@ use blake2b_simd::Params;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use sha3::Sha3_256;
 
 use crate::repository::Key;
 
@@ -10,6 +11,7 @@ use crate::repository::Key;
 use flamer::*;
 
 type HmacSha256 = Hmac<Sha256>;
+type HmacSHA3 = Hmac<Sha3_256>;
 
 /// Tag for the HMAC algorithim used by a particular chunk
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
@@ -18,6 +20,7 @@ pub enum HMAC {
     Blake2b,
     Blake2bp,
     Blake3,
+    SHA3,
 }
 
 impl HMAC {
@@ -47,6 +50,11 @@ impl HMAC {
                 let mut tmp_key = [0_u8; 32];
                 tmp_key.copy_from_slice(&key[..32]);
                 blake3::keyed_hash(&tmp_key, data).as_bytes().to_vec()
+            }
+            HMAC::SHA3 => {
+                let mut mac = HmacSHA3::new_varkey(key).unwrap();
+                mac.input(data);
+                mac.result().code().to_vec()
             }
         }
     }
@@ -91,6 +99,12 @@ impl HMAC {
                 let input_hash = blake3::Hash::from(tmp_hash);
                 let output_hash = blake3::keyed_hash(&tmp_key, data);
                 output_hash.eq(&input_hash)
+            }
+            HMAC::SHA3 => {
+                let mut mac = HmacSHA3::new_varkey(key).unwrap();
+                mac.input(data);
+                let result = mac.verify(input_mac);
+                result.is_ok()
             }
         }
     }
