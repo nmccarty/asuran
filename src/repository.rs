@@ -351,64 +351,6 @@ mod tests {
         assert_eq!(data3, out3);
     }
 
-    // #[test]
-    // fn repository_add_drop_read() {
-    //     block_on(async {
-    //         let key = Key::random(32);
-
-    //         let size = 7 * 10_u64.pow(3);
-    //         let mut data1 = vec![0_u8; size as usize];
-    //         thread_rng().fill_bytes(&mut data1);
-    //         let mut data2 = vec![0_u8; size as usize];
-    //         thread_rng().fill_bytes(&mut data2);
-    //         let mut data3 = vec![0_u8; size as usize];
-    //         thread_rng().fill_bytes(&mut data3);
-
-    //         let root_dir = tempdir().unwrap();
-    //         let root_path = root_dir.path().display().to_string();
-    //         println!("Repo root dir: {}", root_path);
-
-    //         let backend = FileSystem::new_test(&root_path);
-    //         let key1;
-    //         let key2;
-    //         let key3;
-
-    //         {
-    //             let mut repo = Repository::new(
-    //                 backend,
-    //                 Compression::ZStd { level: 1 },
-    //                 HMAC::SHA256,
-    //                 Encryption::new_aes256cbc(),
-    //                 key.clone(),
-    //             );
-
-    //             println!("Adding Chunks");
-    //             key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
-    //             key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
-    //             key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
-    //         }
-
-    //         let backend = FileSystem::new_test(&root_path);
-
-    //         let mut repo = Repository::new(
-    //             backend,
-    //             Compression::ZStd { level: 1 },
-    //             HMAC::SHA256,
-    //             Encryption::new_aes256cbc(),
-    //             key.clone(),
-    //         );
-
-    //         println!("Reading Chunks");
-    //         let out1 = repo.read_chunk(key1).await.unwrap();
-    //         let out2 = repo.read_chunk(key2).await.unwrap();
-    //         let out3 = repo.read_chunk(key3).await.unwrap();
-
-    //         assert_eq!(data1, out1);
-    //         assert_eq!(data2, out2);
-    //         assert_eq!(data3, out3);
-    //     });
-    // }
-
     #[tokio::test]
     async fn double_add() {
         // Adding the same chunk to the repository twice shouldn't result in
