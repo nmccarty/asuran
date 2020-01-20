@@ -291,6 +291,7 @@ mod tests {
             Encryption::NoEncryption,
             Encryption::new_aes256cbc(),
             Encryption::new_aes256ctr(),
+            Encryption::new_chacha20(),
         ];
         let hmacs = [
             HMAC::SHA256,

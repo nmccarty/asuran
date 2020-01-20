@@ -8,6 +8,7 @@ use aes_ctr::Aes256Ctr;
 use anyhow::{Context, Result};
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Cbc};
+use chacha20::ChaCha20;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -21,9 +22,10 @@ use flamer::*;
 /// Tag for the encryption algorthim and IV used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum Encryption {
+    NoEncryption,
     AES256CBC { iv: [u8; 16] },
     AES256CTR { iv: [u8; 16] },
-    NoEncryption,
+    ChaCha20 { iv: [u8; 12] },
 }
 
 impl Encryption {
@@ -41,12 +43,20 @@ impl Encryption {
         Encryption::AES256CTR { iv }
     }
 
+    /// Creates a new ChaCha20 with a random securely generated IV
+    pub fn new_chacha20() -> Encryption {
+        let mut iv: [u8; 12] = [0; 12];
+        thread_rng().fill_bytes(&mut iv);
+        Encryption::ChaCha20 { iv }
+    }
+
     /// Returns the key length of this encryption method in bytes
     pub fn key_length(&self) -> usize {
         match self {
             Encryption::NoEncryption => 0,
             Encryption::AES256CBC { .. } => 32,
             Encryption::AES256CTR { .. } => 32,
+            Encryption::ChaCha20 { .. } => 32,
         }
     }
 
@@ -88,6 +98,19 @@ impl Encryption {
                 let key = GenericArray::from_slice(&key);
                 let iv = GenericArray::from_slice(&iv[..]);
                 let mut encryptor = Aes256Ctr::new(&key, &iv);
+                let mut final_result = data.to_vec();
+                encryptor.apply_keystream(&mut final_result);
+
+                proper_key.zeroize();
+                final_result
+            }
+            Encryption::ChaCha20 { iv } => {
+                let mut proper_key: [u8; 32] = [0; 32];
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                let key = GenericArray::from_slice(&key);
+                let iv = GenericArray::from_slice(&iv[..]);
+                let mut encryptor = ChaCha20::new(&key, &iv);
                 let mut final_result = data.to_vec();
                 encryptor.apply_keystream(&mut final_result);
 
@@ -142,6 +165,20 @@ impl Encryption {
                 proper_key.zeroize();
                 Ok(final_result)
             }
+            Encryption::ChaCha20 { iv } => {
+                let mut proper_key: [u8; 32] = [0; 32];
+                proper_key[..cmp::min(key.len(), 32)]
+                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+
+                let key = GenericArray::from_slice(&key);
+                let iv = GenericArray::from_slice(&iv[..]);
+                let mut decryptor = ChaCha20::new(&key, &iv);
+                let mut final_result = data.to_vec();
+                decryptor.apply_keystream(&mut final_result);
+
+                proper_key.zeroize();
+                Ok(final_result)
+            }
         }
     }
 
@@ -152,6 +189,7 @@ impl Encryption {
             Encryption::NoEncryption => Encryption::NoEncryption,
             Encryption::AES256CBC { .. } => Encryption::new_aes256cbc(),
             Encryption::AES256CTR { .. } => Encryption::new_aes256ctr(),
+            Encryption::ChaCha20 { .. } => Encryption::new_chacha20(),
         }
     }
 }
