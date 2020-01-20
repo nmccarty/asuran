@@ -32,7 +32,7 @@ test:test:linux:
   script:
     - rustc --version
     - cargo --version
-    - cargo test
+    - cargo junit --name linux.xml
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
@@ -42,6 +42,11 @@ test:test:linux:
     - linux
   needs: ["test:lint:rustfmt", "test:lint:clippy"]
   allow_failure: true
+  artifacts:
+    paths:
+      - linux.xml
+    reports:
+      junit: linux.xml
 
 test:test:windows:
   stage: test
