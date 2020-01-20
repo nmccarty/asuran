@@ -113,6 +113,7 @@ impl Backend for Mem {
     /// This backend does not persist, so a clean close is not required
     ///
     /// As such, we do nothing
+    #[cfg_attr(tarpaulin, skip)]
     async fn close(self) {}
 }
 
