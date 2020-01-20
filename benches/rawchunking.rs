@@ -27,7 +27,7 @@ pub fn bench(c: &mut Criterion) {
     let mut rand = Vec::<u8>::new();
     let size = 320000;
     let mut rng = rand::thread_rng();
-    for i in 0..size {
+    for _ in 0..size {
         zero.push(0);
         rand.push(rng.gen());
     }

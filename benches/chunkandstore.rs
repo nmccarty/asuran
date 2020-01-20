@@ -17,25 +17,14 @@ async fn slice_and_store<'a>(
 ) {
     slicer.add_reader(data);
     let slicer = slicer.into_iter();
-    let size = 1;
 
     let mut futs = Vec::new();
-    let mut count = 0;
-    let mut buffer = Vec::new();
     for slice in slicer {
-        count += 1;
-        buffer.push(slice);
-        if count >= size {
-            let old_buffer = std::mem::replace(&mut buffer, Vec::new());
-            let mut repo = repo.clone();
-
-            futs.push(task::spawn(
-                async move { repo.write_chunks(old_buffer).await },
-            ));
-        }
+        let mut repo = repo.clone();
+        futs.push(task::spawn(async move { repo.write_chunk(slice).await }));
     }
 
-    let results = join_all(futs).await;
+    let _results = join_all(futs).await;
 }
 
 fn get_repo(key: Key) -> Repository<impl Backend> {
@@ -53,7 +42,7 @@ fn bench(c: &mut Criterion) {
     let mut rand = Vec::<u8>::new();
     let size = 32000000;
     let mut rng = rand::thread_rng();
-    for i in 0..size {
+    for _ in 0..size {
         zero.push(0);
         rand.push(rng.gen());
     }
