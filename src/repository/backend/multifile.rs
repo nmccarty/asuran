@@ -5,7 +5,6 @@ use crate::repository::{ChunkSettings, Key};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::task::Spawn;
 use rmp_serde as rmps;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -30,15 +29,14 @@ impl MultiFile {
         path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
-        pool: impl Spawn,
     ) -> Result<MultiFile> {
         let size_limit = 500_000_000;
         let segments_per_directory = 100;
-        let index_handle = index::Index::open(&path, &pool).context("Failure opening index")?;
-        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key, &pool)
+        let index_handle = index::Index::open(&path).context("Failure opening index")?;
+        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)
             .context("Failure opening manifest")?;
         let segment_handle =
-            segment::SegmentHandler::open(&path, size_limit, segments_per_directory, &pool)
+            segment::SegmentHandler::open(&path, size_limit, segments_per_directory)
                 .context("Failure opening segment handler")?;
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {

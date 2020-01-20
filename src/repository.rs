@@ -42,8 +42,6 @@
 //! effectivly preventing the storage of duplicate chunks.
 
 use anyhow::{anyhow, Result};
-use futures::executor::ThreadPool;
-use futures::task::Spawn;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
@@ -95,8 +93,7 @@ impl<T: Backend + 'static> Repository<T> {
         encryption: Encryption,
         key: Key,
     ) -> Repository<T> {
-        let pool = ThreadPool::new().unwrap();
-        let pipeline = Pipeline::new(pool);
+        let pipeline = Pipeline::new();
         Repository {
             backend,
             compression,
@@ -108,8 +105,8 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
-    pub fn with(backend: T, settings: ChunkSettings, key: Key, pool: impl Spawn) -> Repository<T> {
-        let pipeline = Pipeline::new(pool);
+    pub fn with(backend: T, settings: ChunkSettings, key: Key) -> Repository<T> {
+        let pipeline = Pipeline::new();
         Repository {
             backend,
             key,
@@ -306,48 +303,44 @@ impl<T: Backend + 'static> Repository<T> {
 mod tests {
     use super::*;
     use crate::repository::backend::mem::*;
-    use futures::executor::block_on;
     use rand::prelude::*;
 
     fn get_repo_mem(key: Key) -> Repository<Mem> {
-        let pool = ThreadPool::new().unwrap();
         let settings = ChunkSettings {
             compression: Compression::ZStd { level: 1 },
             hmac: HMAC::Blake2b,
             encryption: Encryption::new_aes256ctr(),
         };
-        let backend = Mem::new(settings, &pool);
-        Repository::with(backend, settings, key, pool)
+        let backend = Mem::new(settings);
+        Repository::with(backend, settings, key)
     }
 
-    #[test]
-    fn repository_add_read() {
-        block_on(async {
-            let key = Key::random(32);
+    #[tokio::test]
+    async fn repository_add_read() {
+        let key = Key::random(32);
 
-            let size = 7 * 10_u64.pow(3);
-            let mut data1 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data1);
-            let mut data2 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data2);
-            let mut data3 = vec![0_u8; size as usize];
-            thread_rng().fill_bytes(&mut data3);
+        let size = 7 * 10_u64.pow(3);
+        let mut data1 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data1);
+        let mut data2 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data2);
+        let mut data3 = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data3);
 
-            let mut repo = get_repo_mem(key);
-            println!("Adding Chunks");
-            let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
-            let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
-            let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
+        let mut repo = get_repo_mem(key);
+        println!("Adding Chunks");
+        let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+        let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+        let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
 
-            println!("Reading Chunks");
-            let out1 = repo.read_chunk(key1).await.unwrap();
-            let out2 = repo.read_chunk(key2).await.unwrap();
-            let out3 = repo.read_chunk(key3).await.unwrap();
+        println!("Reading Chunks");
+        let out1 = repo.read_chunk(key1).await.unwrap();
+        let out2 = repo.read_chunk(key2).await.unwrap();
+        let out3 = repo.read_chunk(key3).await.unwrap();
 
-            assert_eq!(data1, out1);
-            assert_eq!(data2, out2);
-            assert_eq!(data3, out3);
-        });
+        assert_eq!(data1, out1);
+        assert_eq!(data2, out2);
+        assert_eq!(data3, out3);
     }
 
     // #[test]
@@ -408,23 +401,21 @@ mod tests {
     //     });
     // }
 
-    #[test]
-    fn double_add() {
-        block_on(async {
-            // Adding the same chunk to the repository twice shouldn't result in
-            // two chunks in the repository
-            let mut repo = get_repo_mem(Key::random(32));
-            assert_eq!(repo.count_chunk().await, 0);
-            let data = [1_u8; 8192];
+    #[tokio::test]
+    async fn double_add() {
+        // Adding the same chunk to the repository twice shouldn't result in
+        // two chunks in the repository
+        let mut repo = get_repo_mem(Key::random(32));
+        assert_eq!(repo.count_chunk().await, 0);
+        let data = [1_u8; 8192];
 
-            let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
-            assert_eq!(unique_1, false);
-            assert_eq!(repo.count_chunk().await, 1);
-            let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
-            assert_eq!(repo.count_chunk().await, 1);
-            assert_eq!(unique_2, true);
-            assert_eq!(key_1, key_2);
-            std::mem::drop(repo);
-        });
+        let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
+        assert_eq!(unique_1, false);
+        assert_eq!(repo.count_chunk().await, 1);
+        let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
+        assert_eq!(repo.count_chunk().await, 1);
+        assert_eq!(unique_2, true);
+        assert_eq!(key_1, key_2);
+        std::mem::drop(repo);
     }
 }

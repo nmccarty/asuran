@@ -3,7 +3,6 @@ use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
 use async_std::sync::RwLock;
-use futures::executor::ThreadPool;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
@@ -20,9 +19,9 @@ pub struct Mem {
 }
 
 impl Mem {
-    pub fn new(chunk_settings: ChunkSettings, pool: &ThreadPool) -> Mem {
+    pub fn new(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let data = common::TaskedSegment::new(Cursor::new(Vec::new()), max, 0, pool);
+        let data = common::TaskedSegment::new(Cursor::new(Vec::new()), max, 0);
         Mem {
             data,
             index: Arc::new(RwLock::new(HashMap::new())),
@@ -121,32 +120,25 @@ impl Backend for Mem {
 mod tests {
     use super::*;
     use crate::repository::*;
-    use futures::executor::block_on;
 
     /// Makes sure accessing an unset key panics
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn bad_key_access() {
-        block_on(async {
-            let pool = ThreadPool::new().unwrap();
-            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-            backend.read_key().await.unwrap();
-        });
+    async fn bad_key_access() {
+        let backend = Mem::new(ChunkSettings::lightweight());
+        backend.read_key().await.unwrap();
     }
 
     /// Checks to make sure setting and retriving a key works
-    #[test]
-    fn key_sanity() {
-        block_on(async {
-            let pool = ThreadPool::new().unwrap();
-            let backend = Mem::new(ChunkSettings::lightweight(), &pool);
-            let key = Key::random(32);
-            let key_key = [0_u8; 128];
-            let encrypted_key =
-                EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-            backend.write_key(&encrypted_key).await.unwrap();
-            let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
-            assert_eq!(key, output);
-        });
+    #[tokio::test]
+    async fn key_sanity() {
+        let backend = Mem::new(ChunkSettings::lightweight());
+        let key = Key::random(32);
+        let key_key = [0_u8; 128];
+        let encrypted_key =
+            EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
+        backend.write_key(&encrypted_key).await.unwrap();
+        let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
+        assert_eq!(key, output);
     }
 }

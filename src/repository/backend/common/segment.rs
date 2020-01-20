@@ -2,13 +2,13 @@ use crate::repository::backend::{SegmentDescriptor, TransactionType};
 use crate::repository::ChunkID;
 use anyhow::{anyhow, Context, Result};
 use futures::channel;
-use futures::executor::ThreadPool;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
+use tokio::task;
 use uuid::Uuid;
 
 /// Magic number used for asuran segment files
@@ -241,9 +241,9 @@ pub struct TaskedSegment<R> {
 }
 
 impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
-    pub fn new(reader: R, size_limit: u64, segment_id: u64, pool: &ThreadPool) -> TaskedSegment<R> {
+    pub fn new(reader: R, size_limit: u64, segment_id: u64) -> TaskedSegment<R> {
         let (tx, mut rx) = channel::mpsc::channel(100);
-        pool.spawn_ok(async move {
+        task::spawn(async move {
             let mut segment = Segment::new(reader, size_limit).unwrap();
             let mut final_ret = None;
             while let Some(command) = rx.next().await {
@@ -323,7 +323,6 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::executor::block_on;
     use std::io::Cursor;
     #[test]
     fn header_sanity() {
@@ -353,23 +352,20 @@ mod tests {
         assert!(segment.read_header().unwrap().validate())
     }
 
-    #[test]
-    fn tasked_segment_read_write() {
-        block_on(async {
-            let cursor = Cursor::new(Vec::<u8>::new());
-            let pool = ThreadPool::new().unwrap();
-            let mut segment = TaskedSegment::new(cursor, 1_000_000, 0, &pool);
-            let mut data = Vec::<u8>::new();
-            for i in 0..10_000 {
-                data.push(i as u8);
-            }
-            let location = segment
-                .write_chunk(data.clone(), ChunkID::manifest_id())
-                .await
-                .unwrap();
-            let out = segment.read_chunk(location).await.unwrap();
+    #[tokio::test]
+    async fn tasked_segment_read_write() {
+        let cursor = Cursor::new(Vec::<u8>::new());
+        let mut segment = TaskedSegment::new(cursor, 1_000_000, 0);
+        let mut data = Vec::<u8>::new();
+        for i in 0..10_000 {
+            data.push(i as u8);
+        }
+        let location = segment
+            .write_chunk(data.clone(), ChunkID::manifest_id())
+            .await
+            .unwrap();
+        let out = segment.read_chunk(location).await.unwrap();
 
-            assert_eq!(data, out);
-        });
+        assert_eq!(data, out);
     }
 }

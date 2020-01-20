@@ -1,6 +1,6 @@
-use futures::task::{Spawn, SpawnExt};
 use futures_intrusive::channel::shared::*;
 use num_cpus;
+use tokio::task;
 
 use crate::repository::{Chunk, ChunkID, Compression, Encryption, Key, HMAC};
 
@@ -25,7 +25,7 @@ impl Pipeline {
     ///
     /// Gets a pass on too_many lines for now
     #[allow(clippy::too_many_lines)]
-    pub fn new(pool: impl Spawn) -> Pipeline {
+    pub fn new() -> Pipeline {
         let base_threads = match num_cpus::get() / 2 {
             0 => 1,
             x => x,
@@ -45,7 +45,7 @@ impl Pipeline {
             let id_tx = id_tx.clone();
             let compress_tx = compress_tx.clone();
             let enc_tx = enc_tx.clone();
-            pool.spawn(async move {
+            task::spawn(async move {
                 while let Some(input) = id_rx.receive().await {
                     let (data, mut message): (Vec<Vec<u8>>, Message) = input;
                     let mut cids = Vec::new();
@@ -71,8 +71,7 @@ impl Pipeline {
                         id_tx.send(next).await.unwrap();
                     }
                 }
-            })
-            .expect("Spawing a ChunkID task failed!");
+            });
         }
 
         for _ in 0..heavy_count {
@@ -80,7 +79,7 @@ impl Pipeline {
             let compress_tx = compress_tx.clone();
             let enc_tx = enc_tx.clone();
             // Compression stage
-            pool.spawn(async move {
+            task::spawn(async move {
                 while let Some(input) = compress_rx.receive().await {
                     let (cids, data, message) = input;
                     let mut cdatas = Vec::new();
@@ -97,15 +96,14 @@ impl Pipeline {
                         compress_tx.send(next).await.unwrap();
                     }
                 }
-            })
-            .expect("Spawing a compression task failed!");
+            });
         }
 
         // Encryption stage
         for _ in 0..heavy_count {
             let enc_rx = enc_rx.clone();
             let enc_tx = enc_tx.clone();
-            pool.spawn(async move {
+            task::spawn(async move {
                 while let Some(input) = enc_rx.receive().await {
                     let (cids, data, message) = input;
                     let mut edatas = Vec::new();
@@ -115,14 +113,13 @@ impl Pipeline {
                     }
                     enc_tx.send((cids, edatas, message)).await.unwrap();
                 }
-            })
-            .expect("Spawining an encryption task failed!");
+            });
         }
 
         // Mac stage
         for _ in 0..light_count {
             let mac_rx = mac_rx.clone();
-            pool.spawn(async move {
+            task::spawn(async move {
                 while let Some(input) = mac_rx.receive().await {
                     let (cids, data, message) = input;
                     let mut chunks = Vec::new();
@@ -140,8 +137,7 @@ impl Pipeline {
                     }
                     message.ret_chunk.send(chunks).unwrap();
                 }
-            })
-            .expect("Spawning a MAC task failed!");
+            });
         }
 
         Pipeline { input, input_id }
@@ -218,5 +214,11 @@ impl Pipeline {
         input.send((data, message)).await.unwrap();
         id_rx.receive().await;
         c_rx.receive().await.unwrap()
+    }
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
     }
 }

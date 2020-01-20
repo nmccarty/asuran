@@ -9,12 +9,12 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::task::{Spawn, SpawnExt};
 use rmp_serde as rmps;
 use std::collections::HashMap;
 use std::fs::{create_dir, read_dir, File};
 use std::io::{Seek, SeekFrom};
 use std::path::Path;
+use tokio::task;
 
 #[derive(Debug)]
 struct InternalIndex {
@@ -167,12 +167,12 @@ impl Index {
     /// 2. This function can currently panic if we have to create a new index file, but someone else
     ///    that while we were parsing the transaction. Resolution for this conflict needs to be
     ///    implemented.
-    pub fn open(repository_path: impl AsRef<Path>, pool: impl Spawn) -> Result<Index> {
+    pub fn open(repository_path: impl AsRef<Path>) -> Result<Index> {
         // Open the index
         let mut index = InternalIndex::open(&repository_path)?;
         // Create the communication channel and open the event processing loop in it own task
         let (input, mut output) = mpsc::channel(100);
-        pool.spawn(async move {
+        task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
@@ -208,8 +208,7 @@ impl Index {
             if let Some(ret) = final_ret {
                 ret.send(()).unwrap();
             };
-        })
-        .expect("Failed to spawn index task.");
+        });
 
         Ok(Index {
             input,
@@ -264,7 +263,6 @@ impl backend::Index for Index {
 mod tests {
     use super::*;
     use backend::Index as OtherIndex;
-    use futures::executor::{LocalPool, LocalSpawner};
     use rand;
     use rand::prelude::*;
     use std::path::PathBuf;
@@ -272,12 +270,10 @@ mod tests {
     use walkdir::WalkDir;
 
     // Utility function, gets a tempdir, its path, an executor, and a spawner
-    fn setup() -> (TempDir, PathBuf, LocalPool, LocalSpawner) {
+    fn setup() -> (TempDir, PathBuf) {
         let tempdir = tempdir().unwrap();
         let path = tempdir.path().to_path_buf();
-        let executor = LocalPool::new();
-        let spawner = executor.spawner();
-        (tempdir, path, executor, spawner)
+        (tempdir, path)
     }
 
     // Test to make sure creating an index in an empty folder
@@ -285,11 +281,11 @@ mod tests {
     // 2. Creates the index directory
     // 3. Creates the initial index file (index/0)
     // 4. Locks the initial index file (index/0.lock)
-    #[test]
-    fn creation_works() {
-        let (tempdir, path, executor, spawner) = setup();
+    #[tokio::test]
+    async fn creation_works() {
+        let (tempdir, path) = setup();
         // Create the index
-        let index = Index::open(&path, spawner).expect("Index creation failed");
+        let index = Index::open(&path).expect("Index creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -312,12 +308,12 @@ mod tests {
     // Test to make sure creating a second index while the first is open
     // 1. Doesn't panic or error
     // 2. Creates and locks a second index file
-    #[test]
-    fn double_creation_works() {
-        let (tempdir, path, executor, spawner) = setup();
+    #[tokio::test]
+    async fn double_creation_works() {
+        let (tempdir, path) = setup();
         // Create the first index
-        let index1 = Index::open(&path, spawner.clone()).expect("Index 1 creation failed");
-        let index2 = Index::open(&path, spawner).expect("Index 2 creation failed");
+        let index1 = Index::open(&path).expect("Index 1 creation failed");
+        let index2 = Index::open(&path).expect("Index 2 creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -338,14 +334,12 @@ mod tests {
     // Test to make sure that dropping an Index unlocks the index file
     // Note: since we are using a single threaded executor, we must manually run all tasks to
     // completion.
-    #[test]
-    fn unlock_on_drop() {
-        let (tempdir, path, mut executor, spawner) = setup();
+    #[tokio::test]
+    async fn unlock_on_drop() {
+        let (tempdir, path) = setup();
         // Open an index and drop it
-        let index = Index::open(&path, spawner).expect("Index creation failed");
-        std::mem::drop(index);
-        // Run all tasks to completion
-        executor.run();
+        let mut index = Index::open(&path).expect("Index creation failed");
+        index.close().await;
         // check for the index file and the absense of the lock file
         let index_dir = path.join("index");
         let index_file = index_dir.join("0");
@@ -359,13 +353,13 @@ mod tests {
     // 2. Reading keys we have inserted into a properly setup index does not Err or Panic
     // 3. Keys are still present in the index after dropping and reloading from the same directory
     // 4. Chunk count increments properly
-    #[test]
-    fn write_drop_read() {
-        let (tempdir, path, mut executor, spawner) = setup();
+    #[tokio::test]
+    async fn write_drop_read() {
+        let (tempdir, path) = setup();
         // Get some transactions to write to the repository
         let mut txs = HashMap::new();
         for _ in 0..10 {
-            let mut raw_id = [0u8; 32];
+            let mut raw_id = [0_u8; 32];
             rand::thread_rng().fill_bytes(&mut raw_id);
             let segment_id: u64 = rand::thread_rng().gen();
             let start: u64 = rand::thread_rng().gen();
@@ -374,40 +368,35 @@ mod tests {
             txs.insert(chunk_id, descriptor);
         }
         // Open the index
-        let mut index = Index::open(&path, spawner.clone()).expect("Index creation failed");
+        let mut index = Index::open(&path).expect("Index creation failed");
         // Insert the transactions
-        executor.run_until(async {
-            for (id, desc) in &txs {
-                index
-                    .set_chunk(*id, *desc)
-                    .await
-                    .expect("Adding transaction failed");
-            }
-        });
+        for (id, desc) in &txs {
+            index
+                .set_chunk(*id, *desc)
+                .await
+                .expect("Adding transaction failed");
+        }
         // Commit the index
-        executor.run_until(async { index.commit_index().await.expect("commiting index failed") });
+        index.commit_index().await.expect("commiting index failed");
         // Get the chunk count and check it
-        let count = executor.run_until(index.count_chunk());
+        let count = index.count_chunk().await;
         assert_eq!(count, txs.len());
         // Drop the index and let it complete
-        std::mem::drop(index);
-        executor.run();
+        index.close().await;
         // Load the index back up
-        let mut index = Index::open(&path, spawner).expect("Index recreation failed");
+        let mut index = Index::open(&path).expect("Index recreation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
             println!("{}", entry.path().display());
         }
         // Verify we still have the same number of chunks
-        let count = executor.run_until(index.count_chunk());
+        let count = index.count_chunk().await;
         assert_eq!(count, txs.len());
         // Confirm that each tx is in the index and has the correct value
-        executor.run_until(async {
-            for (id, desc) in txs {
-                let location = index.lookup_chunk(id).await.expect("Tx retrieve failed");
-                assert_eq!(desc, location);
-            }
-        });
+        for (id, desc) in txs {
+            let location = index.lookup_chunk(id).await.expect("Tx retrieve failed");
+            assert_eq!(desc, location);
+        }
     }
 }

@@ -82,51 +82,43 @@ impl<T: Backend> Manifest<T> {
 mod tests {
     use super::*;
     use crate::repository::*;
-    use futures::executor::block_on;
-    use futures::executor::ThreadPool;
 
-    #[test]
-    fn chunk_settings_sanity() {
-        block_on(async {
-            let settings = ChunkSettings {
-                encryption: Encryption::NoEncryption,
-                compression: Compression::NoCompression,
-                hmac: HMAC::Blake2b,
-            };
+    #[tokio::test]
+    async fn chunk_settings_sanity() {
+        let settings = ChunkSettings {
+            encryption: Encryption::NoEncryption,
+            compression: Compression::NoCompression,
+            hmac: HMAC::Blake2b,
+        };
 
-            let pool = ThreadPool::new().unwrap();
-            let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
-            let key = Key::random(32);
-            let repo = Repository::with(backend, settings, key, pool);
-            let mut manifest = Manifest::load(&repo);
+        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let key = Key::random(32);
+        let repo = Repository::with(backend, settings, key);
+        let mut manifest = Manifest::load(&repo);
 
-            manifest.set_chunk_settings(settings).await;
-            let new_settings = manifest.chunk_settings().await;
+        manifest.set_chunk_settings(settings).await;
+        let new_settings = manifest.chunk_settings().await;
 
-            assert_eq!(settings, new_settings);
-        });
+        assert_eq!(settings, new_settings);
     }
 
-    #[test]
-    fn new_archive_updates_time() {
-        block_on(async {
-            let settings = ChunkSettings::lightweight();
-            let pool = ThreadPool::new().unwrap();
-            let backend = crate::repository::backend::mem::Mem::new(settings, &pool);
-            let key = Key::random(32);
-            let repo = Repository::with(backend.clone(), settings, key, pool);
+    #[tokio::test]
+    async fn new_archive_updates_time() {
+        let settings = ChunkSettings::lightweight();
+        let backend = crate::repository::backend::mem::Mem::new(settings);
+        let key = Key::random(32);
+        let repo = Repository::with(backend.clone(), settings, key);
 
-            let mut manifest = Manifest::load(&repo);
+        let mut manifest = Manifest::load(&repo);
 
-            let dummy1 = StoredArchive::dummy_archive();
-            backend.get_manifest().write_archive(dummy1).await;
-            let time1 = manifest.timestamp().await;
-            std::thread::sleep(std::time::Duration::from_millis(10));
-            let dummy2 = StoredArchive::dummy_archive();
-            backend.get_manifest().write_archive(dummy2).await;
-            let time2 = manifest.timestamp().await;
+        let dummy1 = StoredArchive::dummy_archive();
+        backend.get_manifest().write_archive(dummy1).await;
+        let time1 = manifest.timestamp().await;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let dummy2 = StoredArchive::dummy_archive();
+        backend.get_manifest().write_archive(dummy2).await;
+        let time2 = manifest.timestamp().await;
 
-            assert!(time2 > time1);
-        });
+        assert!(time2 > time1);
     }
 }

@@ -8,10 +8,10 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::task::{Spawn, SpawnExt};
 use lru::LruCache;
 use std::fs::{create_dir, File};
 use std::path::{Path, PathBuf};
+use tokio::task;
 use walkdir::WalkDir;
 
 struct SegmentPair<R>(u64, Segment<R>);
@@ -310,7 +310,6 @@ impl SegmentHandler {
         repository_path: impl AsRef<Path>,
         size_limit: u64,
         segments_per_directory: u64,
-        pool: impl Spawn,
     ) -> Result<SegmentHandler> {
         // Create the internal handler
         let mut handler =
@@ -319,7 +318,7 @@ impl SegmentHandler {
         let path = handler.path.to_str().unwrap().to_string();
         // Create the communication channel and open the event processing loop in its own task
         let (input, mut output) = mpsc::channel(100);
-        pool.spawn(async move {
+        task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
@@ -342,8 +341,7 @@ impl SegmentHandler {
             if let Some(ret) = final_ret {
                 ret.send(()).unwrap();
             }
-        })
-        .expect("Failed to spawn segment handler task");
+        });
 
         Ok(SegmentHandler { input, path })
     }

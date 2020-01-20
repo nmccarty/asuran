@@ -11,13 +11,13 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::task::{Spawn, SpawnExt};
 use petgraph::Graph;
 use rmp_serde as rmps;
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use tokio::task;
 
 #[derive(Debug)]
 struct InternalManifest {
@@ -333,11 +333,10 @@ impl Manifest {
         repository_path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
-        pool: impl Spawn,
     ) -> Result<Manifest> {
         let mut manifest = InternalManifest::open(repository_path.as_ref(), key, chunk_settings)?;
         let (input, mut output) = mpsc::channel(100);
-        pool.spawn(async move {
+        task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
@@ -371,8 +370,7 @@ impl Manifest {
             if let Some(ret) = final_ret {
                 ret.send(()).unwrap();
             };
-        })
-        .expect("Failed to spawn the manifest task");
+        });
 
         Ok(Manifest {
             input,
@@ -448,19 +446,16 @@ mod tests {
     use crate::manifest::StoredArchive;
     use crate::repository::{ChunkSettings, Key};
     use backend::Manifest as OtherManifest;
-    use futures::executor::{LocalPool, LocalSpawner};
     use std::path::PathBuf;
     use std::{thread, time};
     use tempfile::{tempdir, TempDir};
     use walkdir::WalkDir;
 
     // Utility function, gets a tempdir, its path, an executor, and a spawner
-    fn setup() -> (TempDir, PathBuf, LocalPool, LocalSpawner) {
+    fn setup() -> (TempDir, PathBuf) {
         let tempdir = tempdir().unwrap();
         let path = tempdir.path().to_path_buf();
-        let executor = LocalPool::new();
-        let spawner = executor.spawner();
-        (tempdir, path, executor, spawner)
+        (tempdir, path)
     }
 
     // Test to make sure creating an manifest in an empty folder
@@ -468,14 +463,14 @@ mod tests {
     // 2. Creates the manifest directory
     // 3. Creates the initial manifest file (manifest/0)
     // 4. Locks the initial manifest file (manifest/0.lock)
-    #[test]
-    fn creation_works() {
-        let (tempdir, path, executor, spawner) = setup();
+    #[tokio::test]
+    async fn creation_works() {
+        let (tempdir, path) = setup();
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
         // Create the manifest
-        let manifest = Manifest::open(&path, Some(settings), &key, &spawner)
-            .expect("Manifest creation failed");
+        let mut manifest =
+            Manifest::open(&path, Some(settings), &key).expect("Manifest creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -493,22 +488,23 @@ mod tests {
         let manifest_lock = manifest_dir.join("0.lock");
         assert!(manifest_lock.exists());
         assert!(manifest_lock.is_file());
+        manifest.close().await;
     }
 
     // Test to make sure creating a second manifest while the first is open
     // 1. Doesn't panic or error
     // 2. Creates and locks a second manifest file
-    #[test]
-    fn double_creation_works() {
-        let (tempdir, path, executor, spawner) = setup();
+    #[tokio::test]
+    async fn double_creation_works() {
+        let (tempdir, path) = setup();
         // Create the first manifest
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
         // Create the manifest
-        let manifest1 = Manifest::open(&path, Some(settings), &key, &spawner)
-            .expect("Manifest 1 creation failed");
-        let manifest2 = Manifest::open(&path, Some(settings), &key, &spawner)
-            .expect("Manifest 2 creation failed");
+        let mut manifest1 =
+            Manifest::open(&path, Some(settings), &key).expect("Manifest 1 creation failed");
+        let mut manifest2 =
+            Manifest::open(&path, Some(settings), &key).expect("Manifest 2 creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -524,23 +520,23 @@ mod tests {
         assert!(mf2.exists() && mf2.is_file());
         assert!(ml1.exists() && ml1.is_file());
         assert!(ml2.exists() && ml2.is_file());
+        manifest1.close().await;
+        manifest2.close().await;
     }
 
     // Test to make sure that dropping an Manifest unlocks the manifest file
     // Note: since we are using a single threaded executor, we must manually run all tasks to
     // completion.
-    #[test]
-    fn unlock_on_drop() {
-        let (tempdir, path, mut executor, spawner) = setup();
+    #[tokio::test]
+    async fn unlock_on_drop() {
+        let (tempdir, path) = setup();
         // Open an manifest and drop it
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
         // Create the manifest
-        let manifest = Manifest::open(&path, Some(settings), &key, &spawner)
-            .expect("Manifest 1 creation failed");
-        std::mem::drop(manifest);
-        // Run all tasks to completion
-        executor.run();
+        let mut manifest =
+            Manifest::open(&path, Some(settings), &key).expect("Manifest 1 creation failed");
+        manifest.close().await;
         // check for the manifest file and the absense of the lock file
         let manifest_dir = path.join("manifest");
         let manifest_file = manifest_dir.join("0");
@@ -555,14 +551,14 @@ mod tests {
     // 3. Writing transactions to the manifest, dropping it, and reopening it passes verification
     // 4. Transactions are still present in the manifest after dropping and reloading from the same
     //    directory
-    #[test]
-    fn write_drop_read() {
-        let (tempdir, path, mut executor, spawner) = setup();
+    #[tokio::test]
+    async fn write_drop_read() {
+        let (tempdir, path) = setup();
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
         // Create the manifest
-        let mut manifest = Manifest::open(&path, Some(settings), &key, &spawner)
-            .expect("Manifest creation failed");
+        let mut manifest =
+            Manifest::open(&path, Some(settings), &key).expect("Manifest creation failed");
 
         // Create some dummy archives
         let len = 10;
@@ -577,23 +573,17 @@ mod tests {
         }
 
         // write them into the manifest
-        spawner
-            .spawn(async move {
-                for archive in archives {
-                    manifest.write_archive(archive).await
-                }
-            })
-            .unwrap();
+        for archive in archives {
+            manifest.write_archive(archive).await
+        }
 
-        // Manifest has been moved into the task, run it to completion and allow it to drop
-        executor.run();
+        manifest.close().await;
 
         // Reopen the manifest
         let mut manifest =
-            Manifest::open(&path, Some(settings), &key, &spawner).expect("Manifest reopen failed");
+            Manifest::open(&path, Some(settings), &key).expect("Manifest reopen failed");
         // Pull the archives out of it
-        let archives: Vec<StoredArchive> =
-            executor.run_until(manifest.archive_iterator()).collect();
+        let archives: Vec<StoredArchive> = manifest.archive_iterator().await.collect();
         // Make sure we have the correct number of archives
         assert_eq!(archives.len(), len);
         // Make sure we have all the correct archives
