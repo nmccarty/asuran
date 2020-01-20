@@ -3,7 +3,6 @@ use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
 use anyhow::Result;
-use async_std::sync::RwLock;
 use chrono::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -11,6 +10,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[cfg(feature = "profile")]
 use flame::*;

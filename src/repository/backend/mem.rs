@@ -2,11 +2,11 @@ use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use anyhow::{anyhow, Result};
-use async_std::sync::RwLock;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Clone, Debug)]
 pub struct Mem {
