@@ -27,7 +27,6 @@ impl Pipeline {
     ///
     /// Gets a pass on too_many lines for now
     #[allow(clippy::too_many_lines)]
-    #[instrument]
     pub fn new() -> Pipeline {
         let base_threads = match num_cpus::get() / 2 {
             0 => 1,
@@ -58,7 +57,7 @@ impl Pipeline {
                         let id = message.hmac.id(&chunk[..], &message.key);
                         cids.push(ChunkID::new(&id[..]));
                     }
-                    event!(Level::DEBUG, ?cids);
+                    event!(Level::TRACE, ?cids);
                     // Go ahead and send the chunkIDs
                     message.ret_id.take().unwrap().send(cids.clone()).unwrap();
                     let compression = message.compression;
@@ -90,7 +89,7 @@ impl Pipeline {
                 let _enter = span.enter();
                 while let Some(input) = compress_rx.receive().await {
                     let (cids, data, message) = input;
-                    event!(Level::DEBUG, ?cids);
+                    event!(Level::TRACE, ?cids);
                     let mut cdatas = Vec::new();
                     for chunk in data {
                         let cdata = message.compression.compress(chunk);
@@ -117,7 +116,7 @@ impl Pipeline {
                 let _enter = span.enter();
                 while let Some(input) = enc_rx.receive().await {
                     let (cids, data, message) = input;
-                    event!(Level::DEBUG, ?cids);
+                    event!(Level::TRACE, ?cids);
                     let mut edatas = Vec::new();
                     for chunk in data {
                         let edata = message.encryption.encrypt(&chunk[..], &message.key);

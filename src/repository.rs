@@ -53,7 +53,7 @@ pub use crate::repository::hmac::HMAC;
 pub use crate::repository::key::{EncryptedKey, Key};
 use crate::repository::pipeline::Pipeline;
 
-use tracing::instrument;
+use tracing::{debug, info, instrument, span, trace, warn, Level};
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -88,7 +88,7 @@ pub struct Repository<T> {
 
 impl<T: Backend + 'static> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
-    #[instrument]
+    #[instrument(skip(key))]
     pub fn new(
         backend: T,
         compression: Compression,
@@ -96,6 +96,7 @@ impl<T: Backend + 'static> Repository<T> {
         encryption: Encryption,
         key: Key,
     ) -> Repository<T> {
+        info!("Creating a repository with backend {:?}", backend);
         let pipeline = Pipeline::new();
         Repository {
             backend,
@@ -108,8 +109,12 @@ impl<T: Backend + 'static> Repository<T> {
     }
 
     /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
-    #[instrument]
+    #[instrument(skip(key))]
     pub fn with(backend: T, settings: ChunkSettings, key: Key) -> Repository<T> {
+        info!(
+            "Creating a repository with backend {:?} and chunk settings {:?}",
+            backend, settings
+        );
         let pipeline = Pipeline::new();
         Repository {
             backend,
@@ -128,6 +133,7 @@ impl<T: Backend + 'static> Repository<T> {
     /// the very least
     #[instrument(skip(self))]
     pub async fn commit_index(&self) {
+        debug!("Commiting Index");
         self.backend
             .get_index()
             .commit_index()
@@ -142,14 +148,18 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    #[instrument(skip(self))]
     pub async fn write_raw(&mut self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
+        let span = span!(Level::DEBUG, "Writing Chunk", ?id);
+        let _guard = span.enter();
+        debug!("Writing chunk with id {:?}", id);
 
         // Check if chunk exists
         if self.has_chunk(id).await && id != ChunkID::manifest_id() {
+            trace!("Chunk already existed, doing nothing.");
             Ok((id, true))
         } else {
+            trace!("Chunk did not exist, continuning");
             let mut buff = Vec::<u8>::new();
             chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
