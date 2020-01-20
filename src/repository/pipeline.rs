@@ -191,30 +191,6 @@ impl Pipeline {
         input.send((vec![id], vec![data], message)).await.unwrap();
         c_rx.receive().await.unwrap().into_iter().next().unwrap()
     }
-
-    pub async fn process_multiple(
-        &self,
-        data: Vec<Vec<u8>>,
-        compression: Compression,
-        encryption: Encryption,
-        hmac: HMAC,
-        key: Key,
-    ) -> Vec<Chunk> {
-        let (c_tx, c_rx) = oneshot_channel();
-        let (id_tx, id_rx) = oneshot_channel();
-        let message = Message {
-            compression,
-            encryption,
-            hmac,
-            key,
-            ret_chunk: c_tx,
-            ret_id: Some(id_tx),
-        };
-        let input = self.input.clone();
-        input.send((data, message)).await.unwrap();
-        id_rx.receive().await;
-        c_rx.receive().await.unwrap()
-    }
 }
 
 impl Default for Pipeline {

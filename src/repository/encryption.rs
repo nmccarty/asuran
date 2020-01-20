@@ -62,11 +62,6 @@ impl Encryption {
         self.encrypt_bytes(data, key.key())
     }
 
-    /// Identical to `encrypt` but async
-    pub async fn encrypt_async(&self, data: &[u8], key: &Key) -> Vec<u8> {
-        self.encrypt(data, key)
-    }
-
     /// Internal method that does the actual encryption, please use the encrypt method
     /// to avoid key confusion
     pub fn encrypt_bytes(&self, data: &[u8], key: &[u8]) -> Vec<u8> {

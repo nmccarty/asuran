@@ -184,24 +184,6 @@ impl<T: Backend + 'static> Repository<T> {
         self.write_raw(&chunk).await
     }
 
-    pub async fn write_chunks(&mut self, data: Vec<Vec<u8>>) -> Result<Vec<(ChunkID, bool)>> {
-        let chunks = self
-            .pipeline
-            .process_multiple(
-                data,
-                self.compression,
-                self.encryption,
-                self.hmac,
-                self.key.clone(),
-            )
-            .await;
-        let mut results = Vec::new();
-        for chunk in chunks {
-            results.push(self.write_raw(&chunk).await?)
-        }
-        Ok(results)
-    }
-
     /// Writes an unpacked chunk to the repository using all defaults
     pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
         let id = data.id();

@@ -148,6 +148,7 @@ impl EncryptedKey {
     ///  - N: 32768 (passed in as 15, as the scrypt function uses the log_2 of n)
     ///  - r: 8
     ///  - p: 1
+    #[cfg_attr(tarpaulin, skip)]
     pub fn encrypt_defaults(key: &Key, encryption: Encryption, user_key: &[u8]) -> EncryptedKey {
         EncryptedKey::encrypt(key, 65536, 10, encryption, user_key)
     }
