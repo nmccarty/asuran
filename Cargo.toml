@@ -47,7 +47,7 @@ serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
 sha2 = "0.8.1"
 tempfile = "3.1.0"
-tokio = { version = "0.2.9", features = ["rt-core", "macros"] }
+tokio = { version = "0.2.9", features = ["rt-core","rt-threaded", "macros"] }
 tracing = "0.1.11"
 tracing-futures = { version = "0.2.0", features = ["futures-03"] }
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
