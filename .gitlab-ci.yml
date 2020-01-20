@@ -68,13 +68,12 @@ test:coverage:
   stage: coverage
   image: "thatonelutenist/rust-nathan:latest"
   script:
-    - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
-    - bash <(curl -s https://codecov.io/bash)
+    - cargo kcov
+    - bash <(curl -s https://codecov.io/bash) -s target/cov
   cache:
-    key: "$CI_COMMIT_REF_SLUG-tarp"
+    key: "$CI_COMMIT_REF_SLUG-cov"
     paths:
       - ~/.cargo
-      - target
   tags:
     - linux
   needs: ["test:test:linux"]
