@@ -15,6 +15,7 @@ use tokio::task;
 use walkdir::WalkDir;
 
 struct SegmentPair<R>(u64, Segment<R>);
+struct WriteSegmentPair<R: std::io::Write>(u64, WriteSegment<R>);
 
 /// An internal struct for handling the state of the segments
 ///
@@ -30,7 +31,7 @@ struct SegmentPair<R>(u64, Segment<R>);
 /// 2. Swtich `ro_segment_cache` to an ARC
 struct InternalSegmentHandler {
     /// The segment we are currently writing too, if it exists
-    current_segment: Option<SegmentPair<LockedFile>>,
+    current_segment: Option<WriteSegmentPair<LockedFile>>,
     /// The ID of the highest segment we have encountered
     highest_segment: u64,
     /// The size limit of each segment, in bytes
@@ -194,7 +195,7 @@ impl InternalSegmentHandler {
     ///    directory
     /// 3. We need to create a new segement, but some other instance beats us to the punch and the
     ///    new name we have chosen gets created and locked while we are running
-    fn open_segment_write(&mut self) -> Result<&mut SegmentPair<LockedFile>> {
+    fn open_segment_write(&mut self) -> Result<&mut WriteSegmentPair<LockedFile>> {
         // Check to see if we have a currently open segment, and open one up if we do not
         //
         // To make the lifetime juggling eaiser, we are going much the same route as
@@ -228,8 +229,10 @@ impl InternalSegmentHandler {
                 let segment_path = folder_path.join(segment_id.to_string());
                 let segment_file = LockedFile::open_read_write(&segment_path)?;
                 if let Some(segment_file) = segment_file {
-                    let mut segment =
-                        SegmentPair(segment_id, Segment::new(segment_file, self.size_limit)?);
+                    let mut segment = WriteSegmentPair(
+                        segment_id,
+                        Segment::new(segment_file, self.size_limit)?.into_write_segment(),
+                    );
                     if segment.1.size() < self.size_limit {
                         self.current_segment = Some(segment);
                         return Ok(self.current_segment.as_mut().unwrap());
@@ -248,7 +251,10 @@ impl InternalSegmentHandler {
             let segment_path = folder_path.join(segment_id.to_string());
             let segment_file = LockedFile::open_read_write(&segment_path)?
                 .with_context(|| "Unable to lock newly created segement file")?;
-            let segment = SegmentPair(segment_id, Segment::new(segment_file, self.size_limit)?);
+            let segment = WriteSegmentPair(
+                segment_id,
+                Segment::new(segment_file, self.size_limit)?.into_write_segment(),
+            );
             self.current_segment = Some(segment);
         }
 

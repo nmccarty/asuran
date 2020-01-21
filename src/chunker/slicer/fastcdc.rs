@@ -1,10 +1,10 @@
 use super::{Slicer, SlicerSettings};
 use fastcdc;
+use std::io::BufReader;
 use std::io::Read;
 
-#[derive(Clone)]
 pub struct FastCDC<R: Read> {
-    reader: Option<R>,
+    reader: Option<BufReader<R>>,
     min_size: usize,
     max_size: usize,
     avg_size: usize,
@@ -36,7 +36,7 @@ where
 {
     type Settings = FastCDCSettings;
     fn add_reader(&mut self, reader: R) {
-        self.reader = Some(reader);
+        self.reader = Some(BufReader::with_capacity(1_000_000, reader));
     }
     fn take_slice(&mut self) -> Option<Vec<u8>> {
         if let Some(reader) = &mut self.reader {
@@ -93,7 +93,7 @@ where
     type Slicer = FastCDC<R>;
     fn to_slicer(&self, reader: R) -> Self::Slicer {
         FastCDC {
-            reader: Some(reader),
+            reader: Some(BufReader::with_capacity(1_000_000, reader)),
             min_size: self.min_size,
             max_size: self.max_size,
             avg_size: self.avg_size,

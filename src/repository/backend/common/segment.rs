@@ -6,7 +6,7 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use tokio::task;
 use uuid::Uuid;
@@ -124,6 +124,7 @@ impl Transaction {
 }
 
 /// Generic segment implemenation wrapping any Read + Write + Seek
+/// Generic segment implemenation wrapping any Read + Write + Seek
 #[derive(Debug)]
 pub struct Segment<T> {
     handle: T,
@@ -199,6 +200,59 @@ impl<T: Read + Write + Seek> Segment<T> {
             .take_data()
             .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
         Ok(data)
+    }
+
+    pub fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
+        let tx = Transaction::encode_insert(chunk.to_vec(), id);
+        let start = self.handle.seek(SeekFrom::End(0))?;
+        rpms::encode::write(&mut self.handle, &tx)?;
+        let end = self.handle.seek(SeekFrom::End(0))?;
+        let length = end - start;
+        Ok((start, length))
+    }
+
+    pub fn into_read_segment(self) -> ReadSegment<T> {
+        ReadSegment {
+            handle: BufReader::new(self.handle),
+            size_limit: self.size_limit,
+        }
+    }
+
+    pub fn into_write_segment(self) -> WriteSegment<T> {
+        WriteSegment {
+            handle: BufWriter::new(self.handle),
+            size_limit: self.size_limit,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReadSegment<T> {
+    handle: BufReader<T>,
+    size_limit: u64,
+}
+
+impl<T: Read + Seek> ReadSegment<T> {
+    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
+        self.handle.seek(SeekFrom::Start(start))?;
+        let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
+        let data = tx
+            .take_data()
+            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
+        Ok(data)
+    }
+}
+
+#[derive(Debug)]
+pub struct WriteSegment<T: Write> {
+    handle: BufWriter<T>,
+    size_limit: u64,
+}
+
+impl<T: Write + Seek> WriteSegment<T> {
+    /// Returns the size in bytes of the segment
+    pub fn size(&mut self) -> u64 {
+        self.handle.seek(SeekFrom::End(0)).unwrap()
     }
 
     pub fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
