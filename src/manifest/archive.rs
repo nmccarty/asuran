@@ -187,14 +187,12 @@ impl Archive {
 
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
-        let settings = repository.chunk_settings();
-        let key = repository.key();
-        let slices = chunker.chunked_iterator(from_reader, 0, &settings, key);
+        let slices = chunker.chunked_iterator(from_reader, 0);
         let mut futs = Vec::new();
         for Slice { data, start, end } in slices {
             let mut repository = repository.clone();
             futs.push(task::spawn(async move {
-                let id = repository.write_unpacked_chunk(data).await?.0;
+                let id = repository.write_chunk(data).await?.0;
                 let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
                     id,
                     start,
@@ -232,11 +230,9 @@ impl Archive {
         let path = self.canonical_namespace() + path.trim();
 
         for (extent, read) in from_readers {
-            let settings = repository.chunk_settings();
-            let key = repository.key();
-            let slices = chunker.chunked_iterator(read, 0, &settings, key);
+            let slices = chunker.chunked_iterator(read, 0);
             for Slice { data, start, end } in slices {
-                let id = repository.write_unpacked_chunk(data).await?.0;
+                let id = repository.write_chunk(data).await?.0;
                 // This math works becasue extents are 0 indexed
                 locations.push(ChunkLocation {
                     id,

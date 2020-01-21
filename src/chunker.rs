@@ -15,7 +15,6 @@
 //! maximum chunk sizes are set at 2^(mask_bits-2) bytes and `2^(mask_bits+2)`
 //! bytes, respectivly, to prevent overly large or small slices, and to provide
 //! some measure of predictibility.
-use crate::repository::{ChunkSettings, Key, UnpackedChunk};
 use std::io::{Empty, Read};
 
 pub mod slicer;
@@ -27,7 +26,7 @@ use flamer::*;
 /// Stores the data in a slice/chunk, as well as providing information about
 /// the location of the slice in the file.
 pub struct Slice {
-    pub data: UnpackedChunk,
+    pub data: Vec<u8>,
     pub start: u64,
     pub end: u64,
 }
@@ -49,7 +48,7 @@ impl<R: Read + Send, S: Slicer<R>> Iterator for IteratedReader<R, S> {
     fn next(&mut self) -> Option<Slice> {
         let data = self.chunk_iterator.next()?;
         let start = self.offset;
-        self.offset = start + (data.data().len() as u64);
+        self.offset = start + (data.len() as u64);
         let end = self.offset - 1;
 
         Some(Slice { data, start, end })
@@ -73,20 +72,13 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
     ///
     /// Requries a reader over the object and the offset, in bytes, from the start of the object,
     /// as well as the settings and key used for chunk ID generation
-    pub fn chunked_iterator<R>(
-        &self,
-
-        reader: R,
-        offset: u64,
-        settings: &ChunkSettings,
-        key: &Key,
-    ) -> IteratedReader<R, impl Slicer<R>>
+    pub fn chunked_iterator<R>(&self, reader: R, offset: u64) -> IteratedReader<R, impl Slicer<R>>
     where
         R: Read + Send,
         S: SlicerSettings<R>,
     {
         let slicer = <S as SlicerSettings<R>>::to_slicer(&self.settings, reader);
-        let chunk_iterator = slicer.into_chunk_iter(settings.clone(), key.clone());
+        let chunk_iterator = slicer.into_chunk_iter();
         IteratedReader {
             chunk_iterator,
             offset,

@@ -72,6 +72,10 @@ harness = false
 name = "chunkandstore"
 harness = false
 
+[[bench]]
+name = "archive"
+harness = false
+
 [profile.bench]
 lto = true
 codegen-units = 1

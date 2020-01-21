@@ -5,8 +5,6 @@
 pub mod buzhash;
 pub mod fastcdc;
 
-use crate::repository::chunk::*;
-use crate::repository::Key;
 use std::io::Read;
 use std::marker::PhantomData;
 
@@ -29,11 +27,9 @@ pub trait Slicer<R: Read + Send>: Sized + Send + IntoIterator<Item = Vec<u8>> {
     /// Returns the associated slicer settings
     fn copy_settings(&self) -> Self::Settings;
     /// Creates a ChunkIterator out of the slicer and its loaded data
-    fn into_chunk_iter(self, settings: ChunkSettings, key: Key) -> ChunkIterator<R, Self> {
+    fn into_chunk_iter(self) -> ChunkIterator<R, Self> {
         ChunkIterator {
             slicer: self,
-            settings,
-            key,
             marker: PhantomData,
         }
     }
@@ -42,16 +38,14 @@ pub trait Slicer<R: Read + Send>: Sized + Send + IntoIterator<Item = Vec<u8>> {
 #[derive(Clone)]
 pub struct ChunkIterator<R: Read + Send, S: Slicer<R>> {
     slicer: S,
-    settings: ChunkSettings,
-    key: Key,
     marker: PhantomData<R>,
 }
 
 impl<R: Read + Send, S: Slicer<R>> Iterator for ChunkIterator<R, S> {
-    type Item = UnpackedChunk;
-    fn next(&mut self) -> Option<UnpackedChunk> {
+    type Item = Vec<u8>;
+    fn next(&mut self) -> Option<Vec<u8>> {
         let slice = self.slicer.take_slice()?;
-        Some(UnpackedChunk::new(slice, self.settings, &self.key))
+        Some(slice)
     }
 }
 
