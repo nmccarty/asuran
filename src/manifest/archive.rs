@@ -9,6 +9,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::io::{Empty, Read, Write};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -239,15 +240,29 @@ impl Archive {
         let path = self.canonical_namespace() + path.trim();
 
         for (extent, read) in from_readers {
+            let max_futs = 100;
+            let mut futs = VecDeque::new();
             let slices = chunker.chunked_iterator(read, 0);
             for Slice { data, start, end } in slices {
-                let id = repository.write_chunk(data).await?.0;
-                // This math works becasue extents are 0 indexed
-                locations.push(ChunkLocation {
-                    id,
-                    start: start + extent.start,
-                    length: end - start + 1,
-                });
+                let mut repository = repository.clone();
+                futs.push_back(task::spawn(async move {
+                    let id = repository.write_chunk(data).await?.0;
+                    let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
+                        id,
+                        start: start + extent.start,
+                        length: end - start + 1,
+                    });
+                    result
+                }));
+                while futs.len() >= max_futs {
+                    let loc = futs.pop_front().unwrap().await??;
+                    locations.push(loc);
+                }
+            }
+            let locs = join_all(futs).await;
+            for loc in locs {
+                let loc = loc?;
+                locations.push(loc?);
             }
         }
 
