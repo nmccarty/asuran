@@ -3,6 +3,7 @@ use lz4::{Decoder, EncoderBuilder};
 use serde::{Deserialize, Serialize};
 use std::io::copy;
 use std::io::Cursor;
+use xz2::read::{XzDecoder, XzEncoder};
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -41,7 +42,13 @@ impl Compression {
                 result.unwrap();
                 cursor.into_inner()
             }
-            Compression::LZMA { level } => lzma::compress(&data[..], level).unwrap(),
+            Compression::LZMA { level } => {
+                let input = Cursor::new(data);
+                let mut output = Cursor::new(Vec::new());
+                let mut compressor = XzEncoder::new(input, level);
+                copy(&mut compressor, &mut output).unwrap();
+                output.into_inner()
+            }
         }
     }
 
@@ -65,7 +72,13 @@ impl Compression {
                 result?;
                 Ok(output.into_inner())
             }
-            Compression::LZMA { .. } => Ok(lzma::decompress(&data[..])?),
+            Compression::LZMA { .. } => {
+                let input = Cursor::new(data);
+                let mut output = Cursor::new(Vec::new());
+                let mut decompressor = XzDecoder::new(input);
+                copy(&mut decompressor, &mut output)?;
+                Ok(output.into_inner())
+            }
         }
     }
 }
