@@ -2,6 +2,7 @@ use criterion::*;
 use libasuran::chunker::slicer::fastcdc::*;
 use libasuran::chunker::slicer::*;
 use libasuran::chunker::*;
+use libasuran::manifest::archive::Extent;
 use libasuran::manifest::*;
 use libasuran::repository::backend::mem::Mem;
 use libasuran::repository::*;
@@ -35,8 +36,15 @@ async fn store<'a>(
     let mut manifest = Manifest::load(&repo);
     let chunker = Chunker::new(slicer);
     let mut archive = Archive::new("test");
+    let extents = vec![(
+        Extent {
+            start: 0,
+            end: data.len() as u64 - 1,
+        },
+        data,
+    )];
     archive
-        .put_object(&chunker, &mut repo, "", data)
+        .put_sparse_object(&chunker, &mut repo, "", extents)
         .await
         .unwrap();
     manifest.commit_archive(&mut repo, archive).await;
