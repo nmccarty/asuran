@@ -188,6 +188,7 @@ impl Archive {
         #[cfg(feature = "profile")]
         flame::start("Packing chunks");
         let slices = chunker.chunked_iterator(from_reader, 0);
+        let max_futs = 100;
         let mut futs = Vec::new();
         for Slice { data, start, end } in slices {
             let mut repository = repository.clone();
@@ -200,6 +201,14 @@ impl Archive {
                 });
                 result
             }));
+            if futs.len() >= max_futs {
+                let locs = join_all(futs).await;
+                for loc in locs {
+                    let loc = loc?;
+                    locations.push(loc?);
+                }
+                futs = Vec::new();
+            }
         }
         let locs = join_all(futs).await;
         for loc in locs {
