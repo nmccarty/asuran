@@ -4,6 +4,7 @@ use crate::repository::{Backend, ChunkID, Repository};
 
 use anyhow::Result;
 use chrono::prelude::*;
+use futures::future::join_all;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -11,6 +12,7 @@ use std::collections::HashMap;
 use std::io::{Empty, Read, Write};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::task;
 
 #[cfg(feature = "profile")]
 use flame::*;
@@ -188,13 +190,23 @@ impl Archive {
         let settings = repository.chunk_settings();
         let key = repository.key();
         let slices = chunker.chunked_iterator(from_reader, 0, &settings, key);
+        let mut futs = Vec::new();
         for Slice { data, start, end } in slices {
-            let id = repository.write_unpacked_chunk(data).await?.0;
-            locations.push(ChunkLocation {
-                id,
-                start,
-                length: end - start + 1,
-            });
+            let mut repository = repository.clone();
+            futs.push(task::spawn(async move {
+                let id = repository.write_unpacked_chunk(data).await?.0;
+                let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
+                    id,
+                    start,
+                    length: end - start + 1,
+                });
+                result
+            }));
+        }
+        let locs = join_all(futs).await;
+        for loc in locs {
+            let loc = loc?;
+            locations.push(loc?);
         }
         #[cfg(feature = "profile")]
         flame::end("Packing chunks");

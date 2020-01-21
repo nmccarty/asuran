@@ -53,7 +53,7 @@ pub use crate::repository::hmac::HMAC;
 pub use crate::repository::key::{EncryptedKey, Key};
 use crate::repository::pipeline::Pipeline;
 
-use tracing::{debug, info, instrument, span, trace, warn, Level};
+use tracing::{debug, info, instrument, span, trace, Level};
 
 #[cfg(feature = "profile")]
 use flamer::*;
