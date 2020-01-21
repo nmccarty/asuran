@@ -213,14 +213,14 @@ impl<T: Read + Write + Seek> Segment<T> {
 
     pub fn into_read_segment(self) -> ReadSegment<T> {
         ReadSegment {
-            handle: BufReader::new(self.handle),
+            handle: BufReader::with_capacity(1_000_000, self.handle),
             size_limit: self.size_limit,
         }
     }
 
     pub fn into_write_segment(self) -> WriteSegment<T> {
         WriteSegment {
-            handle: BufWriter::new(self.handle),
+            handle: BufWriter::with_capacity(1_000_000, self.handle),
             size_limit: self.size_limit,
         }
     }

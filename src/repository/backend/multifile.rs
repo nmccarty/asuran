@@ -30,7 +30,7 @@ impl MultiFile {
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
     ) -> Result<MultiFile> {
-        let size_limit = 500_000_000;
+        let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
         let index_handle = index::Index::open(&path).context("Failure opening index")?;
         let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)
