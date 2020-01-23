@@ -323,16 +323,26 @@ impl SegmentHandler {
         // get the path from it
         let path = handler.path.to_str().unwrap().to_string();
         // Create the communication channel and open the event processing loop in its own task
-        let (input, mut output) = mpsc::channel(100);
+        let (input, mut output) = mpsc::channel(500);
         task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
                 match command {
                     SegmentHandlerCommand::ReadChunk(location, ret) => {
-                        ret.send(handler.read_chunk(location)).unwrap();
+                        handler = task::spawn_blocking(move || {
+                            ret.send(handler.read_chunk(location)).unwrap();
+                            handler
+                        })
+                        .await
+                        .unwrap();
                     }
                     SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
-                        ret.send(handler.write_chunk(&chunk, id)).unwrap();
+                        handler = task::spawn_blocking(move || {
+                            ret.send(handler.write_chunk(&chunk, id)).unwrap();
+                            handler
+                        })
+                        .await
+                        .unwrap();
                     }
                     SegmentHandlerCommand::Close(ret) => {
                         final_ret = Some(ret);

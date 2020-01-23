@@ -42,7 +42,7 @@ where
         if let Some(reader) = &mut self.reader {
             // Fill buffer if it needs to be filled
             if self.buffer.len() < self.max_size {
-                let mut tiny_buf = [0_u8; 1024];
+                let mut tiny_buf = [0_u8; 8192];
                 let mut eof = false;
                 while !eof && self.buffer.len() < self.max_size {
                     let bytes_read = reader.read(&mut tiny_buf).expect("Unable to read data");
