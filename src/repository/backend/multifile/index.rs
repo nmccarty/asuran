@@ -12,7 +12,7 @@ use futures::stream::StreamExt;
 use rmp_serde as rmps;
 use std::collections::HashMap;
 use std::fs::{create_dir, read_dir, File};
-use std::io::{Seek, SeekFrom};
+use std::io::{BufWriter, Seek, SeekFrom};
 use std::path::Path;
 use tokio::task;
 
@@ -107,9 +107,10 @@ impl InternalIndex {
     }
 
     fn drain_changes(&mut self) -> Result<()> {
-        self.file.seek(SeekFrom::End(0))?;
+        let mut file = BufWriter::new(&mut self.file);
+        file.seek(SeekFrom::End(0))?;
         for tx in self.changes.drain(0..self.changes.len()) {
-            rmps::encode::write(&mut self.file, &tx)?;
+            rmps::encode::write(&mut file, &tx)?;
         }
         Ok(())
     }
@@ -193,7 +194,12 @@ impl Index {
                         ret.send(index.state.len()).unwrap();
                     }
                     IndexCommand::Commit(ret) => {
-                        ret.send({ index.drain_changes() }).unwrap();
+                        index = task::spawn_blocking(move || {
+                            ret.send({ index.drain_changes() }).unwrap();
+                            index
+                        })
+                        .await
+                        .unwrap();
                     }
                     IndexCommand::Close(ret) => {
                         final_ret = Some(ret);
