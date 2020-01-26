@@ -51,7 +51,7 @@ impl Pipeline {
                     let (data, mut message): (Vec<Vec<u8>>, Message) = input;
                     let mut cids = Vec::new();
                     for chunk in &data {
-                        let id = message.hmac.id(&chunk[..], &message.key);
+                        let id = task::block_in_place(|| message.hmac.id(&chunk[..], &message.key));
                         cids.push(ChunkID::new(&id[..]));
                     }
                     event!(Level::TRACE, ?cids);
@@ -89,7 +89,7 @@ impl Pipeline {
                     event!(Level::TRACE, ?cids);
                     let mut cdatas = Vec::new();
                     for chunk in data {
-                        let cdata = message.compression.compress(chunk);
+                        let cdata = task::block_in_place(|| message.compression.compress(chunk));
                         cdatas.push(cdata);
                     }
                     let encryption = message.encryption;
@@ -116,7 +116,9 @@ impl Pipeline {
                     event!(Level::TRACE, ?cids);
                     let mut edatas = Vec::new();
                     for chunk in data {
-                        let edata = message.encryption.encrypt(&chunk[..], &message.key);
+                        let edata = task::block_in_place(|| {
+                            message.encryption.encrypt(&chunk[..], &message.key)
+                        });
                         edatas.push(edata);
                     }
                     enc_tx.send((cids, edatas, message)).await.unwrap();
@@ -135,7 +137,7 @@ impl Pipeline {
                     event!(Level::DEBUG, ?cids);
                     let mut chunks = Vec::new();
                     for (index, chunk) in data.into_iter().enumerate() {
-                        let mac = message.hmac.mac(&chunk, &message.key);
+                        let mac = task::block_in_place(|| message.hmac.mac(&chunk, &message.key));
                         let chunk = Chunk::from_parts(
                             chunk,
                             message.compression,
