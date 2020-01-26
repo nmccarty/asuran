@@ -104,9 +104,7 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
             let mut next = iter.next();
             while let Some(item) = next {
                 input.send(item).await.unwrap();
-                let tmp = task::spawn_blocking(|| (iter.next(), iter)).await.unwrap();
-                next = tmp.0;
-                iter = tmp.1;
+                next = task::block_in_place(|| iter.next());
             }
         });
         output
