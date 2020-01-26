@@ -8,7 +8,7 @@ use tempfile::tempdir;
 
 mod common;
 
-#[tokio::test]
+#[tokio::test(threaded_scheduler)]
 async fn put_drop_get_multifile() {
     let tempdir = tempdir().unwrap();
     let root_path = tempdir.path().to_str().unwrap();
@@ -62,7 +62,7 @@ async fn put_drop_get_multifile() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(threaded_scheduler)]
 async fn put_drop_get_mem() {
     let key = Key::random(32);
     let mut repo = common::get_repo_mem(key);

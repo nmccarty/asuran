@@ -323,7 +323,7 @@ mod tests {
         Repository::with(backend, settings, key)
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn repository_add_read() {
         let key = Key::random(32);
 
@@ -351,7 +351,7 @@ mod tests {
         assert_eq!(data3, out3);
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn double_add() {
         // Adding the same chunk to the repository twice shouldn't result in
         // two chunks in the repository

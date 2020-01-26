@@ -12,7 +12,7 @@ use tempfile::tempdir;
 
 mod common;
 
-#[tokio::test]
+#[tokio::test(threaded_scheduler)]
 async fn backup_restore_no_empty_dirs_filesystem() {
     let input_dir = fs::canonicalize("tests/inputdata/scodev1/").unwrap();
     let output_tempdir = tempdir().unwrap();
@@ -71,7 +71,7 @@ async fn backup_restore_no_empty_dirs_filesystem() {
     repo.close().await;
 }
 
-#[tokio::test]
+#[tokio::test(threaded_scheduler)]
 async fn backup_restore_no_empty_dirs_mem() {
     let input_dir = fs::canonicalize("tests/inputdata/scodev1/").unwrap();
     let output_tempdir = tempdir().unwrap();

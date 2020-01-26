@@ -457,7 +457,7 @@ mod tests {
         Repository::with(backend, settings, key)
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn single_add_get() {
         let seed = 0;
         println!("Seed: {}", seed);
@@ -511,7 +511,7 @@ mod tests {
         assert!(!mismatch);
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn sparse_add_get() {
         let seed = 0;
         let slicer: FastCDC<Empty> = FastCDC::new_defaults();
@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(namespace, "1:2:");
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn namespaced_insertions() {
         let slicer: FastCDC<Empty> = FastCDC::new_defaults();
         let chunker = Chunker::new(slicer.copy_settings());
@@ -659,7 +659,7 @@ mod tests {
         assert_eq!(&obj2[..], &restore2[..]);
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn commit_and_load() {
         let slicer: FastCDC<Empty> = FastCDC::new_defaults();
         let chunker = Chunker::new(slicer.copy_settings());

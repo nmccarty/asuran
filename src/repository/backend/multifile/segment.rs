@@ -329,20 +329,10 @@ impl SegmentHandler {
             while let Some(command) = output.next().await {
                 match command {
                     SegmentHandlerCommand::ReadChunk(location, ret) => {
-                        handler = task::spawn_blocking(move || {
-                            ret.send(handler.read_chunk(location)).unwrap();
-                            handler
-                        })
-                        .await
-                        .unwrap();
+                        task::block_in_place(|| ret.send(handler.read_chunk(location)).unwrap());
                     }
                     SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
-                        handler = task::spawn_blocking(move || {
-                            ret.send(handler.write_chunk(&chunk, id)).unwrap();
-                            handler
-                        })
-                        .await
-                        .unwrap();
+                        task::block_in_place(|| ret.send(handler.write_chunk(&chunk, id)).unwrap());
                     }
                     SegmentHandlerCommand::Close(ret) => {
                         final_ret = Some(ret);
