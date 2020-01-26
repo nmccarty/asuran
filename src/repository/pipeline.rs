@@ -28,10 +28,7 @@ impl Pipeline {
     /// Gets a pass on too_many lines for now
     #[allow(clippy::too_many_lines)]
     pub fn new() -> Pipeline {
-        let base_threads = match num_cpus::get() / 2 {
-            0 => 1,
-            x => x,
-        };
+        let base_threads = num_cpus::get();
         let heavy_count = base_threads;
         let light_count = base_threads;
 
