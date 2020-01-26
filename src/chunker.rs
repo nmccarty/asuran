@@ -19,6 +19,9 @@ use std::io::{Empty, Read};
 
 pub mod slicer;
 pub use self::slicer::{ChunkIterator, Slicer, SlicerSettings};
+use futures::channel::mpsc;
+use futures::sink::SinkExt;
+use tokio::task;
 
 #[cfg(feature = "profile")]
 use flamer::*;
@@ -34,7 +37,7 @@ pub struct Slice {
 /// Apply content based slicing over a Read, and iterate throught the slices
 ///
 /// Slicing is applied as the iteration proceeds, so each byte is only read once
-pub struct IteratedReader<R: Read + Send, S: Slicer<R>> {
+pub struct IteratedReader<R, S> {
     /// Internal chunk iterator
     chunk_iterator: ChunkIterator<R, S>,
     /// Offset used for calcuating slice ends
@@ -83,5 +86,29 @@ impl<S: SlicerSettings<Empty>> Chunker<S> {
             chunk_iterator,
             offset,
         }
+    }
+
+    /// Creates an asyncronous stream over the slices in an object
+    ///
+    /// This is an async version of chunked_iterator that works by calling .next in a blocking task
+    ///
+    /// The task will continously chunk the data in the background, and push it into a mpsc channel
+    pub fn chunked_stream<R>(&self, reader: R, offset: u64) -> mpsc::Receiver<Slice>
+    where
+        R: Read + Send + 'static,
+        S: SlicerSettings<R> + 'static,
+    {
+        let (mut input, output) = mpsc::channel(100);
+        let mut iter = self.chunked_iterator(reader, offset);
+        task::spawn(async move {
+            let mut next = iter.next();
+            while let Some(item) = next {
+                input.send(item).await.unwrap();
+                let tmp = task::spawn_blocking(|| (iter.next(), iter)).await.unwrap();
+                next = tmp.0;
+                iter = tmp.1;
+            }
+        });
+        output
     }
 }

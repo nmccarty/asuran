@@ -36,7 +36,7 @@ pub trait Slicer<R: Read + Send>: Sized + Send + IntoIterator<Item = Vec<u8>> {
 }
 
 #[derive(Clone)]
-pub struct ChunkIterator<R: Read + Send, S: Slicer<R>> {
+pub struct ChunkIterator<R, S> {
     slicer: S,
     marker: PhantomData<R>,
 }

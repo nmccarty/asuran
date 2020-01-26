@@ -5,6 +5,7 @@ use crate::repository::{Backend, ChunkID, Repository};
 use anyhow::Result;
 use chrono::prelude::*;
 use futures::future::join_all;
+use futures::stream::StreamExt;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -229,9 +230,9 @@ impl Archive {
     /// Inserts a sparse object into the archive
     ///
     /// Requires that the object be pre-split into extents
-    pub async fn put_sparse_object<R: Read + Send>(
+    pub async fn put_sparse_object<R: Read + Send + 'static>(
         &mut self,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R> + 'static>,
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_readers: Vec<(Extent, R)>,
@@ -242,8 +243,8 @@ impl Archive {
         for (extent, read) in from_readers {
             let max_futs = 100;
             let mut futs = VecDeque::new();
-            let slices = chunker.chunked_iterator(read, 0);
-            for Slice { data, start, end } in slices {
+            let mut slices = chunker.chunked_stream(read, 0);
+            while let Some(Slice { data, start, end }) = slices.next().await {
                 let mut repository = repository.clone();
                 futs.push_back(task::spawn(async move {
                     let id = repository.write_chunk(data).await?.0;
@@ -553,10 +554,8 @@ mod tests {
         // Make the extent list
         let mut extent_list = Vec::new();
         for extent in extents.clone() {
-            extent_list.push((
-                extent,
-                &test_input[extent.start as usize..extent.end as usize],
-            ));
+            let data = test_input[extent.start as usize..extent.end as usize].to_vec();
+            extent_list.push((extent, Cursor::new(data)));
         }
 
         // println!("Extent list: {:?}", extent_list);

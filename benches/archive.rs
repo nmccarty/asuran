@@ -29,9 +29,9 @@ fn compressable_random(mut rng: impl Rng, length: usize) -> Vec<u8> {
 }
 
 async fn store<'a>(
-    data: &'a [u8],
+    data: &'static [u8],
     mut repo: Repository<impl Backend>,
-    slicer: impl SlicerSettings<&'a [u8]> + SlicerSettings<std::io::Empty>,
+    slicer: impl SlicerSettings<&'static [u8]> + SlicerSettings<std::io::Empty> + 'static,
 ) {
     let mut manifest = Manifest::load(&repo);
     let chunker = Chunker::new(slicer);
@@ -64,6 +64,8 @@ fn get_repo(key: Key) -> Repository<impl Backend> {
 fn bench(c: &mut Criterion) {
     let size = 64_000_000;
     let data = compressable_random(thread_rng(), size);
+    let data = Box::new(data);
+    let data: &'static [u8] = Box::leak(data);
 
     let mut rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("Blake3 archive");
@@ -76,7 +78,7 @@ fn bench(c: &mut Criterion) {
             rt.block_on(async {
                 let repo = get_repo(Key::random(32));
                 let slicer: FastCDC<&[u8]> = FastCDC::new_defaults();
-                store(&data[..], repo, slicer.copy_settings()).await;
+                store(data, repo, slicer.copy_settings()).await;
             });
         })
     });
