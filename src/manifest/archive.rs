@@ -176,55 +176,22 @@ impl Archive {
     /// Places an object into a archive, as a whole, without regard to sparsity
     ///
     /// Will read holes as 0s
+    ///
+    /// This is implemented as a thin wrapper around put_sparse_object
     #[cfg_attr(feature = "profile", flame)]
-    pub async fn put_object<R: Read + Send>(
+    pub async fn put_object<R: Read + Send + 'static>(
         &mut self,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R>>,
+        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R> + 'static>,
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_reader: R,
     ) -> Result<()> {
-        let mut locations: Vec<ChunkLocation> = Vec::new();
-        let path = self.canonical_namespace() + path.trim();
-
-        #[cfg(feature = "profile")]
-        flame::start("Packing chunks");
-        let slices = chunker.chunked_iterator(from_reader, 0);
-        let max_futs = 100;
-        let mut futs = Vec::new();
-        for Slice { data, start, end } in slices {
-            let mut repository = repository.clone();
-            futs.push(task::spawn(async move {
-                let id = repository.write_chunk(data).await?.0;
-                let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
-                    id,
-                    start,
-                    length: end - start + 1,
-                });
-                result
-            }));
-            if futs.len() >= max_futs {
-                let locs = join_all(futs).await;
-                for loc in locs {
-                    let loc = loc?;
-                    locations.push(loc?);
-                }
-                futs = Vec::new();
-            }
-        }
-        let locs = join_all(futs).await;
-        for loc in locs {
-            let loc = loc?;
-            locations.push(loc?);
-        }
-        #[cfg(feature = "profile")]
-        flame::end("Packing chunks");
-
-        let mut objects = self.objects.write().await;
-
-        objects.insert(path.to_string(), locations);
-
-        Ok(())
+        // We take advantage of put_sparse_object's behavior of reading past the given end if the
+        // given reader is actually longer
+        let extent = Extent { start: 0, end: 0 };
+        let readers = vec![(extent, from_reader)];
+        self.put_sparse_object(chunker, repository, path, readers)
+            .await
     }
 
     /// Inserts a sparse object into the archive
@@ -479,10 +446,10 @@ mod tests {
             let mut input_file = fs::File::create(input_file_path.clone()).unwrap();
             input_file.write_all(&data).unwrap();
         }
-        let mut input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
+        let input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
 
         archive
-            .put_object(&chunker, &mut repo, "FileOne", &mut input_file)
+            .put_object(&chunker, &mut repo, "FileOne", input_file)
             .await
             .unwrap();
 
@@ -622,18 +589,18 @@ mod tests {
 
         let mut repo = get_repo_mem(key);
 
-        let mut obj1 = Cursor::new([1_u8; 32]);
-        let mut obj2 = Cursor::new([2_u8; 32]);
+        let obj1 = Cursor::new([1_u8; 32]);
+        let obj2 = Cursor::new([2_u8; 32]);
 
         let mut archive_1 = Archive::new("test");
         let mut archive_2 = archive_1.clone();
 
         archive_1
-            .put_object(&chunker, &mut repo, "1", &mut obj1)
+            .put_object(&chunker, &mut repo, "1", obj1.clone())
             .await
             .unwrap();
         archive_2
-            .put_object(&chunker, &mut repo, "2", &mut obj2)
+            .put_object(&chunker, &mut repo, "2", obj2.clone())
             .await
             .unwrap();
 
@@ -671,11 +638,11 @@ mod tests {
             obj1[i] = i as u8;
         }
 
-        let mut obj1 = Cursor::new(obj1);
+        let obj1 = Cursor::new(obj1);
 
         let mut archive = Archive::new("test");
         archive
-            .put_object(&chunker, &mut repo, "1", &mut obj1)
+            .put_object(&chunker, &mut repo, "1", obj1.clone())
             .await
             .expect("Unable to put object in archive");
 

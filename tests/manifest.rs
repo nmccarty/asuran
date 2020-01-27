@@ -36,7 +36,7 @@ async fn put_drop_get_multifile() {
                     &chunker,
                     &mut repo,
                     &i.to_string(),
-                    &mut Cursor::new(object),
+                    Cursor::new(object.clone()),
                 )
                 .await
                 .unwrap();
@@ -88,7 +88,7 @@ async fn put_drop_get_mem() {
                     &chunker,
                     &mut repo,
                     &i.to_string(),
-                    &mut Cursor::new(object),
+                    Cursor::new(object.clone()),
                 )
                 .await
                 .unwrap();
