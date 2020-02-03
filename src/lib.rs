@@ -13,6 +13,7 @@
 #![allow(clippy::shadow_unrelated)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::missing_errors_doc)]
 // Temporary, will remove
 #![allow(clippy::cast_possible_truncation)]
 

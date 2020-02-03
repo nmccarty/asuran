@@ -208,7 +208,7 @@ mod tests {
             let sliced: Vec<Vec<u8>> = slicer.collect();
             sliced.len() >= 1
         }
-        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1048576)).tests(20);
+        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1_048_576)).tests(20);
         qc.quickcheck(prop as fn(Vec<u8>) -> bool);
     }
 
@@ -223,7 +223,7 @@ mod tests {
             let rebuilt: Vec<u8> = sliced.concat();
             rebuilt == data
         }
-        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1048576)).tests(20);
+        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1_048_576)).tests(20);
         qc.quickcheck(prop as fn(Vec<u8>) -> bool);
     }
 
@@ -243,7 +243,7 @@ mod tests {
 
             sliced1 == sliced2
         }
-        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1048576)).tests(20);
+        let mut qc = QuickCheck::with_gen(StdThreadGen::new(1_048_576)).tests(20);
         qc.quickcheck(prop as fn(Vec<u8>) -> bool);
     }
 }
