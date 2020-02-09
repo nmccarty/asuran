@@ -1,10 +1,10 @@
-use libasuran::chunker::slicer::fastcdc::FastCDC;
-use libasuran::chunker::*;
-use libasuran::manifest::driver::*;
-use libasuran::manifest::target::filesystem::*;
-use libasuran::manifest::target::*;
-use libasuran::manifest::*;
-use libasuran::repository::*;
+use asuran::chunker::slicer::fastcdc::FastCDC;
+use asuran::chunker::*;
+use asuran::manifest::driver::*;
+use asuran::manifest::target::filesystem::*;
+use asuran::manifest::target::*;
+use asuran::manifest::*;
+use asuran::repository::*;
 use std::fs;
 use std::io::Empty;
 use std::path::Path;

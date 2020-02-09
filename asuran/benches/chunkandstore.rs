@@ -1,10 +1,10 @@
+use asuran::chunker::slicer::buzhash::*;
+use asuran::chunker::slicer::fastcdc::*;
+use asuran::chunker::slicer::*;
+use asuran::repository::backend::mem::Mem;
+use asuran::repository::*;
 use criterion::*;
 use futures::future::join_all;
-use libasuran::chunker::slicer::buzhash::*;
-use libasuran::chunker::slicer::fastcdc::*;
-use libasuran::chunker::slicer::*;
-use libasuran::repository::backend::mem::Mem;
-use libasuran::repository::*;
 use rand::Rng;
 use std::time::Duration;
 use tokio::runtime::Runtime;

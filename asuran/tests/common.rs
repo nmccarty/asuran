@@ -1,4 +1,4 @@
-use libasuran::repository::*;
+use asuran::repository::*;
 
 #[allow(dead_code)]
 pub fn get_bare_settings() -> ChunkSettings {
@@ -16,7 +16,7 @@ pub fn get_repo_mem(key: Key) -> Repository<impl Backend> {
         hmac: HMAC::Blake2b,
         encryption: Encryption::new_aes256ctr(),
     };
-    let backend = libasuran::repository::backend::mem::Mem::new(settings);
+    let backend = asuran::repository::backend::mem::Mem::new(settings);
     Repository::with(backend, settings, key)
 }
 
@@ -27,7 +27,7 @@ pub fn get_repo_bare(path: &str, key: Key) -> Repository<impl Backend> {
         hmac: HMAC::Blake2b,
         encryption: Encryption::new_aes256ctr(),
     };
-    let backend = libasuran::repository::backend::multifile::MultiFile::open_defaults(
+    let backend = asuran::repository::backend::multifile::MultiFile::open_defaults(
         path,
         Some(settings),
         &key,

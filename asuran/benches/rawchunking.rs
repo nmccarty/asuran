@@ -1,7 +1,7 @@
+use asuran::chunker::slicer::buzhash::*;
+use asuran::chunker::slicer::fastcdc::*;
+use asuran::chunker::slicer::*;
 use criterion::*;
-use libasuran::chunker::slicer::buzhash::*;
-use libasuran::chunker::slicer::fastcdc::*;
-use libasuran::chunker::slicer::*;
 use rand::Rng;
 use std::io::Read;
 use std::time::Duration;

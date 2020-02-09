@@ -1,7 +1,7 @@
-use libasuran::chunker::slicer::fastcdc::FastCDC;
-use libasuran::chunker::*;
-use libasuran::manifest::*;
-use libasuran::repository::*;
+use asuran::chunker::slicer::fastcdc::FastCDC;
+use asuran::chunker::*;
+use asuran::manifest::*;
+use asuran::repository::*;
 use rand::prelude::*;
 use std::io::{Cursor, Empty};
 use tempfile::tempdir;
