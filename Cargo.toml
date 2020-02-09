@@ -2,6 +2,7 @@
 
 members = [
         "asuran",
+        "asuran-cli",
 ]
 
 [profile.bench]

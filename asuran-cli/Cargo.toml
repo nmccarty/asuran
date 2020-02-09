@@ -1,0 +1,28 @@
+[package]
+name = "asuran-cli"
+description = "Deduplicating, secure, tamper resistant archiver"
+license = "MIT"
+version = "0.0.4"
+repository = "https://gitlab.com/asuran-rs/asuran/"
+documentation = "https://docs.rs/crate/asuran-cli"
+homepage = "https://asuran.rs"
+authors = ["Nathan McCarty <nathan@mccarty.io>"]
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+anyhow = "1.0.26"
+chrono = "0.4.10"
+clap = { version = "2.33.0", features = ["yaml"] }
+futures = "0.3.4"
+asuran = { path = "../asuran" }
+prettytable-rs = "0.8.0"
+read_input = "0.8.3"
+rpassword = "4.0.5"
+tokio = { version = "0.2.11", features = ["full"] }
+tracing = "0.1.12"
+tracing-subscriber = "0.2.0"
+
+[build-dependencies]
+vergen = "3.0.4"
+

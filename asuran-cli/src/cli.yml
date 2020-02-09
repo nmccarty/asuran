@@ -1,0 +1,45 @@
+name: Asuran
+version: "0.0.0-MASTER"
+author: Nathan McCarty <nathan@mccarty.io>
+about: Deduplicating, encrypting, tamper evident archiver
+args:
+  - REPO:
+      required: true
+      index: 1
+      help: Location of the asuran repostiory
+  - password:
+      short: p
+      long: password
+      value_name: PASSWORD
+      takes_value: true
+      help: Password used for encrypting the repository keys, will prompt if not provided.
+      global: true
+subcommands:
+  - list:
+      about: Lists archives in a respository
+  - store:
+      about: Creates an archive in the repository
+      args:
+        - TARGET:
+            required: true
+            index: 1
+            help: Target directory/soruce to be backed up.
+        - name:
+            takes_value: true
+            short: n
+            long: name
+            value_name: name
+            help: Name for the archive to be created. Will default to an ISO date/time stamp if not provided.
+  - retrive:
+      about: Restores the contents of an archive from the repository.
+      args:
+        - TARGET:
+            required: true
+            index: 2
+            help: Target directory/destination to be restored to.
+        - ARCHIVE:
+            index: 1
+            required: true
+            help: Name/ID of the archive to be restored.
+  - new:
+      about: Creates a new repository
