@@ -72,7 +72,7 @@ test:coverage:
     - cd asuran-core
     - cargo kcov
     - cd ../asuran
-    - cargo kcov --manifest-path asuran/Cargo.toml
+    - cargo kcov
     - cd ..
     - bash <(curl -s https://codecov.io/bash) -s target/cov
   cache:

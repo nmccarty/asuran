@@ -4,7 +4,7 @@
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
 * Overview
 [[https://codecov.io/gl/asuran-rs/asuran][file:https://img.shields.io/codecov/c/gitlab/asuran-rs/asuran.svg?style=for-the-badge]] 
-[[file:https://img.shields.io/gitlab/pipeline/asuran-rs/lasuran.svg?style=for-the-badge]] 
+[[file:https://img.shields.io/gitlab/pipeline/asuran-rs/asuran.svg?style=for-the-badge]] 
 [[https://crates.io/crates/asuran][file:https://img.shields.io/crates/v/asuran.svg?style=for-the-badge]] 
 [[file:https://img.shields.io/crates/l/asuran.svg?style=for-the-badge]] 
 
