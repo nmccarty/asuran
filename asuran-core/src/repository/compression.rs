@@ -5,9 +5,6 @@ use std::io::copy;
 use std::io::Cursor;
 use xz2::read::{XzDecoder, XzEncoder};
 
-#[cfg(feature = "profile")]
-use flamer::*;
-
 /// Marker for the type of compression used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum Compression {
@@ -18,7 +15,6 @@ pub enum Compression {
 }
 
 impl Compression {
-    #[cfg_attr(feature = "profile", flame)]
     /// Will compress the data with the algorithim indicated by the marker
     ///
     /// # Panics
@@ -52,7 +48,6 @@ impl Compression {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails

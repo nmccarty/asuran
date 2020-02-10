@@ -16,9 +16,6 @@ use zeroize::Zeroize;
 
 use crate::repository::Key;
 
-#[cfg(feature = "profile")]
-use flamer::*;
-
 /// Tag for the encryption algorthim and IV used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum Encryption {
@@ -60,7 +57,6 @@ impl Encryption {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Encrypts a bytestring using the algrothim specified in the tag, and the
     /// given key.
     ///
@@ -120,7 +116,6 @@ impl Encryption {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Decrypts a bytestring with the given key
     ///
     /// Still requires a key in the event of no encryption, but it does not read this key,

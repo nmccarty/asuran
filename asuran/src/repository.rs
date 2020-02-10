@@ -45,25 +45,17 @@ use anyhow::{anyhow, Result};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
-pub use self::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
 pub use crate::repository::backend::{Backend, Index, SegmentDescriptor};
-pub use crate::repository::compression::Compression;
-pub use crate::repository::encryption::Encryption;
-pub use crate::repository::hmac::HMAC;
-pub use crate::repository::key::{EncryptedKey, Key};
 use crate::repository::pipeline::Pipeline;
+pub use asuran_core::repository::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
+pub use asuran_core::repository::compression::Compression;
+pub use asuran_core::repository::encryption::Encryption;
+pub use asuran_core::repository::hmac::HMAC;
+pub use asuran_core::repository::key::{EncryptedKey, Key};
 
 use tracing::{debug, info, instrument, span, trace, Level};
 
-#[cfg(feature = "profile")]
-use flamer::*;
-
 pub mod backend;
-pub mod chunk;
-pub mod compression;
-pub mod encryption;
-pub mod hmac;
-pub mod key;
 pub mod pipeline;
 
 /// Provides an interface to the storage-backed key value store

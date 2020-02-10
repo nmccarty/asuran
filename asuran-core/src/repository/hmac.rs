@@ -7,9 +7,6 @@ use sha3::Sha3_256;
 
 use crate::repository::Key;
 
-#[cfg(feature = "profile")]
-use flamer::*;
-
 type HmacSha256 = Hmac<Sha256>;
 type HmacSHA3 = Hmac<Sha3_256>;
 
@@ -24,7 +21,6 @@ pub enum HMAC {
 }
 
 impl HMAC {
-    #[cfg_attr(feature = "profile", flame)]
     /// Produces a MAC for the given data with the given key, using the
     /// algorthim specified in the tag.
     fn internal_mac(self, data: &[u8], key: &[u8]) -> Vec<u8> {
@@ -71,7 +67,6 @@ impl HMAC {
         self.internal_mac(data, key)
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Produces a MAC for the data using the algorthim specified in the tag,
     /// and verfies it against the supplied MAC
     pub fn verify_hmac(self, input_mac: &[u8], data: &[u8], key: &Key) -> bool {

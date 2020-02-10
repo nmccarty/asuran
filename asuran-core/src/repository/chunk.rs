@@ -138,7 +138,6 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    #[cfg_attr(feature = "profile", flame)]
     /// Will Pack the data into a chunk with the given compression and encryption
     pub fn pack(
         data: Vec<u8>,
@@ -181,7 +180,6 @@ impl Chunk {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Will pack a chunk, but manually setting the id instead of hashing
     ///
     /// This function should be used carefully, as it has potentiall to do major damage to the repository
@@ -206,7 +204,6 @@ impl Chunk {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Decrypts and decompresses the data in the chunk
     ///
     /// Will return none if either the decompression or the decryption fail

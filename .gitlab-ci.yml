@@ -69,7 +69,11 @@ test:coverage:
   image: "thatonelutenist/rust-nathan:latest"
   script:
     - cargo check
+    - cd asuran-core
+    - cargo kcov
+    - cd ../asuran
     - cargo kcov --manifest-path asuran/Cargo.toml
+    - cd ..
     - bash <(curl -s https://codecov.io/bash) -s target/cov
   cache:
     key: "$CI_COMMIT_REF_SLUG-cov"
