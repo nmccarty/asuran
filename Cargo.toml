@@ -4,6 +4,7 @@ members = [
         "asuran",
         "asuran-cli",
         "asuran-core",
+        "asuran-chunker",
 ]
 
 [profile.bench]
