@@ -1,9 +1,18 @@
-use anyhow::Result;
 use lz4::{Decoder, EncoderBuilder};
 use serde::{Deserialize, Serialize};
 use std::io::copy;
 use std::io::Cursor;
+use thiserror::Error;
 use xz2::read::{XzDecoder, XzEncoder};
+
+/// Error describing things that can go wrong with compression/decompression
+#[derive(Error, Debug)]
+pub enum CompressionError {
+    #[error("I/O Error")]
+    IOError(#[from] std::io::Error),
+}
+
+type Result<T> = std::result::Result<T, CompressionError>;
 
 /// Marker for the type of compression used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]

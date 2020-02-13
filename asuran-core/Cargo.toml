@@ -14,7 +14,6 @@ description = "Core data structures used by the asuran archive format"
 [dependencies]
 aes = "0.3.2"
 aes-ctr = "0.3.0"
-anyhow = "1.0.26"
 blake2b_simd = "0.5.10"
 blake3 = "0.1.4"
 block-modes = "0.3.3"
@@ -28,6 +27,7 @@ serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
 sha2 = "0.8.1"
 sha3 = "0.8.2"
+thiserror = "1.0.10"
 xz2 = "0.1.6"
 zeroize = { version = "1.1.0", features = ["zeroize_derive"] }
 zstd = "0.5.1"

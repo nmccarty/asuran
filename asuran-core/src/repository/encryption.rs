@@ -5,16 +5,27 @@ use aes::Aes256;
 use aes_ctr::stream_cipher::generic_array::GenericArray;
 use aes_ctr::stream_cipher::{NewStreamCipher, SyncStreamCipher};
 use aes_ctr::Aes256Ctr;
-use anyhow::{Context, Result};
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Cbc};
 use chacha20::ChaCha20;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cmp;
+use thiserror::Error;
 use zeroize::Zeroize;
 
 use crate::repository::Key;
+
+/// Error describing things that can go wrong with encryption/decryption
+#[derive(Error, Debug)]
+pub enum EncryptionError {
+    #[error("Invalid key/IV length used to construct encryptor/decryptor")]
+    InvalidKeyIVLength(#[from] block_modes::InvalidKeyIvLength),
+    #[error("Error with block mode encryption/decryption")]
+    BlockModeError(#[from] block_modes::BlockModeError),
+}
+
+type Result<T> = std::result::Result<T, EncryptionError>;
 
 /// Tag for the encryption algorthim and IV used by a particular chunk
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -137,9 +148,8 @@ impl Encryption {
                 proper_key[..cmp::min(key.len(), 32)]
                     .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let decryptor: Cbc<Aes256, Pkcs7> =
-                    Cbc::new_var(&key, &iv[..]).context("Failed constructing decryptor")?;
-                let final_result = decryptor.decrypt_vec(data).context("Failed to decrypt")?;
+                let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..])?;
+                let final_result = decryptor.decrypt_vec(data)?;
 
                 // Zeroize key
                 proper_key.zeroize();

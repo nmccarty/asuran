@@ -1,10 +1,23 @@
 use crate::repository::Encryption;
-use anyhow::Result;
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use zeroize::Zeroize;
+
+/// Error describing things that can go wrong with key handling
+#[derive(Error, Debug)]
+pub enum KeyError {
+    #[error("Encrypted key encryption/decryption failed")]
+    EncryptionError(#[from] super::EncryptionError),
+    #[error("Something went wrong with argon2")]
+    Argon2Error(#[from] argon2::Error),
+    #[error("Something went wrong with Serialization/Deserailization")]
+    DecodeError(#[from] rmp_serde::decode::Error),
+}
+
+type Result<T> = std::result::Result<T, KeyError>;
 
 /// Stores the encryption key used by the archive
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Zeroize)]

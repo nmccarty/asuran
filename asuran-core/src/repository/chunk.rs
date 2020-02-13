@@ -3,9 +3,24 @@
 //! Contains structs representing both encrypted and unencrypted data
 
 use super::{Compression, Encryption, Key, HMAC};
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::cmp;
+use thiserror::Error;
+
+/// Error for all the various things that can go wrong with handling chunks
+#[derive(Error, Debug)]
+pub enum ChunkError {
+    #[error("Compression Error")]
+    CompressionError(#[from] super::CompressionError),
+    #[error("Encryption Error")]
+    EncryptionError(#[from] super::EncryptionError),
+    #[error("Key Error")]
+    KeyError(#[from] super::KeyError),
+    #[error("HMAC Vailidation Failed")]
+    HMACValidationFailed,
+}
+
+type Result<T> = std::result::Result<T, ChunkError>;
 
 /// Key for an object in a repository
 #[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash, Debug)]
@@ -216,7 +231,7 @@ impl Chunk {
 
             Ok(decompressed_data)
         } else {
-            Err(anyhow!("hmac verification failed"))
+            Err(ChunkError::HMACValidationFailed)
         }
     }
 
