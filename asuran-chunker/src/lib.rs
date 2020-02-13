@@ -1,5 +1,21 @@
 //! API for describing types that can slice data into component slices in a repeatable manner
 
+pub mod fastcdc;
+pub use self::fastcdc::*;
+
+use std::io;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ChunkerError {
+    #[error("Provider IO error")]
+    IOError(#[from] io::Error),
+    #[error("Internal Chunker Error")]
+    InternalError(String),
+    #[error("Slicer incorrectly applied to empty data")]
+    Empty,
+}
+
 use std::io::{Cursor, Read};
 
 /// Describes something that can slice objects in a defined, repeateable manner
@@ -13,8 +29,12 @@ use std::io::{Cursor, Read};
 ///
 /// If/when existental types get stabilized in a way that helps, this will be switched to an
 /// existential type, to drop the dynamic dispatch.
-pub trait Chunker {
-    type Chunks: Iterator<Item = Vec<u8>>;
+///
+/// Chunkers should, ideally, contain only a small number of settings for the chunking algrothim,
+/// and should there for be cloneable with minimal overhead. Ideally, they should implement copy,
+/// but that is not supplied as a bound to increase the flexibilty in implementaion
+pub trait Chunker: Clone {
+    type Chunks: Iterator<Item = Result<Vec<u8>, ChunkerError>>;
     /// Core function, takes a boxed owned Read and produces an iterator of Vec<u8> over it
     fn chunk_boxed(&self, read: Box<dyn Read + 'static>) -> Self::Chunks;
     /// Convienice function that boxes a bare Read for you, and passes it to chunk_boxed

@@ -10,3 +10,7 @@ authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 
 [dependencies]
+fastcdc = "1.0.2"
+rand = { version = "0.7.3", features = ["small_rng"] }
+thiserror = "1.0.10"
+
