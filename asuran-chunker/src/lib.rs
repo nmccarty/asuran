@@ -1,6 +1,8 @@
 //! API for describing types that can slice data into component slices in a repeatable manner
 
+pub mod buzhash;
 pub mod fastcdc;
+pub use self::buzhash::*;
 pub use self::fastcdc::*;
 
 use std::io;
@@ -20,10 +22,13 @@ use std::io::{Cursor, Read};
 
 /// Describes something that can slice objects in a defined, repeateable manner
 ///
-/// Chunkers must meet three properties:
+/// Chunkers must meet the following properties:
 /// 1.) Data must be split into one or more chunks
 /// 2.) Data must be identical to original after a simple reconstruction by concatenation
 /// 3.) The same data and settings must produce the same slices every time
+/// 4.) Chunkers (that have a max size) should not produce any chunks larger than their max_size
+/// 5.) Chunkers (that have a min size) should produce, at most, 1 slice smaller than its min_size,
+///  and should only do as such when there is not enough data left to produce a min size chunk
 ///
 /// For the time being given the lack of existential types, Chunkers use Box<dyn Read + 'static>.
 ///

@@ -77,7 +77,7 @@ impl FastCDCChunker {
             // Drain the bytes from the vec
             let output = self.buffer.drain(..count).collect::<Vec<_>>();
             // Update the length
-            self.length = self.length - count;
+            self.length -= count;
             // Resize the buffer back to max_size
             self.buffer.resize(self.settings.max_size, 0_u8);
             // Return the drained bytes
@@ -182,9 +182,9 @@ mod tests {
     use rand::prelude::*;
     use std::io::Cursor;
 
-    // Provides a test slice 512KiB in length
+    // Provides a test slice 10 times the default max size in length
     fn get_test_data() -> Vec<u8> {
-        let size = 524_288;
+        let size = FastCDC::default().max_size * 10;
         let mut vec = vec![0_u8; size];
         rand::thread_rng().fill_bytes(&mut vec);
         vec
@@ -192,7 +192,7 @@ mod tests {
 
     // Data should be split into one or more chunks.
     //
-    // In this case, the data is larger than max size, so it should be more than one chunk
+    // In this case, the data is larger than `max_size`, so it should be more than one chunk
     #[test]
     fn one_or_more_chunks() {
         let data = get_test_data();
@@ -233,5 +233,42 @@ mod tests {
             .map(|x| x.unwrap())
             .collect::<Vec<_>>();
         assert_eq!(chunks1, chunks2);
+    }
+
+    // Verifies that this `Chunker` does not produce chunks larger than its max size
+    #[test]
+    fn max_size() {
+        let data = get_test_data();
+        let max_size = FastCDC::default().max_size;
+
+        let chunks = FastCDC::default()
+            .chunk(Cursor::new(data))
+            .map(|x| x.unwrap())
+            .collect::<Vec<_>>();
+
+        for chunk in chunks {
+            assert!(chunk.len() <= max_size);
+        }
+    }
+
+    // Verifies that this `Chunker`, at most, produces 1 under-sized chunk
+    #[test]
+    fn min_size() {
+        let data = get_test_data();
+        let min_size = FastCDC::default().min_size;
+
+        let chunks = FastCDC::default()
+            .chunk(Cursor::new(data))
+            .map(|x| x.unwrap())
+            .collect::<Vec<_>>();
+
+        let mut undersized_count = 0;
+        for chunk in chunks {
+            if chunk.len() < min_size {
+                undersized_count += 1;
+            }
+        }
+
+        assert!(undersized_count <= 1);
     }
 }
