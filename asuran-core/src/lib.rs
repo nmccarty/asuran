@@ -10,4 +10,5 @@
 #![allow(clippy::missing_errors_doc)]
 // Temporary, will remove
 #![allow(clippy::cast_possible_truncation)]
+pub mod manifest;
 pub mod repository;

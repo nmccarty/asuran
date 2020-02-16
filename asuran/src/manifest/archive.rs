@@ -2,12 +2,13 @@ use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
+pub use asuran_core::manifest::archive::ChunkLocation;
+
 use chrono::prelude::*;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
@@ -97,26 +98,6 @@ impl From<ManifestTransaction> for StoredArchive {
             id: item.pointer(),
             timestamp: item.timestamp(),
         }
-    }
-}
-
-/// Location of a chunk in a file
-#[derive(Serialize, Deserialize, Copy, Clone, Eq, PartialEq, Debug)]
-pub struct ChunkLocation {
-    id: ChunkID,
-    start: u64,
-    length: u64,
-}
-
-impl PartialOrd for ChunkLocation {
-    fn partial_cmp(&self, other: &ChunkLocation) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ChunkLocation {
-    fn cmp(&self, other: &ChunkLocation) -> Ordering {
-        self.start.cmp(&other.start)
     }
 }
 
