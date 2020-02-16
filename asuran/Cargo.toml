@@ -31,6 +31,7 @@ rand = { version = "0.7.3", features = ["small_rng"] }
 rmp-serde = "0.14.2"
 serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
+thiserror = "1.0.10"
 tokio = { version = "0.2.11", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"] }
 tracing = "0.1.12"
 tracing-futures = "0.2.1"

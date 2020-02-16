@@ -16,11 +16,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task;
 
-#[cfg(feature = "profile")]
-use flame::*;
-#[cfg(feature = "profile")]
-use flamer::flame;
-
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 /// Extent range
 ///
@@ -178,7 +173,6 @@ impl Archive {
     /// Will read holes as 0s
     ///
     /// This is implemented as a thin wrapper around put_sparse_object
-    #[cfg_attr(feature = "profile", flame)]
     pub async fn put_object<R: Read + Send + 'static>(
         &mut self,
         chunker: &impl AsyncChunker,
@@ -255,7 +249,6 @@ impl Archive {
     /// Retreives an object from the archive, without regard to sparsity.
     ///
     /// Will fill in holes with zeros.
-    #[cfg_attr(feature = "profile", flame)]
     pub async fn get_object(
         &self,
         repository: &mut Repository<impl Backend>,

@@ -118,7 +118,6 @@ impl<T: Backend + 'static> Repository<T> {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Commits the index to storage
     ///
     /// This should be called every time an archive or manifest is written, at
@@ -133,7 +132,6 @@ impl<T: Backend + 'static> Repository<T> {
             .expect("Unable to commit index");
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk directly to the repository
     ///
     /// Will return (Chunk_Id, Already_Present)
@@ -168,7 +166,6 @@ impl<T: Backend + 'static> Repository<T> {
         }
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
     /// Uses all defaults
@@ -200,7 +197,6 @@ impl<T: Backend + 'static> Repository<T> {
         self.write_chunk_with_id(data.consuming_data(), id).await
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Writes a chunk to the repo
     ///
     /// Uses all defaults
@@ -238,7 +234,6 @@ impl<T: Backend + 'static> Repository<T> {
         self.backend.get_index().lookup_chunk(id).await.is_some()
     }
 
-    #[cfg_attr(feature = "profile", flame)]
     /// Reads a chunk from the repo
     ///
     /// Returns none if reading the chunk fails
