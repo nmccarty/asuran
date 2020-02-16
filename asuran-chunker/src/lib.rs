@@ -8,6 +8,13 @@ pub use self::fastcdc::*;
 use std::io;
 use thiserror::Error;
 
+#[cfg(feature = "streams")]
+use futures::channel::mpsc;
+#[cfg(feature = "streams")]
+use futures::sink::SinkExt;
+#[cfg(feature = "streams")]
+use tokio::task;
+
 #[derive(Error, Debug)]
 pub enum ChunkerError {
     #[error("Provider IO error")]
@@ -39,7 +46,11 @@ use std::io::{Cursor, Read};
 /// and should there for be cloneable with minimal overhead. Ideally, they should implement copy,
 /// but that is not supplied as a bound to increase the flexibilty in implementaion
 pub trait Chunker: Clone {
-    type Chunks: Iterator<Item = Result<Vec<u8>, ChunkerError>>;
+    /// The return type of the functions in this trait is an iterator over the chunks of their
+    /// input.
+    ///
+    /// The returned iterator must be owned, hence the 'static bound.
+    type Chunks: Iterator<Item = Result<Vec<u8>, ChunkerError>> + 'static;
     /// Core function, takes a boxed owned Read and produces an iterator of Vec<u8> over it
     fn chunk_boxed(&self, read: Box<dyn Read + 'static>) -> Self::Chunks;
     /// Convienice function that boxes a bare Read for you, and passes it to chunk_boxed
@@ -59,5 +70,77 @@ pub trait Chunker: Clone {
         let cursor = Cursor::new(slice);
         let boxed: Box<dyn Read + 'static> = Box::new(cursor);
         self.chunk_boxed(boxed)
+    }
+}
+
+/// Asyncronous version of `Chunker`
+///
+/// Only available if the streams feature is enabled.
+///
+/// Works by performing the chunking in an async task, falling through to the implementation in
+/// `Chunker`, and passing the results over an mspc channel
+#[cfg(feature = "streams")]
+pub trait AsyncChunker: Chunker {
+    /// Async version of `Chunker::chunk_boxed`
+    fn async_chunk_boxed(
+        &self,
+        read: Box<dyn Read + 'static>,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
+    /// Async version of `Chunker::chunk`
+    fn async_chunk<R: Read + 'static>(
+        &self,
+        read: R,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
+    /// Async version of `Chunker::chunk_slice`
+    fn async_chunk_slice<R: AsRef<[u8]> + 'static>(
+        &self,
+        slice: R,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
+}
+
+#[cfg(feature = "streams")]
+impl<T> AsyncChunker for T
+where
+    T: Chunker + Send,
+    <T as Chunker>::Chunks: Send,
+{
+    fn async_chunk_boxed(
+        &self,
+        read: Box<dyn Read + 'static>,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
+        let (mut input, output) = mpsc::channel(100);
+        let mut iter = self.chunk_boxed(read);
+        task::spawn(async move {
+            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                input.send(chunk).await.unwrap();
+            }
+        });
+        output
+    }
+    fn async_chunk<R: Read + 'static>(
+        &self,
+        read: R,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
+        let (mut input, output) = mpsc::channel(100);
+        let mut iter = self.chunk(read);
+        task::spawn(async move {
+            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                input.send(chunk).await.unwrap();
+            }
+        });
+        output
+    }
+    fn async_chunk_slice<R: AsRef<[u8]> + 'static>(
+        &self,
+        slice: R,
+    ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
+        let (mut input, output) = mpsc::channel(100);
+        let mut iter = self.chunk_slice(slice);
+        task::spawn(async move {
+            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                input.send(chunk).await.unwrap();
+            }
+        });
+        output
     }
 }

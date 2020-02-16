@@ -9,10 +9,15 @@ homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 
+[features]
+streams = ["tokio", "futures"]
+
 [dependencies]
 fastcdc = "1.0.2"
+futures = { version = "0.3.4", default-features = false, features = ["std"], optional = true }
 rand = { version = "0.7.3", features = ["small_rng"] }
 thiserror = "1.0.10"
+tokio = { version = "0.2.11", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"], optional = true}
 
 [dev-dependencies]
 criterion = "0.3.1"
