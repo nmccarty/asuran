@@ -200,9 +200,9 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
-        let data = tx.take_data().ok_or(BackendError::SegmentError(
-            "Read transaction does not have a chunk in it.".to_string(),
-        ))?;
+        let data = tx.take_data().ok_or_else(|| {
+            BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
+        })?;
         Ok(data)
     }
 
@@ -240,9 +240,9 @@ impl<T: Read + Seek> ReadSegment<T> {
     pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
-        let data = tx.take_data().ok_or(BackendError::SegmentError(
-            "Read transaction does not have a chunk in it.".to_string(),
-        ))?;
+        let data = tx.take_data().ok_or_else(|| {
+            BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
+        })?;
         Ok(data)
     }
 }

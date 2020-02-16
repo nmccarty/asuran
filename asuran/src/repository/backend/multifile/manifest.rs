@@ -113,9 +113,9 @@ impl InternalManifest {
         let chunk_settings = if let Some(chunk_settings) = settings {
             // Attempt to open the chunk settings file and update it
             let mut sfile = LockedFile::open_read_write(manifest_path.join("chunk.settings"))?
-                .ok_or(BackendError::ManifestError(
-                    "Unable to lock chunk.settings".to_string(),
-                ))?;
+                .ok_or_else(|| {
+                    BackendError::ManifestError("Unable to lock chunk.settings".to_string())
+                })?;
             // Clear the file
             sfile.set_len(0)?;
             // Write our new chunksettings

@@ -247,10 +247,9 @@ impl InternalSegmentHandler {
             }
             // Construct the path for the segment proper, and construct the segment
             let segment_path = folder_path.join(segment_id.to_string());
-            let segment_file =
-                LockedFile::open_read_write(&segment_path)?.ok_or(BackendError::SegmentError(
-                    "Unable to lock newly created segement file".to_string(),
-                ))?;
+            let segment_file = LockedFile::open_read_write(&segment_path)?.ok_or_else(|| {
+                BackendError::SegmentError("Unable to lock newly created segement file".to_string())
+            })?;
             let segment = WriteSegmentPair(
                 segment_id,
                 Segment::new(segment_file, self.size_limit)?.into_write_segment(),
