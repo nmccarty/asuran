@@ -14,3 +14,9 @@ fastcdc = "1.0.2"
 rand = { version = "0.7.3", features = ["small_rng"] }
 thiserror = "1.0.10"
 
+[dev-dependencies]
+criterion = "0.3.1"
+
+[[bench]]
+name = "chunking"
+harness = false
