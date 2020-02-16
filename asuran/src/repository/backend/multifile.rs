@@ -3,7 +3,7 @@ use crate::repository::backend::common::files::*;
 use crate::repository::backend::*;
 use crate::repository::{ChunkSettings, Key};
 
-use anyhow::{Context, Result};
+use super::Result;
 use async_trait::async_trait;
 use rmp_serde as rmps;
 use std::fs::File;
@@ -32,12 +32,10 @@ impl MultiFile {
     ) -> Result<MultiFile> {
         let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
-        let index_handle = index::Index::open(&path).context("Failure opening index")?;
-        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)
-            .context("Failure opening manifest")?;
+        let index_handle = index::Index::open(&path)?;
+        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)?;
         let segment_handle =
-            segment::SegmentHandler::open(&path, size_limit, segments_per_directory)
-                .context("Failure opening segment handler")?;
+            segment::SegmentHandler::open(&path, size_limit, segments_per_directory)?;
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {
             index_handle,
@@ -55,7 +53,7 @@ impl MultiFile {
     pub fn read_key(path: impl AsRef<Path>) -> Result<EncryptedKey> {
         let key_path = path.as_ref().join("key");
         let file = File::open(&key_path)?;
-        rmps::decode::from_read(&file).context("Unable to deserialize key")
+        Ok(rmps::decode::from_read(&file)?)
     }
 }
 
@@ -77,9 +75,9 @@ impl Backend for MultiFile {
     /// Will return Err if writing the key fails
     async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
         let key_path = self.path.join("key");
-        let mut file = LockedFile::open_read_write(&key_path)?
-            .context("Unable to lock key file for writing")?;
-        rmps::encode::write(&mut file, key).context("Unable to serialize key")
+        let mut file =
+            LockedFile::open_read_write(&key_path)?.ok_or(BackendError::FileLockError)?;
+        Ok(rmps::encode::write(&mut file, key)?)
     }
     /// Attempts to read the key from the repository
     ///
@@ -87,7 +85,7 @@ impl Backend for MultiFile {
     async fn read_key(&self) -> Result<EncryptedKey> {
         let key_path = self.path.join("key");
         let file = File::open(&key_path)?;
-        rmps::decode::from_read(&file).context("Unable to deserialize key")
+        Ok(rmps::decode::from_read(&file)?)
     }
 
     /// Starts reading a chunk, and returns a oneshot recieve with the result of that process

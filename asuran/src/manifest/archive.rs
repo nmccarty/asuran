@@ -2,7 +2,6 @@ use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
-use anyhow::Result;
 use chrono::prelude::*;
 use futures::future::join_all;
 use futures::stream::StreamExt;
@@ -13,8 +12,24 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::task;
+
+/// Error for all the things that can go wrong with handling Archives
+#[derive(Error, Debug)]
+pub enum ArchiveError {
+    #[error("Chunker Error")]
+    ChunkerError(#[from] crate::chunker::ChunkerError),
+    #[error("I/O Error")]
+    IOError(#[from] std::io::Error),
+    #[error("Async Task Join Error")]
+    AsyncJoinError(#[from] task::JoinError),
+    #[error("")]
+    RepositoryError(#[from] crate::repository::RepositoryError),
+}
+
+type Result<T> = std::result::Result<T, ArchiveError>;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 /// Extent range
@@ -213,7 +228,7 @@ impl Archive {
                 let mut repository = repository.clone();
                 futs.push_back(task::spawn(async move {
                     let id = repository.write_chunk(data).await?.0;
-                    let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
+                    let result: Result<ChunkLocation> = Ok(ChunkLocation {
                         id,
                         start,
                         length: end - start + 1,

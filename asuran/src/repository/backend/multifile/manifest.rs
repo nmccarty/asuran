@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 use crate::manifest::StoredArchive;
-use crate::repository::backend;
 use crate::repository::backend::common::*;
+use crate::repository::backend::{self, BackendError, Result};
 use crate::repository::{ChunkSettings, Key};
 
-use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::channel::mpsc;
@@ -50,10 +49,10 @@ impl InternalManifest {
         if Path::exists(&manifest_path) {
             // If it is a file, return failure
             if Path::is_file(&manifest_path) {
-                return Err(anyhow!(
+                return Err(BackendError::ManifestError(format!(
                     "Failed to load manifest, {:?} is a file, not a directory",
                     manifest_path
-                ));
+                )));
             }
         } else {
             // Create the manifest directory
@@ -62,14 +61,14 @@ impl InternalManifest {
 
         // Get the list of manifest files and sort them by ID
         let mut items = read_dir(&manifest_path)?
-            .filter_map(Result::ok)
+            .filter_map(std::result::Result::ok)
             .filter(|x| x.path().is_file())
             .filter_map(|x| {
                 x.path()
                     .file_name()
                     .unwrap()
                     .to_str()
-                    .map(|y| Result::ok(y.parse::<usize>()))
+                    .map(|y| std::result::Result::ok(y.parse::<usize>()))
                     .flatten()
                     .map(|z| (z, x))
             })
@@ -114,7 +113,9 @@ impl InternalManifest {
         let chunk_settings = if let Some(chunk_settings) = settings {
             // Attempt to open the chunk settings file and update it
             let mut sfile = LockedFile::open_read_write(manifest_path.join("chunk.settings"))?
-                .with_context(|| "Unable to lock chunk.settings")?;
+                .ok_or(BackendError::ManifestError(
+                    "Unable to lock chunk.settings".to_string(),
+                ))?;
             // Clear the file
             sfile.set_len(0)?;
             // Write our new chunksettings
@@ -140,10 +141,10 @@ impl InternalManifest {
         // Verify each head
         for head in manifest.heads.clone() {
             if !manifest.verify_tx(head) {
-                return Err(anyhow!(
+                return Err(BackendError::ManifestError(format!(
                     "Manifest Transaction failed verification! {:?}",
                     manifest.known_entries.get(&head).unwrap()
-                ));
+                )));
             }
         }
 

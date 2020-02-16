@@ -1,6 +1,5 @@
-use anyhow::Result;
 use std::fs::{remove_file, File, OpenOptions};
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Result, Seek, Write};
 use std::ops::{Deref, DerefMut, Drop};
 use std::path::{Path, PathBuf};
 

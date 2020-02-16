@@ -4,14 +4,41 @@ use crate::manifest::StoredArchive;
 use crate::repository::ChunkID;
 use crate::repository::ChunkSettings;
 use crate::repository::EncryptedKey;
-use anyhow::Result;
 use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub mod common;
 pub mod mem;
 pub mod multifile;
+
+/// An error for things that can go wrong with backends
+#[derive(Error, Debug)]
+pub enum BackendError {
+    #[error("I/O Error")]
+    IOError(#[from] std::io::Error),
+    #[error("Data not found")]
+    DataNotFound,
+    #[error("Segment Error")]
+    SegmentError(String),
+    #[error("Manifest Error")]
+    ManifestError(String),
+    #[error("Index Error")]
+    IndexError(String),
+    #[error("MessagePack Decode Error")]
+    MsgPackDecodeError(#[from] rmp_serde::decode::Error),
+    #[error("MessagePack Encode Error")]
+    MsgPackEncodeError(#[from] rmp_serde::encode::Error),
+    #[error("Failed to lock file")]
+    FileLockError,
+    #[error("Cancelled oneshot")]
+    CancelledOneshotError(#[from] futures::channel::oneshot::Canceled),
+    #[error("Unknown Error")]
+    Unknown(String),
+}
+
+type Result<T> = std::result::Result<T, BackendError>;
 
 /// Describes the segment id and location there in of a chunk
 ///

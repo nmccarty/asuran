@@ -1,9 +1,7 @@
-use crate::repository::backend;
 use crate::repository::backend::common::*;
-use crate::repository::backend::SegmentDescriptor;
+use crate::repository::backend::{self, BackendError, Result, SegmentDescriptor};
 use crate::repository::ChunkID;
 
-use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
@@ -35,10 +33,10 @@ impl InternalIndex {
         if Path::exists(&index_path) {
             // If it is a file, return failure
             if Path::is_file(&index_path) {
-                return Err(anyhow!(
+                return Err(BackendError::IndexError(format!(
                     "Failed to load index, {:?} is a file, not a directory",
                     index_path
-                ));
+                )));
             }
         } else {
             // Create the index directory
@@ -49,14 +47,14 @@ impl InternalIndex {
 
         // Get the list of files, and sort them by ID
         let mut items = read_dir(&index_path)?
-            .filter_map(Result::ok)
+            .filter_map(std::result::Result::ok)
             .filter(|x| x.path().is_file())
             .filter_map(|x| {
                 x.path()
                     .file_name()
                     .unwrap()
                     .to_str()
-                    .map(|y| Result::ok(y.parse::<usize>()))
+                    .map(|y| std::result::Result::ok(y.parse::<usize>()))
                     .flatten()
                     .map(|z| (z, x))
             })

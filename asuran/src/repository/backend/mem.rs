@@ -1,7 +1,6 @@
 use crate::repository::backend::common;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
-use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
@@ -93,7 +92,9 @@ impl Backend for Mem {
         if let Some(k) = key {
             Ok(k.clone())
         } else {
-            Err(anyhow!("Tried to access an unset key"))
+            Err(BackendError::Unknown(
+                "Tried to access an unset key.".to_string(),
+            ))
         }
     }
     fn get_manifest(&self) -> Self::Manifest {

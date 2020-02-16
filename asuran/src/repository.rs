@@ -41,9 +41,9 @@
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
 
-use anyhow::{anyhow, Result};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub use crate::repository::backend::{Backend, Index, SegmentDescriptor};
 use crate::repository::pipeline::Pipeline;
@@ -57,6 +57,19 @@ use tracing::{debug, info, instrument, span, trace, Level};
 
 pub mod backend;
 pub mod pipeline;
+
+/// An error for all the various things that can go wrong with handling chunks
+#[derive(Error, Debug)]
+pub enum RepositoryError {
+    #[error("Chunk Not in Repository")]
+    ChunkNotFound,
+    #[error("Chunker Error")]
+    ChunkerError(#[from] asuran_core::repository::chunk::ChunkError),
+    #[error("Backend Error")]
+    BackendError(#[from] backend::BackendError),
+}
+
+type Result<T> = std::result::Result<T, RepositoryError>;
 
 /// Provides an interface to the storage-backed key value store
 ///
@@ -252,7 +265,7 @@ impl<T: Backend + 'static> Repository<T> {
 
             Ok(data)
         } else {
-            Err(anyhow!("Chunk not in reposiotry"))
+            Err(RepositoryError::ChunkNotFound)
         }
     }
 

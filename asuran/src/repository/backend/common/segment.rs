@@ -1,6 +1,5 @@
-use crate::repository::backend::{SegmentDescriptor, TransactionType};
+use crate::repository::backend::{BackendError, Result, SegmentDescriptor, TransactionType};
 use crate::repository::ChunkID;
-use anyhow::{anyhow, Context, Result};
 use futures::channel;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
@@ -147,12 +146,13 @@ impl<T: Read + Write + Seek> Segment<T> {
             if header.validate() {
                 Ok(s)
             } else {
-                Err(anyhow!("Segment failed header validation"))
+                Err(BackendError::SegmentError(
+                    "Segment failed header validation".to_string(),
+                ))
             }
         }
     }
 
-    /// If the segment has zero length, will write the header and return Ok(true)
     ///
     /// If the segment has non-zero length, will do nothing and return Ok(false)
     ///
@@ -166,7 +166,8 @@ impl<T: Read + Write + Seek> Segment<T> {
             let mut config = bincode::config();
             config
                 .big_endian()
-                .serialize_into(&mut self.handle, &header)?;
+                .serialize_into(&mut self.handle, &header)
+                .map_err(|_| BackendError::Unknown("Header Serialization failed".to_string()))?;
             Ok(true)
         } else {
             Ok(false)
@@ -179,7 +180,10 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn read_header(&mut self) -> Result<Header> {
         self.handle.seek(SeekFrom::Start(0))?;
         let mut config = bincode::config();
-        let header: Header = config.big_endian().deserialize_from(&mut self.handle)?;
+        let header: Header = config
+            .big_endian()
+            .deserialize_from(&mut self.handle)
+            .map_err(|_| BackendError::Unknown("Header deserialization failed".to_string()))?;
         Ok(header)
     }
 
@@ -196,9 +200,9 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
-        let data = tx
-            .take_data()
-            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
+        let data = tx.take_data().ok_or(BackendError::SegmentError(
+            "Read transaction does not have a chunk in it.".to_string(),
+        ))?;
         Ok(data)
     }
 
@@ -236,9 +240,9 @@ impl<T: Read + Seek> ReadSegment<T> {
     pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
-        let data = tx
-            .take_data()
-            .with_context(|| "Read transaction does not have a chunk in it.".to_string())?;
+        let data = tx.take_data().ok_or(BackendError::SegmentError(
+            "Read transaction does not have a chunk in it.".to_string(),
+        ))?;
         Ok(data)
     }
 }

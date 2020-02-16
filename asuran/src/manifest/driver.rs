@@ -2,10 +2,19 @@ use crate::chunker::AsyncChunker;
 use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
-use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use thiserror::Error;
+
+/// An error for things that can go wrong with drivers
+#[derive(Error, Debug)]
+pub enum DriverError {
+    #[error("")]
+    ArchiveError(#[from] crate::manifest::archive::ArchiveError),
+}
+
+type Result<T> = std::result::Result<T, DriverError>;
 
 /// Collection of abstract methods for moving data from a storage target to a repository
 ///

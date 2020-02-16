@@ -1,9 +1,8 @@
 use crate::repository::backend::common::files::*;
 use crate::repository::backend::common::segment::*;
-use crate::repository::backend::SegmentDescriptor;
+use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
 use crate::repository::ChunkID;
 
-use anyhow::{anyhow, Context, Result};
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
@@ -88,14 +87,14 @@ impl InternalSegmentHandler {
         // Walk the data directory to find the higest numbered segment
         let max_segment = WalkDir::new(&data_path)
             .into_iter()
-            .filter_map(Result::ok)
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.file_type().is_file())
             .filter_map(|e| {
                 e.path()
                     .file_name()
                     .map(|x| x.to_str().unwrap().to_string())
             })
-            .filter_map(|e| Result::ok(e.parse::<u64>()))
+            .filter_map(|e| std::result::Result::ok(e.parse::<u64>()))
             .max()
             .unwrap_or(0);
 
@@ -144,19 +143,18 @@ impl InternalSegmentHandler {
             // Find the folder it belongs to and check to see if it exists
             let folder_path = self.path.join(folder_id.to_string());
             if !(folder_path.exists() && folder_path.is_dir()) {
-                return Err(anyhow!(
+                return Err(BackendError::SegmentError(format!(
                     "Segment directory {} for segment {} does not exist or is not a folder",
-                    folder_id,
-                    segment_id
-                ));
+                    folder_id, segment_id
+                )));
             }
             // Get the path of the segement and check to see if it exists
             let segment_path = folder_path.join(segment_id.to_string());
             if !(segment_path.exists() && segment_path.is_file()) {
-                return Err(anyhow!(
+                return Err(BackendError::SegmentError(format!(
                     "File for segment {} opened in read only mode does not exists",
                     segment_id
-                ));
+                )));
             }
             // Open the file
             let segment_file = File::open(segment_path)?;
@@ -249,8 +247,10 @@ impl InternalSegmentHandler {
             }
             // Construct the path for the segment proper, and construct the segment
             let segment_path = folder_path.join(segment_id.to_string());
-            let segment_file = LockedFile::open_read_write(&segment_path)?
-                .with_context(|| "Unable to lock newly created segement file")?;
+            let segment_file =
+                LockedFile::open_read_write(&segment_path)?.ok_or(BackendError::SegmentError(
+                    "Unable to lock newly created segement file".to_string(),
+                ))?;
             let segment = WriteSegmentPair(
                 segment_id,
                 Segment::new(segment_file, self.size_limit)?.into_write_segment(),
@@ -304,7 +304,6 @@ pub struct SegmentHandler {
     path: String,
 }
 
-/// Segment handler with lock free multithreading
 ///
 /// # Warnings
 ///
