@@ -1,5 +1,3 @@
-use asuran::chunker::slicer::fastcdc::*;
-use asuran::chunker::slicer::*;
 use asuran::chunker::*;
 use asuran::manifest::archive::Extent;
 use asuran::manifest::*;
@@ -31,10 +29,9 @@ fn compressable_random(mut rng: impl Rng, length: usize) -> Vec<u8> {
 async fn store<'a>(
     data: &'static [u8],
     mut repo: Repository<impl Backend>,
-    slicer: impl SlicerSettings<&'static [u8]> + SlicerSettings<std::io::Empty> + 'static,
+    chunker: impl AsyncChunker,
 ) {
     let mut manifest = Manifest::load(&repo);
-    let chunker = Chunker::new(slicer);
     let mut archive = Archive::new("test");
     let extents = vec![(
         Extent {
@@ -77,8 +74,8 @@ fn bench(c: &mut Criterion) {
         b.iter(|| {
             rt.block_on(async {
                 let repo = get_repo(Key::random(32));
-                let slicer: FastCDC<&[u8]> = FastCDC::new_defaults();
-                store(data, repo, slicer.copy_settings()).await;
+                let slicer = FastCDC::default();
+                store(data, repo, slicer).await;
             });
         })
     });

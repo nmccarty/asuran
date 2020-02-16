@@ -43,7 +43,7 @@ impl BuzHash {
 
 impl Chunker for BuzHash {
     type Chunks = BuzHashChunker;
-    fn chunk_boxed(&self, read: Box<dyn Read + 'static>) -> Self::Chunks {
+    fn chunk_boxed(&self, read: Box<dyn Read + Send + 'static>) -> Self::Chunks {
         BuzHashChunker {
             settings: *self,
             read,
@@ -60,7 +60,7 @@ pub struct BuzHashChunker {
     /// Settings for this `Chunker`
     settings: BuzHash,
     /// The reader this `Chunker` is slicing
-    read: Box<dyn Read + 'static>,
+    read: Box<dyn Read + Send + 'static>,
     /// The in memory buffer used for reading and popping bytes
     buffer: VecDeque<u8>,
     /// The buffer used by the rolling hash

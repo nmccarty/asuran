@@ -1,4 +1,3 @@
-use asuran::chunker::slicer::fastcdc::FastCDC;
 use asuran::chunker::*;
 use asuran::manifest::driver::*;
 use asuran::manifest::target::*;
@@ -14,7 +13,7 @@ use rpassword::read_password_from_tty;
 use std::boxed::Box;
 use std::fs;
 use std::fs::create_dir_all;
-use std::io::{Cursor, Empty};
+use std::io::Cursor;
 use std::path::Path;
 
 mod util;
@@ -164,8 +163,7 @@ async fn store(repo_path: String, m: ArgMatches<'static>, password: &str) -> Res
     let target_path = m.value_of("TARGET").unwrap();
     // Setup the backup target
     // Default chunker has a 128 byte window and is aming for 512kiB chunks
-    let slicer = FastCDC::<Empty>::new_defaults();
-    let chunker = Chunker::new(slicer.copy_settings());
+    let chunker = FastCDC::default();
     let absoulte_path = fs::canonicalize(target_path).expect("Failed to expand target path");
     let target = FileSystemTarget::new(absoulte_path.to_str().unwrap());
     let paths = target.backup_paths().await;

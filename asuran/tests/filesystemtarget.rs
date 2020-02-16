@@ -1,4 +1,3 @@
-use asuran::chunker::slicer::fastcdc::FastCDC;
 use asuran::chunker::*;
 use asuran::manifest::driver::*;
 use asuran::manifest::target::filesystem::*;
@@ -6,7 +5,6 @@ use asuran::manifest::target::*;
 use asuran::manifest::*;
 use asuran::repository::*;
 use std::fs;
-use std::io::Empty;
 use std::path::Path;
 use tempfile::tempdir;
 
@@ -22,8 +20,7 @@ async fn backup_restore_no_empty_dirs_filesystem() {
     let repo_root_path = repo_root.path().to_str().unwrap();
     let key = Key::random(32);
     let mut repo = common::get_repo_bare(repo_root_path, key);
-    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-    let chunker = Chunker::new(slicer.copy_settings());
+    let chunker = FastCDC::default();
 
     let archive = Archive::new("test");
 
@@ -79,8 +76,7 @@ async fn backup_restore_no_empty_dirs_mem() {
 
     let key = Key::random(32);
     let mut repo = common::get_repo_mem(key);
-    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-    let chunker = Chunker::new(slicer.copy_settings());
+    let chunker = FastCDC::default();
 
     let archive = Archive::new("test");
 

@@ -13,7 +13,7 @@ keywords = ["encryption", "compression","deduplication","backup","archive"]
 
 [dependencies]
 anyhow = "1.0.26"
-asuran-chunker = { path = "../asuran-chunker/" }
+asuran-chunker = { path = "../asuran-chunker/", features = ["streams"] }
 asuran-core = { path = "../asuran-core/" }
 async-trait = "0.1.24"
 base64 = "0.11.0"

@@ -1,4 +1,4 @@
-use crate::chunker::{Chunker, Slice, SlicerSettings};
+use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::io::{Empty, Read, Write};
+use std::io::{Read, Write};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task;
@@ -181,7 +181,7 @@ impl Archive {
     #[cfg_attr(feature = "profile", flame)]
     pub async fn put_object<R: Read + Send + 'static>(
         &mut self,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R> + 'static>,
+        chunker: &impl AsyncChunker,
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_reader: R,
@@ -199,7 +199,7 @@ impl Archive {
     /// Requires that the object be pre-split into extents
     pub async fn put_sparse_object<R: Read + Send + 'static>(
         &mut self,
-        chunker: &Chunker<impl SlicerSettings<Empty> + SlicerSettings<R> + 'static>,
+        chunker: &impl AsyncChunker,
         repository: &mut Repository<impl Backend>,
         path: &str,
         from_readers: Vec<(Extent, R)>,
@@ -210,14 +210,18 @@ impl Archive {
         for (extent, read) in from_readers {
             let max_futs = 100;
             let mut futs = VecDeque::new();
-            let mut slices = chunker.chunked_stream(read, 0);
-            while let Some(Slice { data, start, end }) = slices.next().await {
+            let mut slices = chunker.async_chunk(read);
+            let mut start = extent.start;
+            while let Some(result) = slices.next().await {
+                let data = result?;
+                let end = start + (data.len() as u64);
+
                 let mut repository = repository.clone();
                 futs.push_back(task::spawn(async move {
                     let id = repository.write_chunk(data).await?.0;
                     let result: anyhow::Result<ChunkLocation> = Ok(ChunkLocation {
                         id,
-                        start: start + extent.start,
+                        start,
                         length: end - start + 1,
                     });
                     result
@@ -226,6 +230,7 @@ impl Archive {
                     let loc = futs.pop_front().unwrap().await??;
                     locations.push(loc);
                 }
+                start = end + 1;
             }
             let locs = join_all(futs).await;
             for loc in locs {
@@ -407,14 +412,13 @@ impl Archive {
 #[cfg_attr(tarpaulin, skip)]
 mod tests {
     use super::*;
-    use crate::chunker::slicer::fastcdc::FastCDC;
     use crate::chunker::*;
     use crate::repository::backend::mem::Mem;
     use crate::repository::ChunkSettings;
     use crate::repository::Key;
     use rand::prelude::*;
     use std::fs;
-    use std::io::{BufReader, Cursor, Empty, Seek, SeekFrom};
+    use std::io::{BufReader, Cursor, Seek, SeekFrom};
     use std::path::Path;
     use tempfile::tempdir;
 
@@ -428,8 +432,7 @@ mod tests {
     async fn single_add_get() {
         let seed = 0;
         println!("Seed: {}", seed);
-        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-        let chunker = Chunker::new(slicer.copy_settings());
+        let chunker = FastCDC::default();
 
         let key = Key::random(32);
         let size = 2 * 2_usize.pow(14);
@@ -481,8 +484,7 @@ mod tests {
     #[tokio::test(threaded_scheduler)]
     async fn sparse_add_get() {
         let seed = 0;
-        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-        let chunker = Chunker::new(slicer.copy_settings());
+        let chunker: FastCDC = FastCDC::default();
         let key = Key::random(32);
         let mut repo = get_repo_mem(key);
 
@@ -583,8 +585,7 @@ mod tests {
 
     #[tokio::test(threaded_scheduler)]
     async fn namespaced_insertions() {
-        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-        let chunker = Chunker::new(slicer.copy_settings());
+        let chunker = FastCDC::default();
         let key = Key::random(32);
 
         let mut repo = get_repo_mem(key);
@@ -628,8 +629,7 @@ mod tests {
 
     #[tokio::test(threaded_scheduler)]
     async fn commit_and_load() {
-        let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-        let chunker = Chunker::new(slicer.copy_settings());
+        let chunker = FastCDC::default();
         let key = Key::random(32);
 
         let mut repo = get_repo_mem(key);

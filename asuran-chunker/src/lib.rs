@@ -45,6 +45,9 @@ use std::io::{Cursor, Read};
 /// Chunkers should, ideally, contain only a small number of settings for the chunking algrothim,
 /// and should there for be cloneable with minimal overhead. Ideally, they should implement copy,
 /// but that is not supplied as a bound to increase the flexibilty in implementaion
+///
+/// The Send bound on the Read is likely temporary, it is currently required to make the streams
+/// feature work properly.
 pub trait Chunker: Clone {
     /// The return type of the functions in this trait is an iterator over the chunks of their
     /// input.
@@ -52,12 +55,12 @@ pub trait Chunker: Clone {
     /// The returned iterator must be owned, hence the 'static bound.
     type Chunks: Iterator<Item = Result<Vec<u8>, ChunkerError>> + 'static;
     /// Core function, takes a boxed owned Read and produces an iterator of Vec<u8> over it
-    fn chunk_boxed(&self, read: Box<dyn Read + 'static>) -> Self::Chunks;
+    fn chunk_boxed(&self, read: Box<dyn Read + Send + 'static>) -> Self::Chunks;
     /// Convienice function that boxes a bare Read for you, and passes it to chunk_boxed
     ///
     /// This will be the primary source of interaction wth the API for most use cases
-    fn chunk<R: Read + 'static>(&self, read: R) -> Self::Chunks {
-        let boxed: Box<dyn Read + 'static> = Box::new(read);
+    fn chunk<R: Read + Send + 'static>(&self, read: R) -> Self::Chunks {
+        let boxed: Box<dyn Read + Send + 'static> = Box::new(read);
         self.chunk_boxed(boxed)
     }
     /// Convience function that boxes an AsRef<[u8]> wrapped in a cursor and passes it to
@@ -66,9 +69,9 @@ pub trait Chunker: Clone {
     /// This method is provided to ensure API compatibility when implementations are using memory
     /// mapped io or the like. When chunkers can sensibly override this, they are encouraged to, as
     /// it would otherwise result in a perforance overhead for consumers using memmaped IO.
-    fn chunk_slice<R: AsRef<[u8]> + 'static>(&self, slice: R) -> Self::Chunks {
+    fn chunk_slice<R: AsRef<[u8]> + Send + 'static>(&self, slice: R) -> Self::Chunks {
         let cursor = Cursor::new(slice);
-        let boxed: Box<dyn Read + 'static> = Box::new(cursor);
+        let boxed: Box<dyn Read + Send + 'static> = Box::new(cursor);
         self.chunk_boxed(boxed)
     }
 }
@@ -80,19 +83,19 @@ pub trait Chunker: Clone {
 /// Works by performing the chunking in an async task, falling through to the implementation in
 /// `Chunker`, and passing the results over an mspc channel
 #[cfg(feature = "streams")]
-pub trait AsyncChunker: Chunker {
+pub trait AsyncChunker: Chunker + Send + Sync {
     /// Async version of `Chunker::chunk_boxed`
     fn async_chunk_boxed(
         &self,
-        read: Box<dyn Read + 'static>,
+        read: Box<dyn Read + Send + 'static>,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
     /// Async version of `Chunker::chunk`
-    fn async_chunk<R: Read + 'static>(
+    fn async_chunk<R: Read + Send + 'static>(
         &self,
         read: R,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
     /// Async version of `Chunker::chunk_slice`
-    fn async_chunk_slice<R: AsRef<[u8]> + 'static>(
+    fn async_chunk_slice<R: AsRef<[u8]> + Send + 'static>(
         &self,
         slice: R,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
@@ -101,12 +104,12 @@ pub trait AsyncChunker: Chunker {
 #[cfg(feature = "streams")]
 impl<T> AsyncChunker for T
 where
-    T: Chunker + Send,
+    T: Chunker + Send + Sync,
     <T as Chunker>::Chunks: Send,
 {
     fn async_chunk_boxed(
         &self,
-        read: Box<dyn Read + 'static>,
+        read: Box<dyn Read + Send + 'static>,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(100);
         let mut iter = self.chunk_boxed(read);
@@ -117,7 +120,7 @@ where
         });
         output
     }
-    fn async_chunk<R: Read + 'static>(
+    fn async_chunk<R: Read + Send + 'static>(
         &self,
         read: R,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
@@ -130,7 +133,7 @@ where
         });
         output
     }
-    fn async_chunk_slice<R: AsRef<[u8]> + 'static>(
+    fn async_chunk_slice<R: AsRef<[u8]> + Send + 'static>(
         &self,
         slice: R,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {

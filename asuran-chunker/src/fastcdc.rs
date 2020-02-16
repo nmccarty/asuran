@@ -15,7 +15,7 @@ pub struct FastCDC {
 
 impl Chunker for FastCDC {
     type Chunks = FastCDCChunker;
-    fn chunk_boxed(&self, read: Box<dyn Read + 'static>) -> Self::Chunks {
+    fn chunk_boxed(&self, read: Box<dyn Read + Send + 'static>) -> Self::Chunks {
         FastCDCChunker {
             settings: *self,
             buffer: vec![0_u8; self.max_size],
@@ -46,7 +46,7 @@ pub struct FastCDCChunker {
     /// The length of the data in the buffer
     length: usize,
     /// The reader this `Chunker` is slicing
-    read: Box<dyn Read + 'static>,
+    read: Box<dyn Read + Send + 'static>,
     /// Has the reader hit EoF?
     eof: bool,
 }

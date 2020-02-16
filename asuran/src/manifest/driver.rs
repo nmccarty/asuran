@@ -1,11 +1,11 @@
-use crate::chunker::{Chunker, SlicerSettings};
+use crate::chunker::AsyncChunker;
 use crate::manifest::archive::{Archive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::io::{Empty, Read, Write};
+use std::io::{Read, Write};
 
 /// Collection of abstract methods for moving data from a storage target to a repository
 ///
@@ -18,13 +18,10 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
     /// otherwise use store_object.
     ///
     /// Stores objects in sub-namespaces of the namespace of the archive object provided
-    async fn raw_store_object<
-        B: Backend,
-        C: SlicerSettings<Empty> + SlicerSettings<T> + 'static,
-    >(
+    async fn raw_store_object<B: Backend, C: AsyncChunker + Send + 'static>(
         &self,
         repo: &mut Repository<B>,
-        chunker: Chunker<C>,
+        chunker: C,
         archive: &Archive,
         path: String,
         objects: HashMap<String, BackupObject<T>>,
@@ -63,10 +60,10 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
 
     /// Stores an object, performing the calls to BackupTarget::backup_object and raw_store_obejct
     /// for you.
-    async fn store_object<B: Backend, C: SlicerSettings<Empty> + SlicerSettings<T> + 'static>(
+    async fn store_object<B: Backend, C: AsyncChunker + Send + 'static>(
         &self,
         repo: &mut Repository<B>,
-        chunker: Chunker<C>,
+        chunker: C,
         archive: &Archive,
         path: String,
     ) -> Result<()> {

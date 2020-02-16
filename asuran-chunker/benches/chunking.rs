@@ -13,7 +13,7 @@ fn get_test_data(size: usize) -> (Vec<u8>, Vec<u8>) {
     (vec![0_u8; size], vec)
 }
 
-fn chunk_boxed(read: impl Read + 'static, chunker: impl Chunker) {
+fn chunk_boxed(read: impl Read + Send + 'static, chunker: impl Chunker) {
     let iterator = chunker.chunk_boxed(Box::new(read));
     for chunk in iterator {
         black_box(chunk).unwrap();

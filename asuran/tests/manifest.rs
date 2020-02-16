@@ -1,9 +1,8 @@
-use asuran::chunker::slicer::fastcdc::FastCDC;
 use asuran::chunker::*;
 use asuran::manifest::*;
 use asuran::repository::*;
 use rand::prelude::*;
-use std::io::{Cursor, Empty};
+use std::io::Cursor;
 use tempfile::tempdir;
 
 mod common;
@@ -15,8 +14,7 @@ async fn put_drop_get_multifile() {
     let key = Key::random(32);
     let mut repo = common::get_repo_bare(root_path, key.clone());
 
-    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-    let chunker = Chunker::new(slicer.copy_settings());
+    let chunker = FastCDC::default();
 
     let mut objects: Vec<Vec<u8>> = Vec::new();
 
@@ -67,8 +65,7 @@ async fn put_drop_get_mem() {
     let key = Key::random(32);
     let mut repo = common::get_repo_mem(key);
 
-    let slicer: FastCDC<Empty> = FastCDC::new_defaults();
-    let chunker = Chunker::new(slicer.copy_settings());
+    let chunker = FastCDC::default();
 
     let mut objects: Vec<Vec<u8>> = Vec::new();
 
