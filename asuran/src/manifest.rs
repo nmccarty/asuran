@@ -17,7 +17,7 @@ use crate::repository::{Backend, ChunkSettings, Repository};
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub use self::archive::{Archive, StoredArchive};
+pub use self::archive::{ActiveArchive, StoredArchive};
 
 /// Repository manifest
 ///
@@ -59,7 +59,11 @@ impl<T: Backend> Manifest<T> {
     /// # Panics
     ///
     /// Will panic if commiting the archive to the repository fails
-    pub async fn commit_archive(&mut self, repo: &mut Repository<impl Backend>, archive: Archive) {
+    pub async fn commit_archive(
+        &mut self,
+        repo: &mut Repository<impl Backend>,
+        archive: ActiveArchive,
+    ) {
         let stored_archive = archive.store(repo).await;
         self.internal_manifest.write_archive(stored_archive).await;
         repo.commit_index().await;

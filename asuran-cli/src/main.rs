@@ -116,7 +116,7 @@ async fn list(repo_path: String, password: &str) -> Result<()> {
     let mut repo = open_repo_filesystem(repo_path, password.as_bytes(), None).await?;
     let mut manifest = Manifest::load(&repo);
     // Get the list of archives and extract them from the repository
-    let mut archives: Vec<Archive> = Vec::new();
+    let mut archives: Vec<ActiveArchive> = Vec::new();
     for stored_archive in manifest.archives().await {
         let archive = stored_archive.load(&mut repo).await?;
         archives.push(archive);
@@ -158,7 +158,7 @@ async fn store(repo_path: String, m: ArgMatches<'static>, password: &str) -> Res
             .to_rfc3339()
     };
     // Create archive
-    let archive = Archive::new(&name);
+    let archive = ActiveArchive::new(&name);
     // load in target
     let target_path = m.value_of("TARGET").unwrap();
     // Setup the backup target
@@ -197,7 +197,7 @@ async fn retrive(repo_path: String, m: ArgMatches<'_>, password: &str) -> Result
     let mut repo = open_repo_filesystem(repo_path, password.as_bytes(), None).await?;
     let mut manifest = Manifest::load(&repo);
     // Get the list of archives and extract them from the repository
-    let mut archives: Vec<Archive> = Vec::new();
+    let mut archives: Vec<ActiveArchive> = Vec::new();
     for stored_archive in manifest.archives().await {
         let archive = stored_archive.load(&mut repo).await?;
         archives.push(archive);
@@ -207,7 +207,7 @@ async fn retrive(repo_path: String, m: ArgMatches<'_>, password: &str) -> Result
     // Get the restore target from arguments
     let target_path = m.value_of("TARGET").unwrap();
     // Find matching archives
-    let mut matching_archives: Vec<Archive> = Vec::new();
+    let mut matching_archives: Vec<ActiveArchive> = Vec::new();
     for (index, archive) in archives.into_iter().enumerate() {
         if index.to_string() == name || archive.name() == name {
             matching_archives.push(archive);

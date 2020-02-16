@@ -2,7 +2,7 @@ use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
-pub use asuran_core::manifest::archive::ChunkLocation;
+pub use asuran_core::manifest::archive::{Archive, ChunkLocation};
 
 use chrono::prelude::*;
 use futures::future::join_all;
@@ -56,12 +56,12 @@ pub struct StoredArchive {
 
 impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
-    pub async fn load(&self, repo: &mut Repository<impl Backend>) -> Result<Archive> {
+    pub async fn load(&self, repo: &mut Repository<impl Backend>) -> Result<ActiveArchive> {
         let bytes = repo.read_chunk(self.id).await?;
         let mut de = Deserializer::new(&bytes[..]);
-        let dumb_archive: InactiveArchive =
+        let dumb_archive: Archive =
             Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
-        let archive = dumb_archive.into_archive();
+        let archive = ActiveArchive::from_archive(dumb_archive);
         Ok(archive)
     }
 
@@ -101,38 +101,9 @@ impl From<ManifestTransaction> for StoredArchive {
     }
 }
 
-/// An inactive archive, used for serializing and deserializing
-#[derive(Serialize, Deserialize)]
-pub struct InactiveArchive {
-    name: String,
-    objects: HashMap<String, Vec<ChunkLocation>>,
-    namespace: Vec<String>,
-    timestamp: DateTime<FixedOffset>,
-}
-
-impl InactiveArchive {
-    pub fn into_archive(self) -> Archive {
-        Archive {
-            name: self.name,
-            objects: Arc::new(RwLock::new(self.objects)),
-            namespace: self.namespace,
-            timestamp: self.timestamp,
-        }
-    }
-
-    pub async fn from_archive(archive: Archive) -> InactiveArchive {
-        InactiveArchive {
-            name: archive.name,
-            objects: archive.objects.read().await.clone(),
-            namespace: archive.namespace,
-            timestamp: archive.timestamp,
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 /// An active Archive
-pub struct Archive {
+pub struct ActiveArchive {
     /// The name of this archive
     ///
     /// Can be used to pull this archive from the manifest later.
@@ -154,9 +125,9 @@ pub struct Archive {
     timestamp: DateTime<FixedOffset>,
 }
 
-impl Archive {
-    pub fn new(name: &str) -> Archive {
-        Archive {
+impl ActiveArchive {
+    pub fn new(name: &str) -> Self {
+        ActiveArchive {
             name: name.to_string(),
             objects: Arc::new(RwLock::new(HashMap::new())),
             namespace: Vec::new(),
@@ -350,7 +321,7 @@ impl Archive {
     /// Changes namespace by adding the name to the end of the namespace
     ///
     /// Returns a new archive
-    pub fn namespace_append(&self, name: &str) -> Archive {
+    pub fn namespace_append(&self, name: &str) -> ActiveArchive {
         let mut new_namespace = self.namespace.clone();
         new_namespace.push(name.to_string());
         let mut archive = self.clone();
@@ -363,7 +334,7 @@ impl Archive {
     ///
     /// Returns the key of the serialized archive in the repository
     pub async fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
-        let dumb_archive = InactiveArchive::from_archive(self).await;
+        let dumb_archive = self.into_archive().await;
         let mut bytes = Vec::<u8>::new();
         dumb_archive
             .serialize(&mut Serializer::new(&mut bytes))
@@ -394,6 +365,26 @@ impl Archive {
     /// Provides the timestamp of the archive
     pub fn timestamp(&self) -> &DateTime<FixedOffset> {
         &self.timestamp
+    }
+
+    /// Converts an Archive into an ActiveArchive
+    pub fn from_archive(archive: Archive) -> ActiveArchive {
+        ActiveArchive {
+            name: archive.name,
+            objects: Arc::new(RwLock::new(archive.objects)),
+            namespace: archive.namespace,
+            timestamp: archive.timestamp,
+        }
+    }
+
+    /// Converts self into an Archive
+    pub async fn into_archive(self) -> Archive {
+        Archive {
+            name: self.name,
+            objects: self.objects.read().await.clone(),
+            namespace: self.namespace,
+            timestamp: self.timestamp,
+        }
     }
 }
 
@@ -430,7 +421,7 @@ mod tests {
         rand.fill_bytes(&mut data);
         let mut repo = get_repo_mem(key);
 
-        let mut archive = Archive::new("test");
+        let mut archive = ActiveArchive::new("test");
 
         let testdir = tempdir().unwrap();
         let input_file_path = testdir.path().join(Path::new("file1"));
@@ -477,7 +468,7 @@ mod tests {
         let key = Key::random(32);
         let mut repo = get_repo_mem(key);
 
-        let mut archive = Archive::new("test");
+        let mut archive = ActiveArchive::new("test");
 
         let mut rng = SmallRng::seed_from_u64(seed);
         // Generate a random number of extents from one to ten
@@ -557,14 +548,14 @@ mod tests {
 
     #[test]
     fn default_namespace() {
-        let archive = Archive::new("test");
+        let archive = ActiveArchive::new("test");
         let namespace = archive.canonical_namespace();
         assert_eq!(namespace, ":");
     }
 
     #[test]
     fn namespace_append() {
-        let archive = Archive::new("test");
+        let archive = ActiveArchive::new("test");
         let archive = archive.namespace_append("1");
         let archive = archive.namespace_append("2");
         let namespace = archive.canonical_namespace();
@@ -582,7 +573,7 @@ mod tests {
         let obj1 = Cursor::new([1_u8; 32]);
         let obj2 = Cursor::new([2_u8; 32]);
 
-        let mut archive_1 = Archive::new("test");
+        let mut archive_1 = ActiveArchive::new("test");
         let mut archive_2 = archive_1.clone();
 
         archive_1
@@ -629,7 +620,7 @@ mod tests {
 
         let obj1 = Cursor::new(obj1);
 
-        let mut archive = Archive::new("test");
+        let mut archive = ActiveArchive::new("test");
         archive
             .put_object(&chunker, &mut repo, "1", obj1.clone())
             .await

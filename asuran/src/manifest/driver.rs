@@ -1,5 +1,5 @@
 use crate::chunker::AsyncChunker;
-use crate::manifest::archive::{Archive, Extent};
+use crate::manifest::archive::{ActiveArchive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{Backend, Repository};
 use async_trait::async_trait;
@@ -31,7 +31,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
         &self,
         repo: &mut Repository<B>,
         chunker: C,
-        archive: &Archive,
+        archive: &ActiveArchive,
         path: String,
         objects: HashMap<String, BackupObject<T>>,
     ) -> Result<()> {
@@ -73,7 +73,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
         &self,
         repo: &mut Repository<B>,
         chunker: C,
-        archive: &Archive,
+        archive: &ActiveArchive,
         path: String,
     ) -> Result<()> {
         let objects = self.backup_object(&path).await;
@@ -96,7 +96,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     async fn raw_retrieve_object<B: Backend>(
         &self,
         repo: &mut Repository<B>,
-        archive: &Archive,
+        archive: &ActiveArchive,
         path: &str,
         objects: HashMap<String, RestoreObject<T>>,
     ) -> Result<()> {
@@ -135,7 +135,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     async fn retrieve_object<B: Backend>(
         &self,
         repo: &mut Repository<B>,
-        archive: &Archive,
+        archive: &ActiveArchive,
         path: &str,
     ) -> Result<()> {
         let objects = self.restore_object(path).await;

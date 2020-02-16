@@ -27,7 +27,7 @@ async fn put_drop_get_multifile() {
     {
         let mut manifest = Manifest::load(&mut repo);
         manifest.set_chunk_settings(repo.chunk_settings()).await;
-        let mut archive = Archive::new("test");
+        let mut archive = ActiveArchive::new("test");
         for (i, object) in objects.iter().enumerate() {
             archive
                 .put_object(
@@ -78,7 +78,7 @@ async fn put_drop_get_mem() {
     {
         let mut manifest = Manifest::load(&mut repo);
         manifest.set_chunk_settings(repo.chunk_settings()).await;
-        let mut archive = Archive::new("test");
+        let mut archive = ActiveArchive::new("test");
         for (i, object) in objects.iter().enumerate() {
             archive
                 .put_object(

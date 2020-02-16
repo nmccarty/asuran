@@ -32,7 +32,7 @@ async fn store<'a>(
     chunker: impl AsyncChunker,
 ) {
     let mut manifest = Manifest::load(&repo);
-    let mut archive = Archive::new("test");
+    let mut archive = ActiveArchive::new("test");
     let extents = vec![(
         Extent {
             start: 0,

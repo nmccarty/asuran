@@ -22,7 +22,7 @@ async fn backup_restore_no_empty_dirs_filesystem() {
     let mut repo = common::get_repo_bare(repo_root_path, key);
     let chunker = FastCDC::default();
 
-    let archive = Archive::new("test");
+    let archive = ActiveArchive::new("test");
 
     let input_target = FileSystemTarget::new(input_dir.to_str().unwrap());
     let paths = input_target.backup_paths().await;
@@ -78,7 +78,7 @@ async fn backup_restore_no_empty_dirs_mem() {
     let mut repo = common::get_repo_mem(key);
     let chunker = FastCDC::default();
 
-    let archive = Archive::new("test");
+    let archive = ActiveArchive::new("test");
 
     let input_target = FileSystemTarget::new(input_dir.to_str().unwrap());
     let paths = input_target.backup_paths().await;

@@ -1,7 +1,9 @@
 use crate::repository::ChunkID;
 
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 /// Location of a chunk in a file/object
 #[derive(Serialize, Deserialize, Copy, Clone, Eq, PartialEq, Debug)]
@@ -21,4 +23,13 @@ impl Ord for ChunkLocation {
     fn cmp(&self, other: &ChunkLocation) -> Ordering {
         self.start.cmp(&other.start)
     }
+}
+
+/// An Archive, as stored in the repository
+#[derive(Serialize, Deserialize)]
+pub struct Archive {
+    pub name: String,
+    pub objects: HashMap<String, Vec<ChunkLocation>>,
+    pub namespace: Vec<String>,
+    pub timestamp: DateTime<FixedOffset>,
 }
