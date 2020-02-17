@@ -103,7 +103,7 @@ async fn new(repo_path: String, password: String, settings: ChunkSettings) -> Re
         key,
     );
     let mut manifest = Manifest::load(&repo);
-    manifest.set_chunk_settings(repo.chunk_settings()).await;
+    manifest.set_chunk_settings(repo.chunk_settings()).await?;
 
     repo.commit_index().await;
     repo.close().await;
@@ -125,7 +125,7 @@ async fn list(repo_path: String, password: &str) -> Result<()> {
     println!("Number of archives in repository: {}", archives.len());
     println!(
         "Repository last modified: {}",
-        manifest.timestamp().await.to_rfc2822()
+        manifest.timestamp().await?.to_rfc2822()
     );
     // Iterate through the list of archives, and print them out in a nice table
     // TODO: sort by timestamp ascending
@@ -186,7 +186,7 @@ async fn store(repo_path: String, m: ArgMatches<'static>, password: &str) -> Res
         .put_object(&chunker, &mut repo, "listing", listing)
         .await?;
     // Commit the backup
-    manifest.commit_archive(&mut repo, archive).await;
+    manifest.commit_archive(&mut repo, archive).await?;
     repo.close().await;
     Ok(())
 }

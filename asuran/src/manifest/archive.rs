@@ -45,13 +45,13 @@ pub struct Extent {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StoredArchive {
     /// The name of the archive
-    name: String,
+    pub name: String,
     /// Pointer the the archive metadata in the repository
-    id: ChunkID,
+    pub id: ChunkID,
     /// Time the archive was started it
     ///
     /// Used to prevent replay attackts
-    timestamp: DateTime<FixedOffset>,
+    pub timestamp: DateTime<FixedOffset>,
 }
 
 impl StoredArchive {

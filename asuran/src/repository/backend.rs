@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod common;
+pub mod flatfile;
 pub mod mem;
 pub mod multifile;
 
@@ -38,7 +39,7 @@ pub enum BackendError {
     Unknown(String),
 }
 
-type Result<T> = std::result::Result<T, BackendError>;
+pub type Result<T> = std::result::Result<T, BackendError>;
 
 /// Describes the segment id and location there in of a chunk
 ///
@@ -59,7 +60,7 @@ pub struct SegmentDescriptor {
 pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive>;
     /// Timestamp of the last modification
-    async fn last_modification(&mut self) -> DateTime<FixedOffset>;
+    async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>>;
     /// Returns the default settings for new chunks in this repository
     async fn chunk_settings(&mut self) -> ChunkSettings;
     /// Returns an iterator over the list of archives in this repository, in reverse chronological
@@ -67,11 +68,11 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
     async fn archive_iterator(&mut self) -> Self::Iterator;
 
     /// Sets the chunk settings in the repository
-    async fn write_chunk_settings(&mut self, settings: ChunkSettings);
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()>;
     /// Adds an archive to the manifest
-    async fn write_archive(&mut self, archive: StoredArchive);
+    async fn write_archive(&mut self, archive: StoredArchive) -> Result<()>;
     /// Updates the timestamp without performing any other operations
-    async fn touch(&mut self);
+    async fn touch(&mut self) -> Result<()>;
 }
 
 /// Index Trait

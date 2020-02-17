@@ -12,6 +12,7 @@ pub mod listing;
 pub mod target;
 
 use crate::repository::backend::Manifest as BackendManifest;
+use crate::repository::backend::Result;
 use crate::repository::{Backend, ChunkSettings, Repository};
 
 use chrono::prelude::*;
@@ -43,8 +44,8 @@ impl<T: Backend> Manifest<T> {
     }
 
     /// Set the Chunk Settings used by the repository
-    pub async fn set_chunk_settings(&mut self, settings: ChunkSettings) {
-        self.internal_manifest.write_chunk_settings(settings).await;
+    pub async fn set_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
+        self.internal_manifest.write_chunk_settings(settings).await
     }
 
     /// Gets the default Chunk Settings for the repository
@@ -63,10 +64,11 @@ impl<T: Backend> Manifest<T> {
         &mut self,
         repo: &mut Repository<impl Backend>,
         archive: ActiveArchive,
-    ) {
+    ) -> Result<()> {
         let stored_archive = archive.store(repo).await;
-        self.internal_manifest.write_archive(stored_archive).await;
+        self.internal_manifest.write_archive(stored_archive).await?;
         repo.commit_index().await;
+        Ok(())
     }
 
     /// Returns a copy of the list of archives in this repository
@@ -77,7 +79,7 @@ impl<T: Backend> Manifest<T> {
     }
 
     /// Provides the timestamp of the manifest's last modification
-    pub async fn timestamp(&mut self) -> DateTime<FixedOffset> {
+    pub async fn timestamp(&mut self) -> Result<DateTime<FixedOffset>> {
         self.internal_manifest.last_modification().await
     }
 }
@@ -100,7 +102,7 @@ mod tests {
         let repo = Repository::with(backend, settings, key);
         let mut manifest = Manifest::load(&repo);
 
-        manifest.set_chunk_settings(settings).await;
+        manifest.set_chunk_settings(settings).await.unwrap();
         let new_settings = manifest.chunk_settings().await;
 
         assert_eq!(settings, new_settings);
@@ -116,12 +118,12 @@ mod tests {
         let mut manifest = Manifest::load(&repo);
 
         let dummy1 = StoredArchive::dummy_archive();
-        backend.get_manifest().write_archive(dummy1).await;
-        let time1 = manifest.timestamp().await;
+        backend.get_manifest().write_archive(dummy1).await.unwrap();
+        let time1 = manifest.timestamp().await.unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
         let dummy2 = StoredArchive::dummy_archive();
-        backend.get_manifest().write_archive(dummy2).await;
-        let time2 = manifest.timestamp().await;
+        backend.get_manifest().write_archive(dummy2).await.unwrap();
+        let time2 = manifest.timestamp().await.unwrap();
 
         assert!(time2 > time1);
     }

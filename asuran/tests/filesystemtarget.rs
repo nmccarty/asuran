@@ -43,7 +43,7 @@ async fn backup_restore_no_empty_dirs_filesystem() {
     let listing = input_target.backup_listing().await;
 
     let mut manifest = Manifest::load(&mut repo);
-    manifest.commit_archive(&mut repo, archive).await;
+    manifest.commit_archive(&mut repo, archive).await.unwrap();
     repo.commit_index().await;
 
     let mut manifest = Manifest::load(&mut repo);
@@ -99,7 +99,7 @@ async fn backup_restore_no_empty_dirs_mem() {
     let listing = input_target.backup_listing().await;
 
     let mut manifest = Manifest::load(&mut repo);
-    manifest.commit_archive(&mut repo, archive).await;
+    manifest.commit_archive(&mut repo, archive).await.unwrap();
 
     let mut manifest = Manifest::load(&mut repo);
     let stored_archives = &manifest.archives().await;

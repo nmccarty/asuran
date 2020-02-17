@@ -26,7 +26,10 @@ async fn put_drop_get_multifile() {
 
     {
         let mut manifest = Manifest::load(&mut repo);
-        manifest.set_chunk_settings(repo.chunk_settings()).await;
+        manifest
+            .set_chunk_settings(repo.chunk_settings())
+            .await
+            .unwrap();
         let mut archive = ActiveArchive::new("test");
         for (i, object) in objects.iter().enumerate() {
             archive
@@ -40,7 +43,7 @@ async fn put_drop_get_multifile() {
                 .unwrap();
         }
         println!("Archive: \n {:?}", archive);
-        manifest.commit_archive(&mut repo, archive).await;
+        manifest.commit_archive(&mut repo, archive).await.unwrap();
         println!("Manifest: \n {:?}", manifest);
     }
     repo.close().await;
@@ -77,7 +80,10 @@ async fn put_drop_get_mem() {
 
     {
         let mut manifest = Manifest::load(&mut repo);
-        manifest.set_chunk_settings(repo.chunk_settings()).await;
+        manifest
+            .set_chunk_settings(repo.chunk_settings())
+            .await
+            .unwrap();
         let mut archive = ActiveArchive::new("test");
         for (i, object) in objects.iter().enumerate() {
             archive
@@ -91,7 +97,7 @@ async fn put_drop_get_mem() {
                 .unwrap();
         }
         println!("Archive: \n {:?}", archive);
-        manifest.commit_archive(&mut repo, archive).await;
+        manifest.commit_archive(&mut repo, archive).await.unwrap();
         println!("Manifest: \n {:?}", manifest);
     }
 

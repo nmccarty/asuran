@@ -208,19 +208,21 @@ impl InternalManifest {
     /// Returns the last modification timestamp of the manifest
     ///
     /// Defaults to now if there are no heads
-    fn last_modification(&self) -> DateTime<FixedOffset> {
+    fn last_modification(&self) -> Result<DateTime<FixedOffset>> {
         if self.heads.is_empty() {
-            Local::now().with_timezone(Local::now().offset())
+            Ok(Local::now().with_timezone(Local::now().offset()))
         } else {
             let first_head = self.known_entries.get(&self.heads[0]).unwrap();
             let mut max = first_head.timestamp();
             for id in &self.heads {
-                let tx = self.known_entries.get(id).unwrap();
+                let tx = self.known_entries.get(id).ok_or_else(|| {
+                    BackendError::ManifestError("Unable to load timestamp".to_string())
+                })?;
                 if tx.timestamp() > max {
                     max = tx.timestamp()
                 }
             }
-            max
+            Ok(max)
         }
     }
 
@@ -242,20 +244,21 @@ impl InternalManifest {
     }
 
     /// Sets the chunk settings
-    fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+    fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
         let mut sfile = LockedFile::open_read_write(self.path.join("chunk.settings"))
             .unwrap()
             .unwrap();
         // Clear the file
-        sfile.set_len(0).unwrap();
+        sfile.set_len(0)?;
         // Write our new chunksettings
-        rmps::encode::write(&mut sfile, &settings).unwrap();
+        rmps::encode::write(&mut sfile, &settings)?;
         self.chunk_settings = settings;
+        Ok(())
     }
 
     /// Adds an archive to the manifest
     #[allow(clippy::needless_pass_by_value)]
-    fn write_archive(&mut self, archive: StoredArchive) {
+    fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
         // Create the transaction
         let tx = ManifestTransaction::new(
             &self.heads,
@@ -267,23 +270,23 @@ impl InternalManifest {
         );
         // Write the transaction to the file
         let file = &mut self.file;
-        file.seek(SeekFrom::End(0))
-            .expect("Unable to seek within locked manifest file");
-        rmps::encode::write(file, &tx).expect("Unable to write within locked manifest file");
+        file.seek(SeekFrom::End(0))?;
+        rmps::encode::write(file, &tx)?;
         // Add the transaction to our entries list
         let id = tx.tag();
         self.known_entries.insert(id, tx);
         // Update our heads to only contain this transaction
-        self.heads = vec![id]
+        self.heads = vec![id];
+        Ok(())
     }
 }
 
 enum ManifestCommand {
-    LastMod(oneshot::Sender<DateTime<FixedOffset>>),
+    LastMod(oneshot::Sender<Result<DateTime<FixedOffset>>>),
     ChunkSettings(oneshot::Sender<ChunkSettings>),
     ArchiveIterator(oneshot::Sender<std::vec::IntoIter<StoredArchive>>),
-    WriteChunkSettings(ChunkSettings, oneshot::Sender<()>),
-    WriteArchive(StoredArchive, oneshot::Sender<()>),
+    WriteChunkSettings(ChunkSettings, oneshot::Sender<Result<()>>),
+    WriteArchive(StoredArchive, oneshot::Sender<Result<()>>),
     Close(oneshot::Sender<()>),
 }
 
@@ -351,12 +354,10 @@ impl Manifest {
                         ret.send(manifest.archive_iterator()).unwrap();
                     }
                     ManifestCommand::WriteChunkSettings(settings, ret) => {
-                        manifest.write_chunk_settings(settings);
-                        ret.send(()).unwrap();
+                        ret.send(manifest.write_chunk_settings(settings)).unwrap();
                     }
                     ManifestCommand::WriteArchive(archive, ret) => {
-                        manifest.write_archive(archive);
-                        ret.send(()).unwrap();
+                        ret.send(manifest.write_archive(archive)).unwrap();
                     }
                     ManifestCommand::Close(ret) => {
                         final_ret = Some(ret);
@@ -400,10 +401,10 @@ impl std::fmt::Debug for Manifest {
 #[async_trait]
 impl backend::Manifest for Manifest {
     type Iterator = std::vec::IntoIter<StoredArchive>;
-    async fn last_modification(&mut self) -> DateTime<FixedOffset> {
+    async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
         let (i, o) = oneshot::channel();
         self.input.send(ManifestCommand::LastMod(i)).await.unwrap();
-        o.await.unwrap()
+        o.await?
     }
     async fn chunk_settings(&mut self) -> ChunkSettings {
         let (i, o) = oneshot::channel();
@@ -421,24 +422,27 @@ impl backend::Manifest for Manifest {
             .unwrap();
         o.await.unwrap()
     }
-    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
         let (i, o) = oneshot::channel();
         self.input
             .send(ManifestCommand::WriteChunkSettings(settings, i))
             .await
             .unwrap();
-        o.await.unwrap()
+        o.await?
     }
-    async fn write_archive(&mut self, archive: StoredArchive) {
+    async fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
         let (i, o) = oneshot::channel();
         self.input
             .send(ManifestCommand::WriteArchive(archive, i))
             .await
             .unwrap();
-        o.await.unwrap()
+        o.await??;
+        Ok(())
     }
     // This does nothing with this implementation
-    async fn touch(&mut self) {}
+    async fn touch(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -575,7 +579,7 @@ mod tests {
 
         // write them into the manifest
         for archive in archives {
-            manifest.write_archive(archive).await
+            manifest.write_archive(archive).await.unwrap();
         }
 
         manifest.close().await;

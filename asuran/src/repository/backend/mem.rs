@@ -7,6 +7,8 @@ use std::io::Cursor;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use super::Result;
+
 #[derive(Clone, Debug)]
 pub struct Mem {
     data: common::TaskedSegment<Cursor<Vec<u8>>>,
@@ -34,10 +36,10 @@ impl Mem {
 #[async_trait]
 impl Manifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
-    async fn last_modification(&mut self) -> DateTime<FixedOffset> {
+    async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
         let manifest = self.manifest.read().await;
         let archive = &manifest[manifest.len() - 1];
-        archive.timestamp()
+        Ok(archive.timestamp())
     }
     async fn chunk_settings(&mut self) -> ChunkSettings {
         *self.chunk_settings.read().await
@@ -45,17 +47,21 @@ impl Manifest for Mem {
     async fn archive_iterator(&mut self) -> Self::Iterator {
         self.manifest.read().await.clone().into_iter()
     }
-    async fn write_chunk_settings(&mut self, settings: ChunkSettings) {
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
         let mut x = self.chunk_settings.write().await;
         *x = settings;
+        Ok(())
     }
-    async fn write_archive(&mut self, archive: StoredArchive) {
+    async fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
         let mut manifest = self.manifest.write().await;
         manifest.push(archive);
+        Ok(())
     }
     /// This implementation reconstructs the last modified time, so this does nothing
     #[cfg_attr(tarpaulin, skip)]
-    async fn touch(&mut self) {}
+    async fn touch(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 #[async_trait]
 impl Index for Mem {
