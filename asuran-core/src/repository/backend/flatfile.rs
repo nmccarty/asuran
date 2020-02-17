@@ -1,6 +1,7 @@
-use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
+use crate::repository::{ChunkID, ChunkSettings, EncryptedKey};
 
 use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
+use chrono::prelude::*;
 use rmp_serde as rmps;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,7 @@ pub enum FlatFileHeaderError {
 }
 
 /// The header used by flatfile repositories
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Header {
     pub magic_number: [u8; 8],
     pub implementation_uuid: [u8; 16],
@@ -80,14 +81,25 @@ impl Header {
 }
 
 /// The configuration struct used by flatfile repositories
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Configuration {
-    key: EncryptedKey,
-    chunk_settings: ChunkSettings,
+    pub key: EncryptedKey,
+    pub chunk_settings: ChunkSettings,
 }
 
+/// Represents the various types of transaction entries in a flatfile repository
 #[derive(Serialize, Deserialize)]
 pub enum FlatFileTransaction {
-    Insert { id: ChunkID, chunk: Chunk },
+    /// An insertion of a data chunk into the repository
+    Insert { id: ChunkID, chunk: Vec<u8> },
+    /// A deletion of a data chunk from the repository
     Delete { id: ChunkID },
+    /// An insertion of an `Archive` into the repository
+    ///
+    /// The Serialized `Archive` is stored as a `Chunk` containing the serialized Arhive
+    ManifestInsert {
+        id: ChunkID,
+        name: String,
+        timestamp: DateTime<FixedOffset>,
+    },
 }
