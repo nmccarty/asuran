@@ -1,40 +1,52 @@
 # Contributing to Asuran
 
-We welcome pull requests or issues from anyone and everyone.
+We encourage anyone, regardless of skill level, to contribute. The worst that will happen is someone
+coming along to mentor you in the right direction
 
 ## Contributions
 
 Contributions should be made in the form of gitlab issues or pull requests.
 
-Contributers' names will be added to [`HALL_OF_FAME.md`](HALL_OF_FAME.md).
+Contributors' names will be added to [`HALL_OF_FAME.md`](HALL_OF_FAME.md).
 
 For those submitting bug reports, your name will be added once your bug report is confirmed.
 
 For those making code contributions, your name will be added once you land your first PR.
 
-We encourage anyone, regardless of skill level, to contribute. The worst that will happen is someone
-coming along to mentor you in the right direction
+If you don't want your name added, just say so and we wont. 
 
 ## Getting started
 
 As a general workflow, once you find something you want to work on, fork the repository, do the
 work, then submit a PR for review. 
 
-For finding something to work on, our issues have five tags relating the difficultly of working on
-the issue. The first three directly relate the expected difficulty of the work load:
+Our issues have five tags relating the expected difficulty. The first three directly relate the
+expected difficulty and work load:
+
 - [`D-EASY`](https://gitlab.com/asuran-rs/asuran/issues?label_name%5B%5D=D-EASY)
+
   These issues are expected to be easy to work on, requiring only basic understand of the project
   and rust in general, and not taking too much work to do.
+  
 - [`D-MEDIUM`](https://gitlab.com/asuran-rs/asuran/issues?label_name%5B%5D=D-MEDIUM)
+
   These issues are expected to take a not insubstantial amount of time to work, and more than a
   passing familiarity with the project.
+  
 - [`D-HARD`](https://gitlab.com/asuran-rs/asuran/issues?label_name%5B%5D=D-HARD)
 
+  These issues are expected to take up large amounts of time or require in depth knowledge of the
+  project and rust itself. 
+
 The next two describe other aspect of the work and are good labels for new contributors to go by:
+
 - [`Easy Tasks`](https://gitlab.com/asuran-rs/asuran/issues?label_name%5B%5D=Easy+Tasks)
+
   These issues may have a difficulty rating of medium or hard, however, they have individual
   independent tasks on them that, if they were their own issue, would be categorized as easy.
+  
 - [`Good First Issue`](https://gitlab.com/asuran-rs/asuran/issues?label_name%5B%5D=Good+First+Issue)
+
   These are issues expected to give a good introduction to the repository. They are most often easy
   issues that require little to no understanding of the project to start hacking on.
   
