@@ -76,6 +76,8 @@ enum SyncManifestCommand<I> {
 enum SyncBackendCommand {
     ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
     WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    ReadKey(oneshot::Sender<Result<EncryptedKey>>),
+    WriteKey(EncryptedKey, oneshot::Sender<Result<()>>),
     Close(oneshot::Sender<()>),
 }
 
@@ -150,6 +152,12 @@ where
                         }
                         SyncBackendCommand::WriteChunk(chunk, id, ret) => {
                             ret.send(backend.write_chunk(chunk, id)).unwrap();
+                        }
+                        SyncBackendCommand::WriteKey(key, ret) => {
+                            ret.send(backend.write_key(key)).unwrap();
+                        }
+                        SyncBackendCommand::ReadKey(ret) => {
+                            ret.send(backend.read_key()).unwrap();
                         }
                         SyncBackendCommand::Close(ret) => {
                             final_ret = Some(ret);
@@ -241,5 +249,110 @@ impl<B: SyncBackend> Manifest for BackendHandle<B> {
             .await
             .unwrap();
         o.await?
+    }
+}
+
+#[async_trait]
+impl<B: SyncBackend> Index for BackendHandle<B> {
+    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Index(SyncIndexCommand::Lookup(id, i)))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Index(SyncIndexCommand::Set(id, location, i)))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn commit_index(&mut self) -> Result<()> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Index(SyncIndexCommand::Commit(i)))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn count_chunk(&mut self) -> usize {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Index(SyncIndexCommand::Count(i)))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+}
+
+#[async_trait]
+impl<B: SyncBackend> Backend for BackendHandle<B> {
+    type Manifest = Self;
+    type Index = Self;
+    fn get_index(&self) -> Self::Index {
+        self.clone()
+    }
+    async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
+        // We pull some jank here to access the channel without having to change the signature to
+        // &mut self. This clone should be okay, performance wise, as it should only happen very
+        // rarely
+        let mut new_self = self.clone();
+        let (i, o) = oneshot::channel();
+        new_self
+            .channel
+            .send(SyncCommand::Backend(SyncBackendCommand::WriteKey(
+                key.clone(),
+                i,
+            )))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn read_key(&self) -> Result<EncryptedKey> {
+        // We pull some jank here to access the channel without having to change the signature to
+        // &mut self. This clone should be okay, performance wise, as it should only happen very
+        // rarely
+        let mut new_self = self.clone();
+        let (i, o) = oneshot::channel();
+        new_self
+            .channel
+            .send(SyncCommand::Backend(SyncBackendCommand::ReadKey(i)))
+            .await
+            .unwrap();
+        o.await?
+    }
+    fn get_manifest(&self) -> Self::Manifest {
+        self.clone()
+    }
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Backend(SyncBackendCommand::ReadChunk(
+                location, i,
+            )))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Backend(SyncBackendCommand::WriteChunk(
+                chunk, id, i,
+            )))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn close(mut self) {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Backend(SyncBackendCommand::Close(i)))
+            .await
+            .unwrap();
+        o.await.unwrap()
     }
 }
