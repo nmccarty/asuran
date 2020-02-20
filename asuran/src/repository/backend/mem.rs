@@ -1,127 +1,117 @@
 use crate::repository::backend::common;
+use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
 use crate::repository::EncryptedKey;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use super::Result;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Mem {
-    data: common::TaskedSegment<Cursor<Vec<u8>>>,
-    index: Arc<RwLock<HashMap<ChunkID, SegmentDescriptor>>>,
-    manifest: Arc<RwLock<Vec<StoredArchive>>>,
-    chunk_settings: Arc<RwLock<ChunkSettings>>,
-    key: Arc<RwLock<Option<EncryptedKey>>>,
+    data: common::Segment<Cursor<Vec<u8>>>,
+    index: HashMap<ChunkID, SegmentDescriptor>,
+    manifest: Vec<StoredArchive>,
+    chunk_settings: ChunkSettings,
+    key: Option<EncryptedKey>,
     len: u64,
 }
 
 impl Mem {
-    pub fn new(chunk_settings: ChunkSettings) -> Mem {
+    pub fn new_raw(chunk_settings: ChunkSettings) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let data = common::TaskedSegment::new(Cursor::new(Vec::new()), max, 0);
+        let data = common::Segment::new(Cursor::new(Vec::new()), max).unwrap();
         Mem {
             data,
-            index: Arc::new(RwLock::new(HashMap::new())),
-            manifest: Arc::new(RwLock::new(Vec::new())),
-            chunk_settings: Arc::new(RwLock::new(chunk_settings)),
-            key: Arc::new(RwLock::new(None)),
+            index: HashMap::new(),
+            manifest: Vec::new(),
+            chunk_settings,
+            key: None,
             len: num_cpus::get() as u64,
         }
     }
-}
-#[async_trait]
-impl Manifest for Mem {
-    type Iterator = std::vec::IntoIter<StoredArchive>;
-    async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
-        let manifest = self.manifest.read().await;
-        let archive = &manifest[manifest.len() - 1];
-        Ok(archive.timestamp())
-    }
-    async fn chunk_settings(&mut self) -> ChunkSettings {
-        *self.chunk_settings.read().await
-    }
-    async fn archive_iterator(&mut self) -> Self::Iterator {
-        self.manifest.read().await.clone().into_iter()
-    }
-    async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
-        let mut x = self.chunk_settings.write().await;
-        *x = settings;
-        Ok(())
-    }
-    async fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
-        let mut manifest = self.manifest.write().await;
-        manifest.push(archive);
-        Ok(())
-    }
-    /// This implementation reconstructs the last modified time, so this does nothing
-    #[cfg_attr(tarpaulin, skip)]
-    async fn touch(&mut self) -> Result<()> {
-        Ok(())
-    }
-}
-#[async_trait]
-impl Index for Mem {
-    async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
-        self.index.read().await.get(&id).copied()
-    }
-    async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
-        self.index.write().await.insert(id, location);
-        Ok(())
-    }
-    /// This format is not persistant so this does nothing
-    async fn commit_index(&mut self) -> Result<()> {
-        Ok(())
-    }
-    async fn count_chunk(&mut self) -> usize {
-        self.index.read().await.len()
+
+    pub fn new(chunk_settings: ChunkSettings) -> BackendHandle<Mem> {
+        BackendHandle::new(Self::new_raw(chunk_settings))
     }
 }
 
-#[async_trait]
-impl Backend for Mem {
-    type Manifest = Self;
-    type Index = Self;
-    fn get_index(&self) -> Self::Index {
-        self.clone()
+impl SyncManifest for Mem {
+    type Iterator = std::vec::IntoIter<StoredArchive>;
+    fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
+        let archive = &self.manifest[self.manifest.len() - 1];
+        Ok(archive.timestamp())
     }
-    async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
-        let mut skey = self.key.write().await;
-        *skey = Some(key.clone());
+    fn chunk_settings(&mut self) -> ChunkSettings {
+        self.chunk_settings
+    }
+    fn archive_iterator(&mut self) -> Self::Iterator {
+        self.manifest.clone().into_iter()
+    }
+    fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
+        self.chunk_settings = settings;
         Ok(())
     }
-    async fn read_key(&self) -> Result<EncryptedKey> {
-        let key: &Option<EncryptedKey> = &*self.key.read().await;
-        if let Some(k) = key {
-            Ok(k.clone())
+    fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
+        self.manifest.push(archive);
+        Ok(())
+    }
+    fn touch(&mut self) -> Result<()> {
+        // This method doesnt really make sense on a non-persisting repository
+        Ok(())
+    }
+}
+
+impl SyncIndex for Mem {
+    fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
+        self.index.get(&id).copied()
+    }
+    fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
+        self.index.insert(id, location);
+        Ok(())
+    }
+    fn commit_index(&mut self) -> Result<()> {
+        // Does nothing, since this implementation does not commit
+        Ok(())
+    }
+    fn chunk_count(&mut self) -> usize {
+        self.index.len()
+    }
+}
+
+impl SyncBackend for Mem {
+    type SyncManifest = Self;
+    type SyncIndex = Self;
+    fn get_index(&mut self) -> &mut Self::SyncIndex {
+        self
+    }
+    fn get_manifest(&mut self) -> &mut Self::SyncManifest {
+        self
+    }
+    fn write_key(&mut self, key: EncryptedKey) -> Result<()> {
+        self.key = Some(key);
+        Ok(())
+    }
+    fn read_key(&mut self) -> Result<EncryptedKey> {
+        if let Some(key) = self.key.clone() {
+            Ok(key)
         } else {
             Err(BackendError::Unknown(
-                "Tried to access an unset key.".to_string(),
+                "Tried to load an unset key".to_string(),
             ))
         }
     }
-    fn get_manifest(&self) -> Self::Manifest {
-        self.clone()
+    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+        self.data.read_chunk(location.start, 0)
     }
-
-    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
-        let mut data = self.data.clone();
-        data.read_chunk(location).await
+    fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+        let (start, _) = self.data.write_chunk(&chunk[..], id)?;
+        Ok(SegmentDescriptor {
+            segment_id: 0,
+            start,
+        })
     }
-
-    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
-        let mut data = self.data.clone();
-        data.write_chunk(chunk, id).await
-    }
-
-    /// This backend does not persist, so a clean close is not required
-    ///
-    /// As such, we do nothing
-    #[cfg_attr(tarpaulin, skip)]
-    async fn close(self) {}
 }
 
 #[cfg(test)]
@@ -130,7 +120,7 @@ mod tests {
     use crate::repository::*;
 
     /// Makes sure accessing an unset key panics
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     #[should_panic]
     async fn bad_key_access() {
         let backend = Mem::new(ChunkSettings::lightweight());
@@ -138,7 +128,7 @@ mod tests {
     }
 
     /// Checks to make sure setting and retriving a key works
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn key_sanity() {
         let backend = Mem::new(ChunkSettings::lightweight());
         let key = Key::random(32);

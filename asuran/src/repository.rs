@@ -310,10 +310,11 @@ impl<T: Backend + 'static> Repository<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repository::backend::common::sync_backend::BackendHandle;
     use crate::repository::backend::mem::*;
     use rand::prelude::*;
 
-    fn get_repo_mem(key: Key) -> Repository<Mem> {
+    fn get_repo_mem(key: Key) -> Repository<BackendHandle<Mem>> {
         let settings = ChunkSettings {
             compression: Compression::ZStd { level: 1 },
             hmac: HMAC::Blake2b,

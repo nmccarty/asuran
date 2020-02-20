@@ -89,7 +89,7 @@ mod tests {
     use super::*;
     use crate::repository::*;
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn chunk_settings_sanity() {
         let settings = ChunkSettings {
             encryption: Encryption::NoEncryption,
@@ -108,7 +108,7 @@ mod tests {
         assert_eq!(settings, new_settings);
     }
 
-    #[tokio::test]
+    #[tokio::test(threaded_scheduler)]
     async fn new_archive_updates_time() {
         let settings = ChunkSettings::lightweight();
         let backend = crate::repository::backend::mem::Mem::new(settings);
