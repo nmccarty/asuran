@@ -2,6 +2,7 @@ pub mod files;
 pub mod index;
 pub mod manifest;
 pub mod segment;
+pub mod sync_backend;
 
 pub use files::*;
 pub use index::*;

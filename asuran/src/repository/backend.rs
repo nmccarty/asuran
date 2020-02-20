@@ -38,7 +38,6 @@ pub enum BackendError {
     #[error("Unknown Error")]
     Unknown(String),
 }
-
 pub type Result<T> = std::result::Result<T, BackendError>;
 
 /// Describes the segment id and location there in of a chunk
