@@ -40,8 +40,14 @@ impl Mem {
 impl SyncManifest for Mem {
     type Iterator = std::vec::IntoIter<StoredArchive>;
     fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
-        let archive = &self.manifest[self.manifest.len() - 1];
-        Ok(archive.timestamp())
+        if self.manifest.is_empty() {
+            Err(BackendError::ManifestError(
+                "No archives/timestamps present".to_string(),
+            ))
+        } else {
+            let archive = &self.manifest[self.manifest.len() - 1];
+            Ok(archive.timestamp())
+        }
     }
     fn chunk_settings(&mut self) -> ChunkSettings {
         self.chunk_settings
