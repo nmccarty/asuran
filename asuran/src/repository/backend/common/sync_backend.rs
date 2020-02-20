@@ -12,15 +12,15 @@
 //! Methods in this module are intentionally left undocumented, as they are indented to be syncronus
 //! versions of their async equivlants in the main Backend traits.
 use crate::manifest::StoredArchive;
-use crate::repository::backend::{Result, SegmentDescriptor};
+use crate::repository::backend::{Backend, Index, Manifest, Result, SegmentDescriptor};
 use crate::repository::{ChunkID, ChunkSettings, EncryptedKey};
 
+use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use std::marker::PhantomData;
 use tokio::task;
 
 pub trait SyncManifest: Send + std::fmt::Debug {
@@ -63,13 +63,16 @@ enum SyncIndexCommand {
     Commit(oneshot::Sender<Result<()>>),
     Count(oneshot::Sender<usize>),
 }
+
 enum SyncManifestCommand<I> {
     LastMod(oneshot::Sender<Result<DateTime<FixedOffset>>>),
     ChunkSettings(oneshot::Sender<ChunkSettings>),
     ArchiveIterator(oneshot::Sender<I>),
     WriteChunkSettings(ChunkSettings, oneshot::Sender<Result<()>>),
     WriteArchive(StoredArchive, oneshot::Sender<Result<()>>),
+    Touch(oneshot::Sender<Result<()>>),
 }
+
 enum SyncBackendCommand {
     ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
     WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
@@ -86,11 +89,9 @@ enum SyncCommand<I> {
 ///
 /// Functions by moving the provided back end into a dedicated tokio task, and then sending SyncCommands
 /// to instruct that task on what to do.
-#[derive(Clone)]
 pub struct BackendHandle<B: SyncBackend> {
     channel:
         mpsc::Sender<SyncCommand<<<B as SyncBackend>::SyncManifest as SyncManifest>::Iterator>>,
-    phantom: PhantomData<B>,
 }
 
 impl<B> BackendHandle<B>
@@ -138,6 +139,9 @@ where
                             SyncManifestCommand::WriteArchive(archive, ret) => {
                                 ret.send(manifest.write_archive(archive)).unwrap();
                             }
+                            SyncManifestCommand::Touch(ret) => {
+                                ret.send(manifest.touch()).unwrap();
+                            }
                         }
                     }
                     SyncCommand::Backend(backend_command) => match backend_command {
@@ -163,9 +167,79 @@ where
             }
         });
 
+        BackendHandle { channel: input }
+    }
+}
+
+impl<B: SyncBackend> std::fmt::Debug for BackendHandle<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Opaque Backend Handle")
+    }
+}
+
+impl<B: SyncBackend> Clone for BackendHandle<B> {
+    fn clone(&self) -> Self {
         BackendHandle {
-            channel: input,
-            phantom: PhantomData,
+            channel: self.channel.clone(),
         }
+    }
+}
+
+#[async_trait]
+impl<B: SyncBackend> Manifest for BackendHandle<B> {
+    type Iterator = <<B as SyncBackend>::SyncManifest as SyncManifest>::Iterator;
+    async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(SyncManifestCommand::LastMod(i)))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn chunk_settings(&mut self) -> ChunkSettings {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(SyncManifestCommand::ChunkSettings(i)))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn archive_iterator(&mut self) -> Self::Iterator {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(SyncManifestCommand::ArchiveIterator(
+                i,
+            )))
+            .await
+            .unwrap();
+        o.await.unwrap()
+    }
+    async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(
+                SyncManifestCommand::WriteChunkSettings(settings, i),
+            ))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(SyncManifestCommand::WriteArchive(
+                archive, i,
+            )))
+            .await
+            .unwrap();
+        o.await?
+    }
+    async fn touch(&mut self) -> Result<()> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Manifest(SyncManifestCommand::Touch(i)))
+            .await
+            .unwrap();
+        o.await?
     }
 }
