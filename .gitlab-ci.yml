@@ -15,6 +15,7 @@ test:lint:rustfmt:
   tags:
     - linux
   allow_failure: true
+  when: always
     
 test:lint:clippy:
   stage: lint
@@ -24,6 +25,7 @@ test:lint:clippy:
   tags:
     - linux
   allow_failure: true
+  needs: ["test:lint:rustfmt"]
 
     
 test:test:linux:
@@ -40,7 +42,7 @@ test:test:linux:
       - target
   tags:
     - linux
-  needs: ["test:lint:rustfmt", "test:lint:clippy"]
+  needs: ["test:lint:rustfmt"]
   allow_failure: true
   artifacts:
     paths:
@@ -61,8 +63,11 @@ test:test:windows:
       - target
   tags:
     - windows
-  needs: ["test:lint:rustfmt", "test:lint:clippy"]
+  needs: ["test:lint:rustfmt"]
   allow_failure: true
+  only:
+    - master
+    - tags
 
 test:coverage:
   stage: coverage
@@ -100,6 +105,9 @@ build:build:linux:
   tags:
     - linux
   needs: ["test:test:linux"]
+  only:
+    - master
+    - tags
 
 build:build:windows:
   stage: build
@@ -116,6 +124,9 @@ build:build:windows:
   tags:
     - windows
   needs: ["test:test:windows"]
+  only:
+    - master
+    - tags
 
 build:bench:linux:
   stage: bench
@@ -132,6 +143,9 @@ build:bench:linux:
   tags:
     - linux
   needs: ["build:build:linux"]
+  only:
+    - master
+    - tags
 
 build:bench:windows:
   stage: bench
@@ -147,6 +161,9 @@ build:bench:windows:
   tags:
     - windows
   needs: ["build:build:windows"]
+  only:
+    - master
+    - tags
 
 pages:
   stage: doc
@@ -159,6 +176,7 @@ pages:
     paths:
       - public
       - target
+  needs: ["test:lint:rustfmt"]
   tags:
     - linux
   when: always
