@@ -12,14 +12,19 @@
 //! Methods in this module are intentionally left undocumented, as they are indented to be syncronus
 //! versions of their async equivlants in the main Backend traits.
 use crate::manifest::StoredArchive;
-use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
+use crate::repository::backend::{Result, SegmentDescriptor};
 use crate::repository::{ChunkID, ChunkSettings, EncryptedKey};
 
 use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
+use futures::channel::mpsc;
+use futures::channel::oneshot;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use std::marker::PhantomData;
+use tokio::task;
 
 pub trait SyncManifest: Send + std::fmt::Debug {
-    type Iterator: Iterator<Item = StoredArchive>;
+    type Iterator: Iterator<Item = StoredArchive> + std::fmt::Debug + Send + 'static;
     fn last_modification(&mut self) -> Result<DateTime<FixedOffset>>;
     fn chunk_settings(&mut self) -> ChunkSettings;
     fn archive_iterator(&mut self) -> Self::Iterator;
@@ -41,13 +46,126 @@ pub trait SyncIndex: Send + std::fmt::Debug {
 /// never leak outside of their container task.
 ///
 /// Also note, that we do not have the close method, as the wrapper type will handle that for us.
-pub trait Backend: 'static + Send + std::fmt::Debug {
+pub trait SyncBackend: 'static + Send + std::fmt::Debug {
     type SyncManifest: SyncManifest + 'static;
     type SyncIndex: SyncIndex + 'static;
     fn get_index(&mut self) -> &mut Self::SyncIndex;
-    fn get_manfiest(&mut self) -> &mut Self::SyncManifest;
+    fn get_manifest(&mut self) -> &mut Self::SyncManifest;
     fn write_key(&mut self, key: EncryptedKey) -> Result<()>;
     fn read_key(&mut self) -> Result<EncryptedKey>;
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>>;
-    fn write_chunk(&mut self, location: SegmentDescriptor) -> Result<SegmentDescriptor>;
+    fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor>;
+}
+
+enum SyncIndexCommand {
+    Lookup(ChunkID, oneshot::Sender<Option<SegmentDescriptor>>),
+    Set(ChunkID, SegmentDescriptor, oneshot::Sender<Result<()>>),
+    Commit(oneshot::Sender<Result<()>>),
+    Count(oneshot::Sender<usize>),
+}
+enum SyncManifestCommand<I> {
+    LastMod(oneshot::Sender<Result<DateTime<FixedOffset>>>),
+    ChunkSettings(oneshot::Sender<ChunkSettings>),
+    ArchiveIterator(oneshot::Sender<I>),
+    WriteChunkSettings(ChunkSettings, oneshot::Sender<Result<()>>),
+    WriteArchive(StoredArchive, oneshot::Sender<Result<()>>),
+}
+enum SyncBackendCommand {
+    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
+    WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    Close(oneshot::Sender<()>),
+}
+
+enum SyncCommand<I> {
+    Index(SyncIndexCommand),
+    Manifest(SyncManifestCommand<I>),
+    Backend(SyncBackendCommand),
+}
+
+/// Wrapper Type for sync backends that converts them into async backends
+///
+/// Functions by moving the provided back end into a dedicated tokio task, and then sending SyncCommands
+/// to instruct that task on what to do.
+#[derive(Clone)]
+pub struct BackendHandle<B: SyncBackend> {
+    channel:
+        mpsc::Sender<SyncCommand<<<B as SyncBackend>::SyncManifest as SyncManifest>::Iterator>>,
+    phantom: PhantomData<B>,
+}
+
+impl<B> BackendHandle<B>
+where
+    B: SyncBackend + Send + 'static,
+{
+    pub fn new(mut backend: B) -> Self {
+        let (input, mut output) = mpsc::channel(100);
+        task::spawn(async move {
+            let mut final_ret: Option<oneshot::Sender<()>> = None;
+            while let Some(command) = output.next().await {
+                task::block_in_place(|| match command {
+                    SyncCommand::Index(index_command) => {
+                        let index = backend.get_index();
+                        match index_command {
+                            SyncIndexCommand::Lookup(id, ret) => {
+                                ret.send(index.lookup_chunk(id)).unwrap();
+                            }
+                            SyncIndexCommand::Set(id, location, ret) => {
+                                ret.send(index.set_chunk(id, location)).unwrap();
+                            }
+                            SyncIndexCommand::Commit(ret) => {
+                                ret.send(index.commit_index()).unwrap();
+                            }
+                            SyncIndexCommand::Count(ret) => {
+                                ret.send(index.chunk_count()).unwrap();
+                            }
+                        };
+                    }
+                    SyncCommand::Manifest(manifest_command) => {
+                        let manifest = backend.get_manifest();
+                        match manifest_command {
+                            SyncManifestCommand::LastMod(ret) => {
+                                ret.send(manifest.last_modification()).unwrap();
+                            }
+                            SyncManifestCommand::ChunkSettings(ret) => {
+                                ret.send(manifest.chunk_settings()).unwrap();
+                            }
+                            SyncManifestCommand::ArchiveIterator(ret) => {
+                                ret.send(manifest.archive_iterator()).unwrap();
+                            }
+                            SyncManifestCommand::WriteChunkSettings(settings, ret) => {
+                                ret.send(manifest.write_chunk_settings(settings)).unwrap();
+                            }
+                            SyncManifestCommand::WriteArchive(archive, ret) => {
+                                ret.send(manifest.write_archive(archive)).unwrap();
+                            }
+                        }
+                    }
+                    SyncCommand::Backend(backend_command) => match backend_command {
+                        SyncBackendCommand::ReadChunk(location, ret) => {
+                            ret.send(backend.read_chunk(location)).unwrap();
+                        }
+                        SyncBackendCommand::WriteChunk(chunk, id, ret) => {
+                            ret.send(backend.write_chunk(chunk, id)).unwrap();
+                        }
+                        SyncBackendCommand::Close(ret) => {
+                            final_ret = Some(ret);
+                        }
+                    },
+                });
+                if final_ret.is_some() {
+                    break;
+                }
+            }
+            std::mem::drop(backend);
+            std::mem::drop(output);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
+            }
+        });
+
+        BackendHandle {
+            channel: input,
+            phantom: PhantomData,
+        }
+    }
 }
