@@ -111,6 +111,11 @@ pub struct EncryptedKey {
 
 impl EncryptedKey {
     /// Produces an encrypted key from the specified userkey and encryption method
+    ///
+    /// # Panics
+    ///
+    /// Will panic if passed Encryption::NoEncryption as an encryption method. This encryption
+    /// method has a 0 byte key length, and argon 2 is unable to produce a hash of size 0.
     pub fn encrypt(
         key: &Key,
         mem_cost: u32,

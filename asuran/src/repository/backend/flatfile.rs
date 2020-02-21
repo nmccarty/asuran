@@ -1,6 +1,4 @@
 #![allow(unused_variables)]
-#![allow(dead_code)]
-#![allow(unused_imports)]
 use super::Result;
 use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
@@ -161,6 +159,14 @@ impl FlatFile {
         let flatfile = FlatFile::new_raw(repository_path, key, settings, enc_key)?;
         Ok(BackendHandle::new(flatfile))
     }
+
+    /// Attempts to read the key from the flatfile repo at a given path
+    pub fn load_encrypted_key(repository_path: impl AsRef<Path>) -> Result<EncryptedKey> {
+        let mut read = File::open(repository_path)?;
+        let header = Header::deserialize(&mut read)
+            .map_err(|_| BackendError::Unknown("Invalid repository header".to_string()))?;
+        Ok(header.configuration.key)
+    }
 }
 
 impl SyncManifest for FlatFile {
@@ -261,5 +267,42 @@ impl SyncBackend for FlatFile {
             segment_id: 0,
             start,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::Encryption;
+    use tempfile::tempdir;
+
+    fn setup() -> (Key, EncryptedKey, ChunkSettings) {
+        let key = Key::random(32);
+        let pass = b"A Very strong password";
+        let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), pass);
+        (key, enc_key, ChunkSettings::lightweight())
+    }
+
+    // Create a new flatfile with a key and some settings, drop it, reload it, and check to see if
+    // the key we read back is the same
+    #[tokio::test(threaded_scheduler)]
+    async fn key_store_load() {
+        let (key, enc_key, settings) = setup();
+        let directory = tempdir().unwrap();
+        let file = directory.path().join("temp.asuran");
+        // Generate the flatfile, close it, and drop it
+        let flatfile = FlatFile::new(&file, &key, Some(settings), Some(enc_key)).unwrap();
+        flatfile.close().await;
+        // Load it back up
+        let flatfile = FlatFile::new(&file, &key, None, None).unwrap();
+        // get the key
+        let new_key = flatfile
+            .read_key()
+            .await
+            .expect("Could not read key")
+            .decrypt(b"A Very strong password")
+            .expect("Could not decrypt key");
+
+        assert_eq!(key, new_key);
     }
 }
