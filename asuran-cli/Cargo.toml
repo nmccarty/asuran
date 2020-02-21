@@ -21,7 +21,8 @@ read_input = "0.8.3"
 rpassword = "4.0.5"
 tokio = { version = "0.2.11", features = ["full"] }
 tracing = "0.1.12"
-tracing-subscriber = "0.2.0"
+tracing-subscriber = "0.2.1"
+structopt = "0.3.9"
 
 [build-dependencies]
 vergen = "3.0.4"
