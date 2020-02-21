@@ -7,13 +7,13 @@ repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
-readme = "README-output.md"
+readme = "../README.md"
 edition = "2018"
 keywords = ["encryption", "compression","deduplication","backup","archive"]
 
 [dependencies]
-asuran-chunker = { path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { path = "../asuran-core/" }
+asuran-chunker = { version = "0.0.4", path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "0.0.4", path = "../asuran-core/" }
 async-trait = "0.1.24"
 base64 = "0.11.0"
 bincode = "1.2.1"
