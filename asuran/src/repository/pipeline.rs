@@ -4,7 +4,7 @@ use tokio::task;
 
 use crate::repository::{Chunk, ChunkID, Compression, Encryption, Key, HMAC};
 
-use tracing::{event, instrument, span, Level};
+use tracing::instrument;
 
 #[derive(Debug)]
 struct Message {
@@ -12,143 +12,67 @@ struct Message {
     encryption: Encryption,
     hmac: HMAC,
     key: Key,
-    ret_chunk: OneshotSender<Vec<Chunk>>,
-    ret_id: Option<OneshotSender<Vec<ChunkID>>>,
+    ret_chunk: OneshotSender<Chunk>,
+    ret_id: Option<OneshotSender<ChunkID>>,
 }
 
 #[derive(Clone)]
 pub struct Pipeline {
-    input: Sender<(Vec<Vec<u8>>, Message)>,
-    input_id: Sender<(Vec<ChunkID>, Vec<Vec<u8>>, Message)>,
+    input: Sender<(Vec<u8>, Message)>,
+    input_id: Sender<(ChunkID, Vec<u8>, Message)>,
 }
 
 impl Pipeline {
     /// Spawns a new pipeline and populates it with a number of tasks
     ///
     /// Gets a pass on too_many lines for now
-    #[allow(clippy::too_many_lines)]
     pub fn new() -> Pipeline {
         let base_threads = num_cpus::get();
-        let heavy_count = base_threads;
-        let light_count = base_threads;
 
-        let (input, id_rx) = channel(50);
-        let (id_tx, compress_rx) = channel(50);
-        let input_id = id_tx.clone();
-        let (compress_tx, enc_rx) = channel(50);
-        let (enc_tx, mac_rx) = channel(50);
+        let (input, rx) = channel(50);
+        let (input_id, id_rx) = channel(50);
 
-        for i in 0..light_count {
-            // ID stage
-            let id_rx = id_rx.clone();
-            let id_tx = id_tx.clone();
-            let compress_tx = compress_tx.clone();
-            let enc_tx = enc_tx.clone();
+        for _ in 0..base_threads {
+            let rx = rx.clone();
             task::spawn(async move {
-                let span = span!(Level::TRACE, "ID Stage", i);
-                let _enter = span.enter();
-                while let Some(input) = id_rx.receive().await {
-                    let (data, mut message): (Vec<Vec<u8>>, Message) = input;
-                    let mut cids = Vec::new();
-                    for chunk in &data {
-                        let id = task::block_in_place(|| message.hmac.id(&chunk[..], &message.key));
-                        cids.push(ChunkID::new(&id[..]));
-                    }
-                    event!(Level::TRACE, ?cids);
-                    // Go ahead and send the chunkIDs
-                    message.ret_id.take().unwrap().send(cids.clone()).unwrap();
-                    let compression = message.compression;
-                    let encryption = message.encryption;
-                    let next = (cids, data, message);
-                    // Skip to the appropiate stage if compression is disabled
-                    if compression == Compression::NoCompression {
-                        // If encryption is also disabled, skip straight to HMAC
-                        if encryption == Encryption::NoEncryption {
-                            enc_tx.send(next).await.unwrap();
-                        } else {
-                            // Otherwise just skip compression
-                            compress_tx.send(next).await.unwrap();
-                        }
-                    } else {
-                        id_tx.send(next).await.unwrap();
-                    }
-                }
-            });
-        }
-
-        for i in 0..heavy_count {
-            let compress_rx = compress_rx.clone();
-            let compress_tx = compress_tx.clone();
-            let enc_tx = enc_tx.clone();
-            // Compression stage
-            task::spawn(async move {
-                let span = span!(Level::TRACE, "Compression Stage", i);
-                let _enter = span.enter();
-                while let Some(input) = compress_rx.receive().await {
-                    let (cids, data, message) = input;
-                    event!(Level::TRACE, ?cids);
-                    let mut cdatas = Vec::new();
-                    for chunk in data {
-                        let cdata = task::block_in_place(|| message.compression.compress(chunk));
-                        cdatas.push(cdata);
-                    }
-                    let encryption = message.encryption;
-                    let next = (cids, cdatas, message);
-                    // If encryption is disabled, skip that stage
-                    if encryption == Encryption::NoEncryption {
-                        enc_tx.send(next).await.unwrap();
-                    } else {
-                        compress_tx.send(next).await.unwrap();
-                    }
-                }
-            });
-        }
-
-        // Encryption stage
-        for i in 0..heavy_count {
-            let enc_rx = enc_rx.clone();
-            let enc_tx = enc_tx.clone();
-            task::spawn(async move {
-                let span = span!(Level::TRACE, "Encryption Stage", i);
-                let _enter = span.enter();
-                while let Some(input) = enc_rx.receive().await {
-                    let (cids, data, message) = input;
-                    event!(Level::TRACE, ?cids);
-                    let mut edatas = Vec::new();
-                    for chunk in data {
-                        let edata = task::block_in_place(|| {
-                            message.encryption.encrypt(&chunk[..], &message.key)
-                        });
-                        edatas.push(edata);
-                    }
-                    enc_tx.send((cids, edatas, message)).await.unwrap();
-                }
-            });
-        }
-
-        // Mac stage
-        for i in 0..light_count {
-            let mac_rx = mac_rx.clone();
-            task::spawn(async move {
-                let span = span!(Level::TRACE, "Encryption Stage", i);
-                let _enter = span.enter();
-                while let Some(input) = mac_rx.receive().await {
-                    let (cids, data, message) = input;
-                    event!(Level::DEBUG, ?cids);
-                    let mut chunks = Vec::new();
-                    for (index, chunk) in data.into_iter().enumerate() {
-                        let mac = task::block_in_place(|| message.hmac.mac(&chunk, &message.key));
-                        let chunk = Chunk::from_parts(
+                while let Some(input) = rx.receive().await {
+                    let (chunk, message): (Vec<u8>, Message) = input;
+                    task::block_in_place(|| {
+                        let c = Chunk::pack(
                             chunk,
                             message.compression,
                             message.encryption,
                             message.hmac,
-                            mac,
-                            cids[index],
+                            &message.key,
                         );
-                        chunks.push(chunk)
-                    }
-                    message.ret_chunk.send(chunks).unwrap();
+                        if let Some(ret_id) = message.ret_id {
+                            ret_id.send(c.get_id()).unwrap();
+                        }
+                        message.ret_chunk.send(c).unwrap();
+                    });
+                }
+            });
+        }
+
+        for _ in 0..base_threads {
+            let id_rx = id_rx.clone();
+            task::spawn(async move {
+                while let Some(input) = id_rx.receive().await {
+                    let (id, chunk, message): (ChunkID, Vec<u8>, Message) = input;
+                    task::block_in_place(|| {
+                        let c = Chunk::pack_with_id(
+                            chunk,
+                            message.compression,
+                            message.encryption,
+                            message.hmac,
+                            &message.key,
+                            id,
+                        );
+                        if let Some(ret_id) = message.ret_id {
+                            ret_id.send(c.get_id()).unwrap();
+                        }
+                        message.ret_chunk.send(c).unwrap();
+                    });
                 }
             });
         }
@@ -176,10 +100,10 @@ impl Pipeline {
             ret_id: Some(id_tx),
         };
         let input = self.input.clone();
-        input.send((vec![data], message)).await.unwrap();
+        input.send((data, message)).await.unwrap();
         (
-            id_rx.receive().await.unwrap()[0],
-            c_rx.receive().await.unwrap().into_iter().next().unwrap(),
+            id_rx.receive().await.unwrap(),
+            c_rx.receive().await.unwrap(),
         )
     }
 
@@ -203,8 +127,8 @@ impl Pipeline {
             ret_id: None,
         };
         let input = self.input_id.clone();
-        input.send((vec![id], vec![data], message)).await.unwrap();
-        c_rx.receive().await.unwrap().into_iter().next().unwrap()
+        input.send((id, data, message)).await.unwrap();
+        c_rx.receive().await.unwrap()
     }
 }
 
