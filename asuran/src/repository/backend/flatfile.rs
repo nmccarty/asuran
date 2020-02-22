@@ -220,6 +220,9 @@ impl SyncIndex for FlatFile {
         self.index.insert(id, location);
         Ok(())
     }
+    fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        self.index.keys().copied().collect::<HashSet<_>>()
+    }
     fn commit_index(&mut self) -> Result<()> {
         // There is no seperate index for this format
         Ok(())

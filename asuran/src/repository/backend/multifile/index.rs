@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rmps;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{BufWriter, Seek, SeekFrom};
 use std::path::Path;
@@ -117,6 +117,7 @@ impl InternalIndex {
 enum IndexCommand {
     Lookup(ChunkID, oneshot::Sender<Option<SegmentDescriptor>>),
     Set(ChunkID, SegmentDescriptor, oneshot::Sender<Result<()>>),
+    KnownChunks(oneshot::Sender<HashSet<ChunkID>>),
     Commit(oneshot::Sender<Result<()>>),
     Count(oneshot::Sender<usize>),
     Close(oneshot::Sender<()>),
@@ -188,6 +189,9 @@ impl Index {
                         index.changes.push(transaction);
                         ret.send(Ok(())).unwrap();
                     }
+                    IndexCommand::KnownChunks(ret) => {
+                        ret.send(index.state.keys().copied().collect::<HashSet<_>>()).unwrap();
+                    }
                     IndexCommand::Count(ret) => {
                         ret.send(index.state.len()).unwrap();
                     }
@@ -249,6 +253,11 @@ impl backend::Index for Index {
             .send(IndexCommand::Set(id, location, input))
             .await
             .unwrap();
+        output.await.unwrap()
+    }
+    async fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        let (input, output) = oneshot::channel();
+        self.input.send(IndexCommand::KnownChunks(input)).await.unwrap();
         output.await.unwrap()
     }
     async fn commit_index(&mut self) -> Result<()> {

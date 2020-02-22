@@ -77,6 +77,9 @@ impl SyncIndex for Mem {
         self.index.insert(id, location);
         Ok(())
     }
+    fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        self.index.keys().copied().collect::<HashSet<_>>()
+    }
     fn commit_index(&mut self) -> Result<()> {
         // Does nothing, since this implementation does not commit
         Ok(())

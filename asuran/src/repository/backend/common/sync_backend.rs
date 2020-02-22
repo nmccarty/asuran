@@ -22,6 +22,7 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use tokio::task;
+use std::collections::HashSet;
 
 pub trait SyncManifest: Send + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive> + std::fmt::Debug + Send + 'static;
@@ -36,6 +37,7 @@ pub trait SyncManifest: Send + std::fmt::Debug {
 pub trait SyncIndex: Send + std::fmt::Debug {
     fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
+    fn known_chunks(&mut self) -> HashSet<ChunkID>;
     fn commit_index(&mut self) -> Result<()>;
     fn chunk_count(&mut self) -> usize;
 }
@@ -60,6 +62,7 @@ pub trait SyncBackend: 'static + Send + std::fmt::Debug {
 enum SyncIndexCommand {
     Lookup(ChunkID, oneshot::Sender<Option<SegmentDescriptor>>),
     Set(ChunkID, SegmentDescriptor, oneshot::Sender<Result<()>>),
+    KnownChunks(oneshot::Sender<HashSet<ChunkID>>),
     Commit(oneshot::Sender<Result<()>>),
     Count(oneshot::Sender<usize>),
 }
@@ -114,6 +117,9 @@ where
                             }
                             SyncIndexCommand::Set(id, location, ret) => {
                                 ret.send(index.set_chunk(id, location)).unwrap();
+                            }
+                            SyncIndexCommand::KnownChunks(ret) => {
+                                ret.send(index.known_chunks()).unwrap();
                             }
                             SyncIndexCommand::Commit(ret) => {
                                 ret.send(index.commit_index()).unwrap();
@@ -269,6 +275,14 @@ impl<B: SyncBackend> Index for BackendHandle<B> {
             .await
             .unwrap();
         o.await?
+    }
+    async fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        let (i, o) = oneshot::channel();
+        self.channel
+            .send(SyncCommand::Index(SyncIndexCommand::KnownChunks(i)))
+            .await
+            .unwrap();
+        o.await.unwrap()
     }
     async fn commit_index(&mut self) -> Result<()> {
         let (i, o) = oneshot::channel();
