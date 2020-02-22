@@ -7,8 +7,8 @@ use crate::repository::EncryptedKey;
 use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use std::collections::HashSet;
+use thiserror::Error;
 
 pub mod common;
 pub mod flatfile;

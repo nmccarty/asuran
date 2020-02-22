@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rmps;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{BufWriter, Seek, SeekFrom};
 use std::path::Path;
@@ -190,7 +190,8 @@ impl Index {
                         ret.send(Ok(())).unwrap();
                     }
                     IndexCommand::KnownChunks(ret) => {
-                        ret.send(index.state.keys().copied().collect::<HashSet<_>>()).unwrap();
+                        ret.send(index.state.keys().copied().collect::<HashSet<_>>())
+                            .unwrap();
                     }
                     IndexCommand::Count(ret) => {
                         ret.send(index.state.len()).unwrap();
@@ -257,7 +258,10 @@ impl backend::Index for Index {
     }
     async fn known_chunks(&mut self) -> HashSet<ChunkID> {
         let (input, output) = oneshot::channel();
-        self.input.send(IndexCommand::KnownChunks(input)).await.unwrap();
+        self.input
+            .send(IndexCommand::KnownChunks(input))
+            .await
+            .unwrap();
         output.await.unwrap()
     }
     async fn commit_index(&mut self) -> Result<()> {
