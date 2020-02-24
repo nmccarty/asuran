@@ -27,13 +27,13 @@ lru = { version = "0.4.3", default-features = false }
 num_cpus = "1.12.0"
 petgraph = "0.5.0"
 rand = { version = "0.7.3", features = ["small_rng"] }
-rmp-serde = "0.14.2"
+rmp-serde = "0.14.3"
 serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
-thiserror = "1.0.10"
+thiserror = "1.0.11"
 tokio = { version = "0.2.11", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"] }
 tracing = "0.1.12"
-tracing-futures = "0.2.1"
+tracing-futures = "0.2.2"
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 walkdir = "2.3.1"
 zeroize = { version = "1.1.0", features = ["zeroize_derive"] }

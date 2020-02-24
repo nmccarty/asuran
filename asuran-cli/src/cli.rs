@@ -1,3 +1,4 @@
+use asuran::repository;
 use clap::{arg_enum, AppSettings};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -9,6 +10,70 @@ const VERSION: &'static str = concat!(
     " ",
     env!("VERGEN_BUILD_DATE"),
 );
+
+arg_enum! {
+ #[derive(Debug)]
+    pub enum RepositoryType {
+        MultiFile,
+        FlatFile,
+    }
+}
+
+arg_enum! {
+    #[derive(Debug)]
+    pub enum Encryption {
+        AES256CBC,
+        AES256CTR,
+        ChaCha20,
+        None,
+    }
+}
+arg_enum! {
+   #[derive(Debug)]
+   pub enum Compression {
+       ZStd,
+       LZ4,
+       LZMA,
+       None
+   }
+}
+
+arg_enum! {
+    #[derive(Debug)]
+    pub enum HMAC {
+        SHA256,
+        Blake2b,
+        Blake2bp,
+        Blake3,
+        SHA3,
+    }
+}
+
+#[derive(StructOpt, Debug)]
+pub enum Command {
+    /// Provides a listing of the archives in a repository
+    List,
+    /// Creates a new archive in a repository
+    Store {
+        /// Location of the directory to store
+        #[structopt(name = "TARGET")]
+        target: PathBuf,
+        /// Name for the new archive. Defaults to an ISO date/time stamp
+        #[structopt(short, long)]
+        name: Option<String>,
+    },
+    /// Extracts an archive from a repository
+    Extract {
+        /// Location to restore to
+        #[structopt(name = "TARGET")]
+        target: PathBuf,
+        /// Name or ID of the archive to be restored
+        #[structopt(name = "ARCHIVE")]
+        archive: String,
+    },
+    /// Creates a new repository
+    New,
+}
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -70,66 +135,43 @@ pub struct Opt {
     command: Command,
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    pub enum RepositoryType {
-        MultiFile,
-        FlatFile,
-    }
-}
+impl Opt {
+    pub fn get_chunk_settings(&self) -> repository::ChunkSettings {
+        let compression = match self.compression {
+            Compression::ZStd => self
+                .compression_level
+                .map(|x| repository::Compression::ZStd { level: x as i32 })
+                .unwrap_or(repository::Compression::ZStd { level: 3 }),
+            Compression::LZ4 => self
+                .compression_level
+                .map(|x| repository::Compression::LZ4 { level: x })
+                .unwrap_or(repository::Compression::LZ4 { level: 4 }),
+            Compression::None => repository::Compression::NoCompression,
+            Compression::LZMA => self
+                .compression_level
+                .map(|x| repository::Compression::LZMA { level: x })
+                .unwrap_or(repository::Compression::LZMA { level: 6 }),
+        };
 
-arg_enum! {
-    #[derive(Debug)]
-    pub enum Encryption {
-        AES256CBC,
-        AES256CTR,
-        ChaCha20,
-        None,
-    }
-}
-arg_enum! {
-   #[derive(Debug)]
-   pub enum Compression {
-       ZStd,
-       LZ4,
-       LZMA,
-       None
-   }
-}
+        let encryption = match self.encryption {
+            Encryption::AES256CBC => repository::Encryption::new_aes256cbc(),
+            Encryption::AES256CTR => repository::Encryption::new_aes256ctr(),
+            Encryption::ChaCha20 => repository::Encryption::new_chacha20(),
+            Encryption::None => repository::Encryption::NoEncryption,
+        };
 
-arg_enum! {
-    #[derive(Debug)]
-    pub enum HMAC {
-        SHA256,
-        Blake2b,
-        Blake2bp,
-        Blake3,
-        SHA3,
-    }
-}
+        let hmac = match self.hmac {
+            HMAC::SHA256 => repository::HMAC::SHA256,
+            HMAC::Blake2b => repository::HMAC::Blake2b,
+            HMAC::Blake2bp => repository::HMAC::Blake2bp,
+            HMAC::Blake3 => repository::HMAC::Blake3,
+            HMAC::SHA3 => repository::HMAC::SHA3,
+        };
 
-#[derive(StructOpt, Debug)]
-pub enum Command {
-    /// Provides a listing of the archives in a repository
-    List,
-    /// Creates a new archive in a repository
-    Store {
-        /// Location of the directory to store
-        #[structopt(name = "TARGET")]
-        target: PathBuf,
-        /// Name for the new archive. Defaults to an ISO date/time stamp
-        #[structopt(short, long)]
-        name: Option<String>,
-    },
-    /// Extracts an archive from a repository
-    Extract {
-        /// Location to restore to
-        #[structopt(name = "TARGET")]
-        target: PathBuf,
-        /// Name or ID of the archive to be restored
-        #[structopt(name = "ARCHIVE")]
-        archive: String,
-    },
-    /// Creates a new repository
-    New,
+        repository::ChunkSettings {
+            compression,
+            encryption,
+            hmac,
+        }
+    }
 }
