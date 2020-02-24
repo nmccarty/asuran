@@ -59,9 +59,12 @@ impl Encryption {
     }
 
     /// Returns the key length of this encryption method in bytes
+    ///
+    /// NoEncryption has a key length of 16 bytes, as some things rely on a non-zero key
+    /// length.
     pub fn key_length(&self) -> usize {
         match self {
-            Encryption::NoEncryption => 0,
+            Encryption::NoEncryption => 16,
             Encryption::AES256CBC { .. } => 32,
             Encryption::AES256CTR { .. } => 32,
             Encryption::ChaCha20 { .. } => 32,
