@@ -1,10 +1,18 @@
 mod cli;
 mod util;
 
+mod new;
+
+use anyhow::Result;
 use cli::{Command, Opt};
 use structopt::StructOpt;
 
 #[tokio::main]
-async fn main() {
-    let options: &'static Opt = Box::leak(Box::new(Opt::from_args()));
+async fn main() -> Result<()> {
+    let options = Opt::from_args();
+    let command = options.command.clone();
+    match command {
+        Command::New { .. } => new::new(options).await,
+        _ => todo!(),
+    }
 }
