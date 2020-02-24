@@ -20,11 +20,11 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     let chunk_settings = options.get_chunk_settings();
     let mut repo = Repository::with(backend, chunk_settings, key);
     // Make sure we have a name for the archive, defaulting to the current date/time
-    let name = name.unwrap_or(
+    let name = name.unwrap_or_else(|| {
         Local::now()
             .with_timezone(Local::now().offset())
-            .to_rfc2822(),
-    );
+            .to_rfc2822()
+    });
     // Load the manifest and create the archive
     let mut manifest = Manifest::load(&repo);
     let archive = ActiveArchive::new(&name);

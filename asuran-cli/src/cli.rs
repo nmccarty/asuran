@@ -7,7 +7,7 @@ use std::fs::metadata;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-const VERSION: &'static str = concat!(
+const VERSION: &str = concat!(
     env!("VERGEN_SEMVER"),
     "-",
     env!("VERGEN_SHA_SHORT"),
@@ -210,7 +210,7 @@ impl Opt {
 
                 // First, attempt to read the multifile key
                 let multifile_key = multifile::MultiFile::read_key(&self.repo)
-                    .with_context(|| format!("Error attempting to read MultiFile key material"))?;
+                    .with_context(|| "Error attempting to read MultiFile key material")?;
 
                 // Attempt to decrypt the key
                 let key = multifile_key

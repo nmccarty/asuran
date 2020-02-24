@@ -1,6 +1,7 @@
 mod cli;
 mod util;
 
+mod extract;
 mod list;
 mod new;
 mod store;
@@ -17,6 +18,6 @@ async fn main() -> Result<()> {
         Command::New => new::new(options).await,
         Command::Store { target, name } => store::store(options, target, name).await,
         Command::List => list::list(options).await,
-        _ => todo!(),
+        Command::Extract { target, archive } => extract::extract(options, target, archive).await,
     }
 }
