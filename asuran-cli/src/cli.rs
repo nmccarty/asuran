@@ -1,5 +1,9 @@
-use asuran::repository;
+use crate::util::DynamicBackend;
+use anyhow::{anyhow, Context, Result};
+use asuran::repository::{self, Backend, Key};
 use clap::{arg_enum, AppSettings};
+use repository::backend::{flatfile, multifile};
+use std::fs::metadata;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -172,6 +176,89 @@ impl Opt {
             compression,
             encryption,
             hmac,
+        }
+    }
+
+    /// Attempts to open up a connection to the repostiory, based on the information
+    /// passed in the Options
+    ///
+    /// # Errors
+    ///
+    /// Will return Err if
+    ///
+    /// 1. The give repository path is of the wrong type (i.e a folder when a FlatFile
+    ///    was requested)
+    /// 2. Some other error defined in the repostiory implementation occurs trying to open it
+    pub async fn open_repo_backend(&self) -> Result<(DynamicBackend, Key)> {
+        match self.repository_type {
+            RepositoryType::MultiFile => {
+                // Ensure that the repository path exsits and is a folder
+                if !self.repo.exists() {
+                    return Err(anyhow!(
+                        "Attempted to open a repository at a path that does not exist."
+                    ));
+                }
+                let md = metadata(&self.repo).with_context(|| {
+                    format!(
+                        "IO error when attempting to open MultiFile at {:?}",
+                        &self.repo
+                    )
+                })?;
+                if !md.is_dir() {
+                    return Err(anyhow!("Attempted to open a MultiFile repository, but the path provided was not a folder."));
+                }
+
+                // First, attempt to read the multifile key
+                let multifile_key = multifile::MultiFile::read_key(&self.repo)
+                    .with_context(|| format!("Error attempting to read MultiFile key material"))?;
+
+                // Attempt to decrypt the key
+                let key = multifile_key
+                    .decrypt(self.password.as_bytes())
+                    .with_context(|| {
+                        "Unable to decrypt key material, possibly due to an invalid password"
+                    })?;
+
+                // Actually open the repository, and wrap it in a dynamic backend
+                let chunk_settings = self.get_chunk_settings();
+                let multifile =
+                    multifile::MultiFile::open_defaults(&self.repo, Some(chunk_settings), &key)
+                        .with_context(|| "Exeprienced an internal backend error.")?;
+                Ok((DynamicBackend::from(multifile), key))
+            }
+            RepositoryType::FlatFile => {
+                // First, make sure the repository exists and is a file
+                if !self.repo.exists() {
+                    return Err(anyhow!(
+                        "Attempted to open a repository path that does not exist"
+                    ));
+                }
+                let md = metadata(&self.repo).with_context(|| {
+                    format!(
+                        "IO error when attempting to open FlatFile at {:?}",
+                        &self.repo
+                    )
+                })?;
+                if !md.is_file() {
+                    return Err(anyhow!("Attempted to open a FlatFile repository, but the path provided was not a folder"));
+                }
+
+                // Attempt to open up the flatfile backend
+                let chunk_settings = self.get_chunk_settings();
+                let flatfile = flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None)
+                    .with_context(|| "Internal backend error opening flatfile.")?;
+                let flatfile = DynamicBackend::from(flatfile);
+
+                // Attempt to read and decrypt the key
+                let key = flatfile
+                    .read_key()
+                    .await
+                    .with_context(|| "Failed to read key from flatfile.")?;
+                let key = key.decrypt(self.password.as_bytes()).with_context(|| {
+                    "Unable to decrypt key material, possibly due to an invalid password"
+                })?;
+                Ok((flatfile, key))
+            }
         }
     }
 }
