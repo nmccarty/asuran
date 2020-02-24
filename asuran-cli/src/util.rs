@@ -2,8 +2,10 @@ use asuran::repository::backend::common::sync_backend::BackendHandle;
 use asuran::repository::backend::flatfile::FlatFile;
 use asuran::repository::backend::multifile::MultiFile;
 use asuran::repository::backend::*;
+use asuran::repository::ChunkID;
 
 use async_trait::async_trait;
+use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub enum DynamicIndex {
     MultiFile(<MultiFile as Backend>::Index),
@@ -48,6 +50,12 @@ impl Index for DynamicIndex {
         match self {
             DynamicIndex::MultiFile(x) => x.count_chunk().await,
             DynamicIndex::FlatFile(x) => x.count_chunk().await,
+        }
+    }
+    async fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        match self {
+            DynamicIndex::MultiFile(x) => x.known_chunks().await,
+            DynamicIndex::FlatFile(x) => x.known_chunks().await,
         }
     }
 }
