@@ -1,6 +1,7 @@
 mod cli;
 mod util;
 
+mod list;
 mod new;
 mod store;
 
@@ -13,8 +14,9 @@ async fn main() -> Result<()> {
     let options = Opt::from_args();
     let command = options.command.clone();
     match command {
-        Command::New { .. } => new::new(options).await,
+        Command::New => new::new(options).await,
         Command::Store { target, name } => store::store(options, target, name).await,
+        Command::List => list::list(options).await,
         _ => todo!(),
     }
 }
