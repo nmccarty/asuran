@@ -10,6 +10,7 @@ Thank you.
 These fine individuals have taken valuable time out of their day to make Asuran better. 
 
 - [@aidanhs](https://gitlab.com/aidanhs)
+- [@vlmutolo](https://gitlab.com/vlmutolo)
 
 ## Bug Hunters
 

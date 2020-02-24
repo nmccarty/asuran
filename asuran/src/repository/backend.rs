@@ -7,6 +7,7 @@ use crate::repository::EncryptedKey;
 use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use thiserror::Error;
 
 pub mod common;
@@ -83,6 +84,8 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
     async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     /// Sets the location of a chunk in the repository
     async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
+    /// Returns the set of all `ChunkID`s known to exist in the Asuran repository.
+    async fn known_chunks(&mut self) -> HashSet<ChunkID>;
     /// Commits the index
     async fn commit_index(&mut self) -> Result<()>;
     /// Returns the total number of chunks in the index
