@@ -90,10 +90,10 @@ pub enum Command {
 pub struct Opt {
     /// Location of the Asuran repository
     #[structopt(name = "REPO")]
-    repo: PathBuf,
+    pub repo: PathBuf,
     /// Password for the repository. Can also be specified with the PASSWORD enviroment variable
     #[structopt(short, long, env = "ASURAN_PASSWORD", hide_env_values = true)]
-    password: String,
+    pub password: String,
     /// Type of repository to use
     #[structopt(
         short,
@@ -102,7 +102,7 @@ pub struct Opt {
         case_insensitive(true),
         possible_values(&RepositoryType::variants())
     )]
-    repository_type: RepositoryType,
+    pub repository_type: RepositoryType,
     /// Selects Encryption Algorithm
     #[structopt(
         short,
@@ -111,7 +111,7 @@ pub struct Opt {
         case_insensitive(true),
         possible_values(&Encryption::variants())
     )]
-    encryption: Encryption,
+    pub encryption: Encryption,
     /// Selects Compression Algorithm
     #[structopt(
         short,
@@ -120,10 +120,10 @@ pub struct Opt {
         case_insensitive(true),
         possible_values(&Encryption::variants())
     )]
-    compression: Compression,
+    pub compression: Compression,
     /// Sets compression level. Defaults to the compression algorithim's "middle" setting
     #[structopt(short = "l", long)]
-    compression_level: Option<u32>,
+    pub compression_level: Option<u32>,
     /// Sets the HMAC algorthim used. Note: this will not change the HMAC algorthim used on an
     /// existing repository
     #[structopt(
@@ -133,10 +133,10 @@ pub struct Opt {
         case_insensitive(true),
         possible_values(&HMAC::variants())
     )]
-    hmac: HMAC,
+    pub hmac: HMAC,
     /// Operation to perform
     #[structopt(subcommand)]
-    command: Command,
+    pub command: Command,
 }
 
 impl Opt {
