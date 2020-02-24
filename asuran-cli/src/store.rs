@@ -41,7 +41,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     // will pop off the oldest task future and `await`ing it, but only after staring
     // the next task.
     //
-    // TODO: The job of managing the futures here really needs to be moved into the `asuran` crate, with
+    // TODO (#44): The job of managing the futures here really needs to be moved into the `asuran` crate, with
     // methods attached to BackupDriver for managing this automatically. Both to improve ergonomics, as
     // well as reducing unnessicary clones.
     let max_queue_len = 10;

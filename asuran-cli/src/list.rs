@@ -26,8 +26,6 @@ pub async fn list(options: Opt) -> Result<()> {
         manifest.timestamp().await?.to_rfc2822()
     );
     // Iterate through the list of archives, and print them out in a nice table
-    // TODO: sort by timestamp ascending
-    // TODO: implement pagination
     let mut table = Table::new();
     table.add_row(row!["Index", "Name", "Creation Time"]);
     for (index, archive) in archives.into_iter().enumerate() {

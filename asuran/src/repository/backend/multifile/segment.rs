@@ -67,7 +67,7 @@ impl InternalSegmentHandler {
     ///
     /// Any filenames in the data directory contain non-utf8 characters
     ///
-    /// # TODOs
+    /// # TODOs:
     ///
     /// 1. This function currently recursivly walks the entire data directory to find the highest
     /// numbered segment, when we can skip the recursion and only inspect the higest numbered
@@ -210,7 +210,7 @@ impl InternalSegmentHandler {
 
             // First check the previous segment and return early if it is lockable
             //
-            // FIXME: This is a janky fix for the library creating a new data file every time you
+            // FIXME (#46): This is a janky fix for the library creating a new data file every time you
             // open a repository with a multifile backend, this really needs to be rewritten to
             // check for the first unlocked, non-full data file
             //
@@ -266,7 +266,7 @@ impl InternalSegmentHandler {
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
         let segment_id = location.segment_id;
         let segment = self.open_segement_read(segment_id)?;
-        // FIXME: This implementation doesnt use the second argument, but still has it for legacy
+        // FIXME (#47): This implementation doesnt use the second argument, but still has it for legacy
         // reasons, this should be refactored out at some point, but for now we just feed it a 0
         segment.1.read_chunk(location.start, 0)
     }

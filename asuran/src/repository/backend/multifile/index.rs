@@ -161,7 +161,7 @@ impl Index {
     /// 4. Some other IO error (such as lack of permissions) occurs
     /// 5. The path contains non-utf8 characters
     ///
-    /// # TODOs
+    /// # TODOs:
     ///
     /// 1. Return an error if deserializing a transaction fails before the end of the file is reached
     /// 2. This function can currently panic if we have to create a new index file, but someone else

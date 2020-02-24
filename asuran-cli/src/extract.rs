@@ -29,7 +29,7 @@ pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Res
         }
     }
 
-    // TODO: Prompt the user when there are multiple matching archives
+    // TODO (#36): Prompt the user when there are multiple matching archives
     // For now, just use the first match
     if matching_archives.is_empty() {
         println!("No matching archives found.");
@@ -51,7 +51,7 @@ pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Res
         let paths = f_target.restore_listing().await;
         for path in paths {
             println!("Restoring file: {}", path);
-            // TODO: properly utilize tasks here
+            // TODO (#36): properly utilize tasks here
             f_target.retrieve_object(&mut repo, &archive, &path).await?;
         }
     }
