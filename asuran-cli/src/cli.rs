@@ -53,7 +53,7 @@ arg_enum! {
     }
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 pub enum Command {
     /// Provides a listing of the archives in a repository
     List,
@@ -118,7 +118,7 @@ pub struct Opt {
         long,
         default_value = "ZStd",
         case_insensitive(true),
-        possible_values(&Encryption::variants())
+        possible_values(&Compression::variants())
     )]
     pub compression: Compression,
     /// Sets compression level. Defaults to the compression algorithim's "middle" setting
