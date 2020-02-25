@@ -8,7 +8,6 @@
 //! to be triviallly serializeable and deserilazeable.
 pub mod archive;
 pub mod driver;
-pub mod listing;
 pub mod target;
 
 use crate::repository::backend::Manifest as BackendManifest;

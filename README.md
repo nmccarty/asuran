@@ -45,13 +45,20 @@ previous contentors in this space could only have dreamed of.
 
 ## Installing and using
 
-Install asuran either from this repository or with
+In most cases you will be interacting with the command line asuran clinet (asuran-cli). Either
+build it from source from the asuran-cli directory in this repository, or install it with:
 ```bash
 env RUSTFLAGS="-C target-feature=+aes,+ssse3" cargo install asuran-cli
 ```
-Optionally add `-C target-cpu=native` for even better performance.
+Optionally add `-C target-cpu=native` for even better performance. The target features (aes and
+sse3) are required to get good performance, and asuran does not currently offically support being
+built without them.
 
 See `asuran-cli --help` for usage.
+
+`asuran-cli` is, at heart, a thing wrapper that glues togehter the API of the `asuran` library.
+The `asuran` crate provides a high level interface for interacting with repositories, and will
+always be a sepereate component and enjoy the same level of support as `asuran-cli` itself. 
 
 ## Documentation
 

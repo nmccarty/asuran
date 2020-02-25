@@ -1,6 +1,6 @@
 # Asuran CLI
 
-This is a thin CLI wrapper around [libasuran](https://gitlab.com/asuran-rs/libasuran) ([crates.io](https://crates.io/crates/libasuran))
+This is a thin CLI wrapper around [asuran](https://gitlab.com/asuran-rs/asuran) ([crates.io](https://crates.io/crates/asuran))
 
 At the moment this is mostly used for testing and directly tracks the upstream library version.
 
@@ -8,20 +8,21 @@ Please see the website at [asuran.rs](https://asuran.rs) for more information, a
 
 ## Getting Started
 
+In most cases you will be interacting with the command line asuran clinet (asuran-cli). Either
+build it from source from the asuran-cli directory in this repository, or install it with:
+```bash
+env RUSTFLAGS="-C target-feature=+aes,+ssse3" cargo install asuran-cli
 ```
-cargo install asuran
-asuran --help
-```
+Optionally add `-C target-cpu=native` for even better performance. The target features (aes and
+sse3) are required to get good performance, and asuran does not currently offically support being
+built without them.
+
+This crate is ultimatly an extremely thin wrapper around the asuran API, so most documenation will
+be found there. 
 
 ## License
 
 This project is licensed under the MIT license
-
-## Limitations
-
-This program is still extremely limited, does not support many operations the backend libary does, and does not make good use of threads, so is much slower than it should be. At the moment it is mostly janked together, and is in need of a complete rewrite dude to a change in upstream philosphy.
-
-While this program mostly works as intended, it has within it the hidden potential to eat your laundry. DO NOT use it as the sole backup for data you care about.
 
 ## Contacting
 
