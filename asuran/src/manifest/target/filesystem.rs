@@ -1,7 +1,3 @@
-pub mod metadata;
-
-pub use metadata::*;
-
 use super::*;
 use crate::manifest::driver::*;
 use async_trait::async_trait;
