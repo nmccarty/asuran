@@ -11,7 +11,7 @@ use std::collections::HashMap;
 ///
 /// These names are more or less arbitrary, and they don't actually need to be files
 /// or directory.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum NodeType {
     /// A node that has assocaited data and potentially associated metadata
     File,
@@ -24,7 +24,7 @@ pub enum NodeType {
 }
 
 /// A node is a description of an object in the listing
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Node {
     /// The path of the object, in its orignal form before archive mangling
     ///
@@ -45,7 +45,7 @@ pub struct Node {
 /// Describes an abstract representation of a directory structure.
 ///
 /// Conceptually represents the structure as a DAG
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Listing {
     /// Contains a mapping of paths to nodes.
     ///
