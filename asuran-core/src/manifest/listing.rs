@@ -81,6 +81,11 @@ impl Listing {
             self.nodes.insert(child.path.clone(), child);
         }
     }
+
+    /// Creates a by-reference iterator over the Nodes in this listing
+    pub fn iter(&self) -> RefListingIterator<'_> {
+        self.into_iter()
+    }
 }
 
 /// Iterates over an owned `Listing`
@@ -117,5 +122,79 @@ impl Iterator for ListingIterator {
             }
         }
         Some(next)
+    }
+}
+
+impl IntoIterator for Listing {
+    type Item = Node;
+    type IntoIter = ListingIterator;
+    fn into_iter(mut self) -> Self::IntoIter {
+        let mut node_buffer = Vec::new();
+        for path in self.root {
+            let node = self.nodes.remove(&path).expect("Invalid path in listing!");
+            node_buffer.push(node);
+        }
+        ListingIterator {
+            node_buffer,
+            children_buffer: Vec::new(),
+            node_map: self.nodes,
+        }
+    }
+}
+
+/// Iterated over a borrowed `Listing`
+///
+/// Does so in breadth-first order
+pub struct RefListingIterator<'a> {
+    node_buffer: Vec<&'a Node>,
+    children_buffer: Vec<&'a Node>,
+    node_map: HashMap<String, &'a Node>,
+}
+
+impl<'a> Iterator for RefListingIterator<'a> {
+    type Item = &'a Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        // Check if the node buffer is empty, if not we will need to refill it from the
+        // children buffer
+        if self.node_buffer.is_empty() {
+            self.node_buffer = self.children_buffer.drain(..).collect();
+        }
+        // If the node buffer is empty after this, we are out of nodes
+        let next = self.node_buffer.pop()?;
+        // If it is a directory, add its children to the children buffer
+        if let NodeType::Directory { children } = &next.node_type {
+            for child_path in children {
+                // Get the node out of the node_map
+                let child = self
+                    .node_map
+                    .remove(child_path)
+                    .expect("Invalid path in listing!");
+                self.children_buffer.push(child);
+            }
+        }
+        Some(next)
+    }
+}
+
+impl<'a> IntoIterator for &'a Listing {
+    type Item = &'a Node;
+    type IntoIter = RefListingIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut node_map = self
+            .nodes
+            .iter()
+            .map(|(x, y)| (x.clone(), y))
+            .collect::<HashMap<String, _>>();
+        let mut node_buffer = Vec::new();
+        for path in &self.root {
+            let node = node_map.remove(path).expect("Invalid path in listing!");
+            node_buffer.push(node);
+        }
+        RefListingIterator {
+            node_buffer,
+            children_buffer: Vec::new(),
+            node_map,
+        }
     }
 }
