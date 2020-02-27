@@ -52,9 +52,17 @@ Basic Overview and Terminology
 
 The asuran format is split into three logical layers
 
-1.	The Backend/Repository Backend and Repository are used somewhat interchangeably. This is the actual place where data gets stored. It is a content addressable storage backend, where blobs (called `Chunk`s) are addressed by an HMAC of their plaintext
-2.	The Archive This is a data structure, stored in a repository, that describes the way chunks are stitched together to form objects/files. If you think of a repository like a time machine backup, archives are your snapshots
-3.	The Manifest The manifest is a special data structure stored outside, but adjacent to, the other parts of the repository. It maintains pointers to all the archive structures and provides the root of verification for all the data in the repository.
+1.	The Backend/Repository
+
+	Backend and Repository are used somewhat interchangeably. This is the actual place where data gets stored. It is a content addressable storage backend, where blobs (called `Chunk`s) are addressed by an HMAC of their plaintext
+
+2.	The Archive
+
+	This is a data structure, stored in a repository, that describes the way chunks are stitched together to form objects/files. If you think of a repository like a time machine backup, archives are your snapshots
+
+3.	The Manifest
+
+	The manifest is a special data structure stored outside, but adjacent to, the other parts of the repository. It maintains pointers to all the archive structures and provides the root of verification for all the data in the repository.
 
 License
 -------
