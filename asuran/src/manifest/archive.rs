@@ -2,7 +2,7 @@ use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
-pub use asuran_core::manifest::archive::{Archive, ChunkLocation};
+pub use asuran_core::manifest::archive::{Archive, ChunkLocation, Extent};
 
 use chrono::prelude::*;
 use futures::future::join_all;
@@ -31,15 +31,6 @@ pub enum ArchiveError {
 }
 
 type Result<T> = std::result::Result<T, ArchiveError>;
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
-/// Extent range
-///
-/// Values are 0 indexed
-pub struct Extent {
-    pub start: u64,
-    pub end: u64,
-}
 
 /// Pointer to an archive in a repository
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]

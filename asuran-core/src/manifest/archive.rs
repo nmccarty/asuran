@@ -33,3 +33,12 @@ pub struct Archive {
     pub namespace: Vec<String>,
     pub timestamp: DateTime<FixedOffset>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+/// Extent range
+///
+/// Values are 0 indexed
+pub struct Extent {
+    pub start: u64,
+    pub end: u64,
+}
