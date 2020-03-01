@@ -12,10 +12,18 @@ description = "Core data structures used by the asuran archive format"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["core", "aes", "chacha20", "blake2b", "sha2", "sha3"]
-core = ["aes-ctr", "blake3"]
-# Convience rename
+default = ["all-encryption", "all-compression", "all-hmac"]
+core = ["aes-ctr", "blake3", "zstd"]
+# Convience renames
 blake2b = ["blake2b_simd"]
+lzma = ["xz2"]
+# Groups
+aes-family = ["aes-ctr", "aes"]
+chacha-family = ["chacha20"]
+# Group of all of a type
+all-encryption = ["aes-family", "chacha-family"]
+all-compression = ["zstd", "lz4", "lzma"]
+all-hmac = ["blake2b", "blake3", "sha2", "sha3"]
 
 [dependencies]
 aes = { version = "0.3.2", optional = true }
@@ -28,7 +36,7 @@ cfg-if = "0.1.10"
 chacha20 = { version = "0.3.3", optional = true }
 chrono = { version = "0.4.10", features = ["serde"] }
 hmac = "0.7.1"
-lz4 = "1.23.1"
+lz4 = { version = "1.23.1", optional = true }
 rand = "0.7.3"
 rmp-serde = "0.14.3"
 rust-argon2 = "0.8.1"
@@ -40,6 +48,6 @@ sha3 = { version = "0.8.2", optional = true }
 stream-cipher = "0.3.2"
 thiserror = "1.0.11"
 uuid = "0.8.1"
-xz2 = "0.1.6"
+xz2 = { version = "0.1.6", optional = true }
 zeroize = { version = "1.1.0", features = ["zeroize_derive"] }
-zstd = "0.5.1"
+zstd = { version = "0.5.1", optional = true }
