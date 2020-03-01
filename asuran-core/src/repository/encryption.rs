@@ -1,17 +1,31 @@
 // In this case, this lint results in harder to read code for security critical portions
 #![allow(clippy::match_same_arms)]
 
+// We are going to be allowing unused imports and unused variables a lot in this module, to make the
+// code a bit cleaner. We write the code assuming that the user will compile with at least one
+// encryption method (this is an encrypting archiver after all)
+
+#[cfg(feature = "aes")]
 use aes::Aes256;
-use aes_ctr::stream_cipher::generic_array::GenericArray;
-use aes_ctr::stream_cipher::{NewStreamCipher, SyncStreamCipher};
+#[cfg(feature = "aes-ctr")]
 use aes_ctr::Aes256Ctr;
+#[allow(unused_imports)]
 use block_modes::block_padding::Pkcs7;
+#[allow(unused_imports)]
 use block_modes::{BlockMode, Cbc};
+#[cfg(feature = "chacha20")]
 use chacha20::ChaCha20;
 use rand::prelude::*;
+#[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
 use std::cmp;
+#[allow(unused_imports)]
+use stream_cipher::generic_array::GenericArray;
+#[allow(unused_imports)]
+use stream_cipher::{NewStreamCipher, SyncStreamCipher};
 use thiserror::Error;
+#[allow(unused_imports)]
 use zeroize::Zeroize;
 
 use crate::repository::Key;
@@ -84,48 +98,68 @@ impl Encryption {
 
     /// Internal method that does the actual encryption, please use the encrypt method
     /// to avoid key confusion
+    #[allow(unused_variables)]
     pub fn encrypt_bytes(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
             Encryption::NoEncryption => data.to_vec(),
             Encryption::AES256CBC { iv } => {
-                // Create a key of the correct length, and fill it with
-                // zeros to start with
-                let mut proper_key: [u8; 32] = [0; 32];
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "aes")] {
+                        // Create a key of the correct length, and fill it with
+                        // zeros to start with
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let encryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&proper_key, &iv[..]).unwrap();
-                let final_result = encryptor.encrypt_vec(data);
-                // Zeroize key
-                proper_key.zeroize();
+                        let encryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&proper_key, &iv[..]).unwrap();
+                        let final_result = encryptor.encrypt_vec(data);
+                        // Zeroize key
+                        proper_key.zeroize();
 
-                final_result
+                        final_result
+                    } else {
+                        unimplemented!("Asuran has not been compiled with AES support.")
+                    }
+
+                }
             }
             Encryption::AES256CTR { iv } => {
-                let mut proper_key: [u8; 32] = [0; 32];
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-                let key = GenericArray::from_slice(&key);
-                let iv = GenericArray::from_slice(&iv[..]);
-                let mut encryptor = Aes256Ctr::new(&key, &iv);
-                let mut final_result = data.to_vec();
-                encryptor.apply_keystream(&mut final_result);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "aes-ctr")] {
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                        let key = GenericArray::from_slice(&key);
+                        let iv = GenericArray::from_slice(&iv[..]);
+                        let mut encryptor = Aes256Ctr::new(&key, &iv);
+                        let mut final_result = data.to_vec();
+                        encryptor.apply_keystream(&mut final_result);
 
-                proper_key.zeroize();
-                final_result
+                        proper_key.zeroize();
+                        final_result
+                    } else {
+                        unimplemented!("Asuran has not been compiled with AES-CTR Support")
+                    }
+                }
             }
             Encryption::ChaCha20 { iv } => {
-                let mut proper_key: [u8; 32] = [0; 32];
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-                let key = GenericArray::from_slice(&key);
-                let iv = GenericArray::from_slice(&iv[..]);
-                let mut encryptor = ChaCha20::new(&key, &iv);
-                let mut final_result = data.to_vec();
-                encryptor.apply_keystream(&mut final_result);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "chacha20")] {
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                        let key = GenericArray::from_slice(&key);
+                        let iv = GenericArray::from_slice(&iv[..]);
+                        let mut encryptor = ChaCha20::new(&key, &iv);
+                        let mut final_result = data.to_vec();
+                        encryptor.apply_keystream(&mut final_result);
 
-                proper_key.zeroize();
-                final_result
+                        proper_key.zeroize();
+                        final_result
+                    } else {
+                        unimplemented!("Asuran has not been compiled with ChaCha20 support")
+                    }
+                }
             }
         }
     }
@@ -140,52 +174,71 @@ impl Encryption {
         self.decrypt_bytes(data, key.key())
     }
 
+    #[allow(unused_variables)]
     pub fn decrypt_bytes(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         match self {
             Encryption::NoEncryption => Ok(data.to_vec()),
             Encryption::AES256CBC { iv } => {
-                // Creates a key of the correct length, and fills it with
-                // zeros to start with
-                let mut proper_key: [u8; 32] = [0; 32];
-                // Copy key into proper key
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "aes")] {
+                        // Creates a key of the correct length, and fills it with
+                        // zeros to start with
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        // Copy key into proper key
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..])?;
-                let final_result = decryptor.decrypt_vec(data)?;
+                        let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..])?;
+                        let final_result = decryptor.decrypt_vec(data)?;
 
-                // Zeroize key
-                proper_key.zeroize();
+                        // Zeroize key
+                        proper_key.zeroize();
 
-                Ok(final_result)
+                        Ok(final_result)
+                    } else {
+                        unimplemented!("Asuran has not been compiled with AES support")
+                    }
+                }
             }
             Encryption::AES256CTR { iv } => {
-                let mut proper_key: [u8; 32] = [0; 32];
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "aes-ctr")] {
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let key = GenericArray::from_slice(&key);
-                let iv = GenericArray::from_slice(&iv[..]);
-                let mut decryptor = Aes256Ctr::new(&key, &iv);
-                let mut final_result = data.to_vec();
-                decryptor.apply_keystream(&mut final_result);
+                        let key = GenericArray::from_slice(&key);
+                        let iv = GenericArray::from_slice(&iv[..]);
+                        let mut decryptor = Aes256Ctr::new(&key, &iv);
+                        let mut final_result = data.to_vec();
+                        decryptor.apply_keystream(&mut final_result);
 
-                proper_key.zeroize();
-                Ok(final_result)
+                        proper_key.zeroize();
+                        Ok(final_result)
+                    } else {
+                        unimplemented!("Asuran has not been compiled with AES support")
+                    }
+                }
             }
             Encryption::ChaCha20 { iv } => {
-                let mut proper_key: [u8; 32] = [0; 32];
-                proper_key[..cmp::min(key.len(), 32)]
-                    .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "chacha20")] {
+                        let mut proper_key: [u8; 32] = [0; 32];
+                        proper_key[..cmp::min(key.len(), 32)]
+                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                let key = GenericArray::from_slice(&key);
-                let iv = GenericArray::from_slice(&iv[..]);
-                let mut decryptor = ChaCha20::new(&key, &iv);
-                let mut final_result = data.to_vec();
-                decryptor.apply_keystream(&mut final_result);
+                        let key = GenericArray::from_slice(&key);
+                        let iv = GenericArray::from_slice(&iv[..]);
+                        let mut decryptor = ChaCha20::new(&key, &iv);
+                        let mut final_result = data.to_vec();
+                        decryptor.apply_keystream(&mut final_result);
 
-                proper_key.zeroize();
-                Ok(final_result)
+                        proper_key.zeroize();
+                        Ok(final_result)
+                    } else {
+                        unimplemented!("Asuran has not been compiled with ChaCha20 support")
+                    }
+                }
             }
         }
     }
