@@ -8,6 +8,7 @@ documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
+readme = "README.md"
 
 [features]
 streams = ["tokio", "futures"]

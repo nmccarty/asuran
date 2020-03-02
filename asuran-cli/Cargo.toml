@@ -9,6 +9,7 @@ homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 build = "build.rs"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.26"

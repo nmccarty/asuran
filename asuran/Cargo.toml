@@ -9,6 +9,7 @@ homepage = "https://asuran.rs"
 authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 keywords = ["encryption", "compression","deduplication","backup","archive"]
+readme = "README.md"
 
 [dependencies]
 asuran-chunker = { version = "0.0.5" , path = "../asuran-chunker/", features = ["streams"] }
