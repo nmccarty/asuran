@@ -1,8 +1,13 @@
+use cfg_if::cfg_if;
+#[cfg(feature = "lz4")]
 use lz4::{Decoder, EncoderBuilder};
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
 use std::io::copy;
+#[allow(unused_imports)]
 use std::io::Cursor;
 use thiserror::Error;
+#[cfg(feature = "xz2")]
 use xz2::read::{XzDecoder, XzEncoder};
 
 /// Error describing things that can go wrong with compression/decompression
@@ -29,30 +34,49 @@ impl Compression {
     /// # Panics
     ///
     /// Will panic if compression fails
+    #[allow(unused_variables)]
     pub fn compress(self, data: Vec<u8>) -> Vec<u8> {
         match self {
             Compression::NoCompression => data,
             Compression::ZStd { level } => {
-                let mut output = Vec::<u8>::with_capacity(data.len());
-                zstd::stream::copy_encode(data.as_slice(), &mut output, level).unwrap();
-                output
+                cfg_if! {
+                    if #[cfg(feature = "zstd")] {
+                        let mut output = Vec::<u8>::with_capacity(data.len());
+                        zstd::stream::copy_encode(data.as_slice(), &mut output, level).unwrap();
+                        output
+                    } else {
+                        unimplemented!("Asuran was not compiled with zstd support.")
+                    }
+                }
             }
             Compression::LZ4 { level } => {
-                let ouput = Vec::<u8>::with_capacity(data.len());
-                let cursor = Cursor::new(ouput);
-                let mut encoder = EncoderBuilder::new().level(level).build(cursor).unwrap();
-                let mut data = Cursor::new(data);
-                copy(&mut data, &mut encoder).unwrap();
-                let (cursor, result) = encoder.finish();
-                result.unwrap();
-                cursor.into_inner()
+                cfg_if! {
+                    if #[cfg(feature = "lz4")] {
+                        let ouput = Vec::<u8>::with_capacity(data.len());
+                        let cursor = Cursor::new(ouput);
+                        let mut encoder = EncoderBuilder::new().level(level).build(cursor).unwrap();
+                        let mut data = Cursor::new(data);
+                        copy(&mut data, &mut encoder).unwrap();
+                        let (cursor, result) = encoder.finish();
+                        result.unwrap();
+                        cursor.into_inner()
+                    } else {
+                        unimplemented!("Asuran was not compiled with lz4 support.")
+                    }
+                }
             }
             Compression::LZMA { level } => {
-                let input = Cursor::new(data);
-                let mut output = Cursor::new(Vec::new());
-                let mut compressor = XzEncoder::new(input, level);
-                copy(&mut compressor, &mut output).unwrap();
-                output.into_inner()
+                cfg_if! {
+                    if #[cfg(feature = "xz2")] {
+                        let input = Cursor::new(data);
+                        let mut output = Cursor::new(Vec::new());
+                        let mut compressor = XzEncoder::new(input, level);
+                        copy(&mut compressor, &mut output).unwrap();
+                        output.into_inner()
+                    } else {
+                        unimplemented!("Asuran was not compiled with lzma support")
+                    }
+                }
             }
         }
     }
@@ -60,28 +84,47 @@ impl Compression {
     /// Decompresses the given data
     ///
     /// Will return none if decompression fails
+    #[allow(unused_variables)]
     pub fn decompress(self, data: Vec<u8>) -> Result<Vec<u8>> {
         match self {
             Compression::NoCompression => Ok(data),
             Compression::ZStd { .. } => {
-                let mut output = Vec::<u8>::new();
-                zstd::stream::copy_decode(data.as_slice(), &mut output)?;
-                Ok(output)
+                cfg_if! {
+                    if #[cfg(feature = "zstd")] {
+                        let mut output = Vec::<u8>::new();
+                        zstd::stream::copy_decode(data.as_slice(), &mut output)?;
+                        Ok(output)
+                    } else {
+                        unimplemented!("Asuran was not compiled with zstd support")
+                    }
+                }
             }
             Compression::LZ4 { .. } => {
-                let mut output = Cursor::new(Vec::<u8>::new());
-                let mut decoder = Decoder::new(Cursor::new(data))?;
-                copy(&mut decoder, &mut output)?;
-                let (_output, result) = decoder.finish();
-                result?;
-                Ok(output.into_inner())
+                cfg_if! {
+                    if #[cfg(feature = "lz4")] {
+                        let mut output = Cursor::new(Vec::<u8>::new());
+                        let mut decoder = Decoder::new(Cursor::new(data))?;
+                        copy(&mut decoder, &mut output)?;
+                        let (_output, result) = decoder.finish();
+                        result?;
+                        Ok(output.into_inner())
+                    } else {
+                        unimplemented!("Asuran was not compiled with lz4 support")
+                    }
+                }
             }
             Compression::LZMA { .. } => {
-                let input = Cursor::new(data);
-                let mut output = Cursor::new(Vec::new());
-                let mut decompressor = XzDecoder::new(input);
-                copy(&mut decompressor, &mut output)?;
-                Ok(output.into_inner())
+                cfg_if! {
+                    if #[cfg(feature = "xz2")] {
+                        let input = Cursor::new(data);
+                        let mut output = Cursor::new(Vec::new());
+                        let mut decompressor = XzDecoder::new(input);
+                        copy(&mut decompressor, &mut output)?;
+                        Ok(output.into_inner())
+                    } else {
+                        unimplemented!("Asuran was not compiled with lzma support")
+                    }
+                }
             }
         }
     }

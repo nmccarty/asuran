@@ -2,7 +2,6 @@
 use super::Result;
 use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
-use crate::repository::Key;
 
 use asuran_core::repository::backend::flatfile::*;
 
@@ -46,7 +45,6 @@ impl FlatFile {
     /// 2. The file doesn't exist and chunk settings were not provided
     pub fn new_raw(
         repository_path: impl AsRef<Path>,
-        key: &Key,
         settings: Option<ChunkSettings>,
         enc_key: Option<EncryptedKey>,
     ) -> Result<FlatFile> {
@@ -152,11 +150,10 @@ impl FlatFile {
     /// Constructs a flatfile and wraps it
     pub fn new(
         repository_path: impl AsRef<Path>,
-        key: &Key,
         settings: Option<ChunkSettings>,
         enc_key: Option<EncryptedKey>,
     ) -> Result<BackendHandle<FlatFile>> {
-        let flatfile = FlatFile::new_raw(repository_path, key, settings, enc_key)?;
+        let flatfile = FlatFile::new_raw(repository_path, settings, enc_key)?;
         Ok(BackendHandle::new(flatfile))
     }
 
@@ -220,6 +217,9 @@ impl SyncIndex for FlatFile {
         self.index.insert(id, location);
         Ok(())
     }
+    fn known_chunks(&mut self) -> HashSet<ChunkID> {
+        self.index.keys().copied().collect::<HashSet<_>>()
+    }
     fn commit_index(&mut self) -> Result<()> {
         // There is no seperate index for this format
         Ok(())
@@ -273,7 +273,7 @@ impl SyncBackend for FlatFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::Encryption;
+    use crate::repository::{Encryption, Key};
     use tempfile::tempdir;
 
     fn setup() -> (Key, EncryptedKey, ChunkSettings) {
@@ -291,10 +291,10 @@ mod tests {
         let directory = tempdir().unwrap();
         let file = directory.path().join("temp.asuran");
         // Generate the flatfile, close it, and drop it
-        let flatfile = FlatFile::new(&file, &key, Some(settings), Some(enc_key)).unwrap();
+        let flatfile = FlatFile::new(&file, Some(settings), Some(enc_key)).unwrap();
         flatfile.close().await;
         // Load it back up
-        let flatfile = FlatFile::new(&file, &key, None, None).unwrap();
+        let flatfile = FlatFile::new(&file, None, None).unwrap();
         // get the key
         let new_key = flatfile
             .read_key()

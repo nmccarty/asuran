@@ -2,7 +2,8 @@ use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
 use crate::repository::{Backend, ChunkID, Repository};
 
-pub use asuran_core::manifest::archive::{Archive, ChunkLocation};
+pub use asuran_core::manifest::archive::{Archive, ChunkLocation, Extent};
+pub use asuran_core::manifest::listing::{Listing, Node, NodeType};
 
 use chrono::prelude::*;
 use futures::future::join_all;
@@ -31,15 +32,6 @@ pub enum ArchiveError {
 }
 
 type Result<T> = std::result::Result<T, ArchiveError>;
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
-/// Extent range
-///
-/// Values are 0 indexed
-pub struct Extent {
-    pub start: u64,
-    pub end: u64,
-}
 
 /// Pointer to an archive in a repository
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
@@ -123,6 +115,8 @@ pub struct ActiveArchive {
     /// Time stamp is set at archive creation, this is different than the one
     /// set in stored archive
     timestamp: DateTime<FixedOffset>,
+    /// The object listing of the archive
+    listing: Arc<RwLock<Listing>>,
 }
 
 impl ActiveArchive {
@@ -132,6 +126,7 @@ impl ActiveArchive {
             objects: Arc::new(RwLock::new(HashMap::new())),
             namespace: Vec::new(),
             timestamp: Local::now().with_timezone(Local::now().offset()),
+            listing: Arc::new(RwLock::new(Listing::default())),
         }
     }
 
@@ -374,6 +369,7 @@ impl ActiveArchive {
             objects: Arc::new(RwLock::new(archive.objects)),
             namespace: archive.namespace,
             timestamp: archive.timestamp,
+            listing: Arc::new(RwLock::new(archive.listing)),
         }
     }
 
@@ -384,7 +380,18 @@ impl ActiveArchive {
             objects: self.objects.read().await.clone(),
             namespace: self.namespace,
             timestamp: self.timestamp,
+            listing: self.listing.read().await.clone(),
         }
+    }
+
+    /// Gets a copy of the listing from the archive
+    pub async fn listing(&self) -> Listing {
+        self.listing.read().await.clone()
+    }
+
+    /// Replaces the listing with the provided value
+    pub async fn set_listing(&self, listing: Listing) {
+        *self.listing.write().await = listing;
     }
 }
 

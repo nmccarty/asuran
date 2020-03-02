@@ -44,7 +44,7 @@ async fn store<'a>(
         .put_sparse_object(&chunker, &mut repo, "", extents)
         .await
         .unwrap();
-    manifest.commit_archive(&mut repo, archive).await;
+    manifest.commit_archive(&mut repo, archive).await.unwrap();
     repo.close().await;
 }
 

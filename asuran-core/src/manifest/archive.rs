@@ -1,3 +1,4 @@
+use crate::manifest::listing::Listing;
 use crate::repository::ChunkID;
 
 use chrono::prelude::*;
@@ -32,4 +33,14 @@ pub struct Archive {
     pub objects: HashMap<String, Vec<ChunkLocation>>,
     pub namespace: Vec<String>,
     pub timestamp: DateTime<FixedOffset>,
+    pub listing: Listing,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+/// Extent range
+///
+/// Values are 0 indexed
+pub struct Extent {
+    pub start: u64,
+    pub end: u64,
 }

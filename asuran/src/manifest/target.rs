@@ -36,7 +36,7 @@ impl<T: Read> BackupObject<T> {
 
     /// Add a new range to the list
     ///
-    /// TODO: Store the ranges in sorted order
+    /// TODO (#13): Store the ranges in sorted order
     pub fn add_range(&mut self, range: ByteRange<T>) {
         self.ranges.push(range);
     }
@@ -89,7 +89,7 @@ impl<T: Write> RestoreObject<T> {
 
     /// Add a new range to the list
     ///
-    /// TODO: Store the ranges in sorted order
+    /// TODO  (#13): Store the ranges in sorted order
     pub fn add_range(&mut self, range: ByteRange<T>) {
         self.ranges.push(range);
     }

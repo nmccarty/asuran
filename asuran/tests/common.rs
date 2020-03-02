@@ -46,7 +46,7 @@ pub fn get_repo_flat(
 ) -> Repository<impl Backend> {
     let settings = ChunkSettings::lightweight();
     let backend =
-        asuran::repository::backend::flatfile::FlatFile::new(path, &key, Some(settings), enc_key)
+        asuran::repository::backend::flatfile::FlatFile::new(path, Some(settings), enc_key)
             .unwrap();
     Repository::with(backend, settings, key)
 }

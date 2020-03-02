@@ -329,7 +329,7 @@ impl Manifest {
     /// 4. Some other IO error (shuch as lack of permissions) occurs
     /// 5. The path contains non-utf8 characters
     ///
-    /// # TODOs
+    /// # TODOs:
     /// 1. Return an error if deserializing a transaciton fails before the end of the file is reached
     /// 2. This function can currently panic if we have to create a new manifest file, but someone
     ///    else creates the same file we are trying to first.

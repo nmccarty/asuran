@@ -36,7 +36,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
         objects: HashMap<String, BackupObject<T>>,
     ) -> Result<()> {
         for (namespace, backup_object) in objects {
-            // TODO: Store total size in archive
+            // TODO (#45): Store total size in archive
             // let total_size = backup_object.total_size();
             // Get a new archive with the specified namespace
             let mut archive = archive.namespace_append(&namespace);
@@ -101,7 +101,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
         objects: HashMap<String, RestoreObject<T>>,
     ) -> Result<()> {
         for (namespace, restore_object) in objects {
-            // TODO: get total size and do something with it
+            // TODO (#45): get total size and do something with it
             // Get a new archive with the specified namespace
             let archive = archive.namespace_append(&namespace);
             // Pull ranges out of object and determine sparsity
