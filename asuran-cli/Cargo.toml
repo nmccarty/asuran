@@ -15,7 +15,7 @@ anyhow = "1.0.26"
 chrono = "0.4.10"
 clap = { version = "2.33.0", features = ["yaml"] }
 futures = "0.3.4"
-asuran = { path = "../asuran" }
+asuran = { version = "0.0.5", path = "../asuran" }
 prettytable-rs = "0.8.0"
 read_input = "0.8.3"
 rpassword = "4.0.5"
