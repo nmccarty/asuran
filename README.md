@@ -78,6 +78,8 @@ Please see the [contributors guide](CONTRIBUTING.md) for a getting started guide
 
 If you have any questions, feel free to hop in the chat and ask! We welcome anyone of any skill level.
 
+I am now doing a weekly blog segment on development status [my personal website](https://mccarty.io/). This might be helpful for new contributors to get caught up on what is currently being done.
+
 Chat & Support
 --------------
 
