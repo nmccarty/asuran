@@ -8,6 +8,8 @@ use asuran::repository::{EncryptedKey, Key};
 use anyhow::{anyhow, Context, Result};
 use std::fs::create_dir_all;
 
+/// Creates a new repository with the user specified settings ad the user
+/// specified location
 pub async fn new(options: Opt) -> Result<()> {
     // Ensure that the repository path does not exist
     if options.repo.exists() {

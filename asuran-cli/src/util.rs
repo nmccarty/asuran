@@ -1,3 +1,8 @@
+/*!
+This module contains a 'dumb' warapper enum around the types of repository
+backends that `asuran-cli` currently supports.
+*/
+
 use asuran::repository::backend::common::sync_backend::BackendHandle;
 use asuran::repository::backend::flatfile::FlatFile;
 use asuran::repository::backend::multifile::MultiFile;

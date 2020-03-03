@@ -1,3 +1,9 @@
+/*!
+The `cli` module provides the data types used for parsing the command line
+arguements, as well as some utility functions for converting those types to
+their equivlants in `asuran` proper.
+*/
+
 use crate::util::DynamicBackend;
 use anyhow::{anyhow, Context, Result};
 use asuran::repository::{self, Backend, Key};
@@ -7,6 +13,8 @@ use std::fs::metadata;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// The version + git commit + build date string the program idenitifes itself
+/// with
 const VERSION: &str = concat!(
     env!("VERGEN_SEMVER"),
     "-",
@@ -16,7 +24,11 @@ const VERSION: &str = concat!(
 );
 
 arg_enum! {
- #[derive(Debug)]
+    /// Identifies which backend the user has selected.
+    ///
+    /// These are a 1-to-1 corrospondance with the name of the struct
+    /// implementing that backend in the `asuran` crate.
+    #[derive(Debug)]
     pub enum RepositoryType {
         MultiFile,
         FlatFile,
@@ -24,6 +36,11 @@ arg_enum! {
 }
 
 arg_enum! {
+    /// The type of Encryption the user has selected
+    ///
+    /// These are, more or less, a 1-to-1 corrospondance with the name of the
+    /// `Encryption` enum variant in the `asuran` crate, but these do not carry
+    /// an IV with them.
     #[derive(Debug)]
     pub enum Encryption {
         AES256CBC,
@@ -33,6 +50,11 @@ arg_enum! {
     }
 }
 arg_enum! {
+   /// The type of compression the user has selected
+   ///
+   /// These are, more or less, a 1-to-1 corrospondance with the name of the
+   /// `Compression` enum variant in the `asuran` crate, but these do not carry
+   /// a compression level with them.
    #[derive(Debug)]
    pub enum Compression {
        ZStd,
@@ -43,6 +65,10 @@ arg_enum! {
 }
 
 arg_enum! {
+    /// The HMAC algorithim the user has selected
+    ///
+    /// These are a 1-to-1 corrospondance with the `HMAC` enum variant in the
+    /// `asuran` crate
     #[derive(Debug)]
     pub enum HMAC {
         SHA256,
@@ -53,6 +79,7 @@ arg_enum! {
     }
 }
 
+/// Indicates which subcommand the user has chosen.
 #[derive(StructOpt, Debug, Clone)]
 pub enum Command {
     /// Provides a listing of the archives in a repository
@@ -78,7 +105,7 @@ pub enum Command {
     /// Creates a new repository
     New,
 }
-
+/// Struct for holding the options the user has selected
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "Asuran-CLI",
@@ -91,7 +118,8 @@ pub struct Opt {
     /// Location of the Asuran repository
     #[structopt(name = "REPO")]
     pub repo: PathBuf,
-    /// Password for the repository. Can also be specified with the PASSWORD enviroment variable
+    /// Password for the repository. Can also be specified with the PASSWORD
+    /// enviroment variable
     #[structopt(short, long, env = "ASURAN_PASSWORD", hide_env_values = true)]
     pub password: String,
     /// Type of repository to use
@@ -121,11 +149,12 @@ pub struct Opt {
         possible_values(&Compression::variants())
     )]
     pub compression: Compression,
-    /// Sets compression level. Defaults to the compression algorithim's "middle" setting
+    /// Sets compression level. Defaults to the compression algorithim's
+    /// "middle" setting
     #[structopt(short = "l", long)]
     pub compression_level: Option<u32>,
-    /// Sets the HMAC algorthim used. Note: this will not change the HMAC algorthim used on an
-    /// existing repository
+    /// Sets the HMAC algorthim used. Note: this will not change the HMAC
+    /// algorthim used on an existing repository
     #[structopt(
         short,
         long,
@@ -140,6 +169,8 @@ pub struct Opt {
 }
 
 impl Opt {
+    /// Generates an `asuran::repostiory::ChunkSettings` from the options the
+    /// user has selected
     pub fn get_chunk_settings(&self) -> repository::ChunkSettings {
         let compression = match self.compression {
             Compression::ZStd => self

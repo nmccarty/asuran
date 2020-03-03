@@ -8,6 +8,8 @@ use asuran::repository::*;
 use anyhow::Result;
 use std::path::PathBuf;
 
+/// Drives a repository and extracts the files from the user provided archive to
+/// the user provided location
 pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Result<()> {
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
@@ -22,6 +24,9 @@ pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Res
         archives.push(archive);
     }
 
+    // Idenitify matching archives, and use the first one that matches the
+    // string the user has provided us (on either its index in the list, or its
+    // name)
     let mut matching_archives: Vec<ActiveArchive> = Vec::new();
     for (index, archive) in archives.into_iter().enumerate() {
         if index.to_string() == archive_name || archive.name() == archive_name {

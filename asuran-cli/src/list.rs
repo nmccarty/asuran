@@ -6,6 +6,7 @@ use asuran::repository::*;
 use anyhow::Result;
 use prettytable::{cell, row, Table};
 
+/// Iterates through a repository's manifest and pretty prints all the archives
 pub async fn list(options: Opt) -> Result<()> {
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
