@@ -1,7 +1,11 @@
 # Contributing to Asuran
 
 We encourage anyone, regardless of skill level, to contribute. The worst that will happen is someone
-coming along to mentor you in the right direction
+coming along to mentor you in the right direction.
+
+We only ask that you please use gitlab for contributions. If you have some adversion to gitlab, or
+reason not to use it, please contact me on either the Matrix chat or via email and we can make 
+arrangements. 
 
 ## Contributions
 

@@ -14,12 +14,14 @@ Asuran should be sutible for the long term archival of data, should be operating
 
 It should strive to make backups a fast and easy process, and to allow the user to preserve as much of their file history as possible in the space they have avaible. After all, what good is a backup that never ran because it would have taken too long, or the backup that got deleted because it was using too much space?
 
+Asuran should be safe for use on untrusted storage, and should not leak any data that could reveal, to any extent, the contents of the repository. 
+
 How Does it Work?
 -----------------
 
-Asuran works by splitting your files up into little chunks. It splits files up using Content Defined Chunking, currently using FastCDC by default, so that even if one part of a file changes, it is very likely the other chunks will all stay the same.
+Asuran works by splitting your files up into a number of chunks. It splits files up using a selectable Content Defined Chunking algorithim, currently FastCDC by default, so that even if one part of a file changes, it is very likely the other chunks will not..
 
-Those chunks are then (optionally, but on by default) compressed and encrypted, before being comitted to a Content Addressable Storage backend, to be recalled later. Asuran will try its best to only store each chunk it encounters once (and in the most common usecases, it can do this 100% of the time), preventing an archive from storing the same information in the repository more than once if it can avoid it.
+Those chunks are then (optionally, but on by default) compressed and encrypted, before being comitted to a Content Addressable Storage backend, for later retrievial. Asuran will try its best to only store each chunk it encounters once (and in the most common usecases, it can do this 100% of the time), preventing an archive from storing the same information in the repository more than once if it can avoid it.
 
 The entire archive structure is verified with a Merkele Tree process, so you can be sure that if your restore is successful, then your data is intact and has not been tampered with.
 
@@ -79,6 +81,8 @@ Please see the [contributors guide](CONTRIBUTING.md) for a getting started guide
 If you have any questions, feel free to hop in the chat and ask! We welcome anyone of any skill level.
 
 I am now doing a weekly blog segment on development status [my personal website](https://mccarty.io/). This might be helpful for new contributors to get caught up on what is currently being done.
+
+If you are on github, please hop on over to our gitlab. The github repo is strictly a mirror. 
 
 Chat & Support
 --------------
