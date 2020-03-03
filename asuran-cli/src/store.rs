@@ -6,11 +6,9 @@ use asuran::manifest::target::*;
 use asuran::manifest::*;
 use asuran::repository::*;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::prelude::*;
 use futures::future::select_all;
-use std::fs::metadata;
-use std::io::Cursor;
 use std::path::PathBuf;
 use tokio::task;
 
@@ -46,45 +44,37 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     // ergonomics, as well as reducing unnessicary clones.
     let max_queue_len = 30;
     let mut task_queue = Vec::new();
-    for path in paths {
-        if metadata(target.join(&path))
-            .with_context(|| format!("Failed to load file {}", &path))?
-            .is_file()
-        {
-            let mut repo = repo.clone();
-            let archive = archive.clone();
-            let backup_target = backup_target.clone();
+    for node in paths {
+        let mut repo = repo.clone();
+        let archive = archive.clone();
+        let backup_target = backup_target.clone();
 
-            task_queue.push(task::spawn(async move {
-                (
-                    path.clone(),
-                    backup_target
-                        .store_object(&mut repo, chunker.clone(), &archive, path.clone())
-                        .await,
-                )
-            }));
+        task_queue.push(task::spawn(async move {
+            (
+                node.clone(),
+                backup_target
+                    .store_object(&mut repo, chunker.clone(), &archive, node)
+                    .await,
+            )
+        }));
 
-            if task_queue.len() > max_queue_len {
-                let (result, _, new_queue) = select_all(task_queue).await;
-                let (path, x) = result?;
-                x?;
-                //println!("Stored File: {}", path);
-                task_queue = new_queue;
-            }
+        if task_queue.len() > max_queue_len {
+            let (result, _, new_queue) = select_all(task_queue).await;
+            let (node, x) = result?;
+            x?;
+            println!("Stored File: {}", node.path);
+            task_queue = new_queue;
         }
     }
     // Drain any remaining futures in the queue
     for future in task_queue {
-        let (path, x) = future.await.unwrap();
+        let (node, x) = future.await.unwrap();
         x?;
-        println!("Stored File: {}", path);
+        println!("Stored File: {}", node.path);
     }
     // Add the backup listing to the archive
-    let listing = Cursor::new(backup_target.backup_listing().await);
-    archive
-        .namespace_append("meta")
-        .put_object(&chunker, &mut repo, "listing", listing)
-        .await?;
+    let listing = backup_target.backup_listing().await;
+    archive.set_listing(listing).await;
     // Commit the backup
     manifest.commit_archive(&mut repo, archive).await?;
     repo.close().await;

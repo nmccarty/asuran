@@ -41,18 +41,13 @@ pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Res
             archive.timestamp().to_rfc2822()
         );
         // Load listing and setup target
-        let mut listing = Vec::<u8>::new();
-        archive
-            .namespace_append("meta")
-            .get_object(&mut repo, "listing", &mut listing)
-            .await?;
-        let mut f_target = FileSystemTarget::load_listing(&listing).await.unwrap();
-        f_target.set_root_directory(target.to_str().unwrap());
+        let listing = archive.listing().await;
+        let f_target = FileSystemTarget::load_listing(target.to_str().unwrap(), listing).await;
         let paths = f_target.restore_listing().await;
-        for path in paths {
-            println!("Restoring file: {}", path);
+        for node in paths {
+            println!("Restoring file: {}", node.path);
             // TODO (#36): properly utilize tasks here
-            f_target.retrieve_object(&mut repo, &archive, &path).await?;
+            f_target.retrieve_object(&mut repo, &archive, node).await?;
         }
     }
     repo.close().await;
