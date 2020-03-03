@@ -2,7 +2,7 @@
 name = "asuran-cli"
 description = "Deduplicating, secure, tamper resistant archiver"
 license = "MIT"
-version = "0.0.6"
+version = "0.0.7"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran-cli"
 homepage = "https://asuran.rs"
