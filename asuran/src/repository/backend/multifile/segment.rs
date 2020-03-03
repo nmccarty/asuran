@@ -1,7 +1,7 @@
 use crate::repository::backend::common::files::*;
 use crate::repository::backend::common::segment::*;
 use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
-use crate::repository::ChunkID;
+use crate::repository::{Chunk, ChunkID};
 
 use futures::channel::mpsc;
 use futures::channel::oneshot;
@@ -263,7 +263,7 @@ impl InternalSegmentHandler {
     }
 
     /// Attempts to read a chunk from its associated segment
-    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         let segment_id = location.segment_id;
         let segment = self.open_segement_read(segment_id)?;
         // FIXME (#47): This implementation doesnt use the second argument, but still has it for legacy
@@ -275,10 +275,10 @@ impl InternalSegmentHandler {
     ///
     /// Will close out the current segment if the size, after the write completes, execeds the max
     /// size
-    fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<SegmentDescriptor> {
+    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         // Write the chunk
         let segment = self.open_segment_write()?;
-        let (start, length) = segment.1.write_chunk(&chunk, id)?;
+        let (start, length) = segment.1.write_chunk(chunk, id)?;
         let descriptor = SegmentDescriptor {
             segment_id: segment.0,
             start,
@@ -292,8 +292,8 @@ impl InternalSegmentHandler {
 }
 
 enum SegmentHandlerCommand {
-    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
-    WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Chunk>>),
+    WriteChunk(Chunk, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
     Close(oneshot::Sender<()>),
 }
 
@@ -330,7 +330,7 @@ impl SegmentHandler {
                         task::block_in_place(|| ret.send(handler.read_chunk(location)).unwrap());
                     }
                     SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
-                        task::block_in_place(|| ret.send(handler.write_chunk(&chunk, id)).unwrap());
+                        task::block_in_place(|| ret.send(handler.write_chunk(chunk, id)).unwrap());
                     }
                     SegmentHandlerCommand::Close(ret) => {
                         final_ret = Some(ret);
@@ -350,7 +350,7 @@ impl SegmentHandler {
         Ok(SegmentHandler { input, path })
     }
 
-    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         let (input, output) = oneshot::channel();
         self.input
             .send(SegmentHandlerCommand::ReadChunk(location, input))
@@ -359,7 +359,7 @@ impl SegmentHandler {
         output.await.unwrap()
     }
 
-    pub async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    pub async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         let (input, output) = oneshot::channel();
         self.input
             .send(SegmentHandlerCommand::WriteChunk(chunk, id, input))

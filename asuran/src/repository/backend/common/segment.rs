@@ -1,5 +1,5 @@
 use crate::repository::backend::{BackendError, Result, SegmentDescriptor, TransactionType};
-use crate::repository::ChunkID;
+use crate::repository::{Chunk, ChunkID};
 use futures::channel;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
@@ -76,8 +76,7 @@ pub struct Transaction {
     /// all chunk payloads be 1 byte or longer, but in practice this is not a serious issue as the content
     /// will always be packed chunk structs, which will always have a length greater than zero, as they
     /// contain manditory tags in addition to data.
-    #[serde(with = "serde_bytes")]
-    chunk: Vec<u8>,
+    chunk: Option<Chunk>,
 }
 
 impl Transaction {
@@ -85,11 +84,11 @@ impl Transaction {
         self.tx_type
     }
 
-    pub fn encode_insert(input: Vec<u8>, id: ChunkID) -> Transaction {
+    pub fn encode_insert(input: Chunk, id: ChunkID) -> Transaction {
         Transaction {
             tx_type: TransactionType::Insert,
             id,
-            chunk: input,
+            chunk: Some(input),
         }
     }
 
@@ -97,24 +96,16 @@ impl Transaction {
         Transaction {
             tx_type: TransactionType::Delete,
             id,
-            chunk: Vec::new(),
+            chunk: None,
         }
     }
 
-    pub fn data(&self) -> Option<&[u8]> {
-        if self.chunk.is_empty() {
-            None
-        } else {
-            Some(&self.chunk[..])
-        }
+    pub fn data(&self) -> Option<&Chunk> {
+        self.chunk.as_ref()
     }
 
-    pub fn take_data(self) -> Option<Vec<u8>> {
-        if self.chunk.is_empty() {
-            None
-        } else {
-            Some(self.chunk)
-        }
+    pub fn take_data(self) -> Option<Chunk> {
+        self.chunk
     }
 
     pub fn id(&self) -> ChunkID {
@@ -197,7 +188,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         self.size_limit - end
     }
 
-    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
+    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Chunk> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
         let data = tx.take_data().ok_or_else(|| {
@@ -206,8 +197,8 @@ impl<T: Read + Write + Seek> Segment<T> {
         Ok(data)
     }
 
-    pub fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let tx = Transaction::encode_insert(chunk.to_vec(), id);
+    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<(u64, u64)> {
+        let tx = Transaction::encode_insert(chunk, id);
         let start = self.handle.seek(SeekFrom::End(0))?;
         rpms::encode::write(&mut self.handle, &tx)?;
         let end = self.handle.seek(SeekFrom::End(0))?;
@@ -237,7 +228,7 @@ pub struct ReadSegment<T> {
 }
 
 impl<T: Read + Seek> ReadSegment<T> {
-    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Vec<u8>> {
+    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Chunk> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
         let data = tx.take_data().ok_or_else(|| {
@@ -259,8 +250,8 @@ impl<T: Write + Seek> WriteSegment<T> {
         self.handle.seek(SeekFrom::End(0)).unwrap()
     }
 
-    pub fn write_chunk(&mut self, chunk: &[u8], id: ChunkID) -> Result<(u64, u64)> {
-        let tx = Transaction::encode_insert(chunk.to_vec(), id);
+    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<(u64, u64)> {
+        let tx = Transaction::encode_insert(chunk, id);
         let start = self.handle.seek(SeekFrom::End(0))?;
         rpms::encode::write(&mut self.handle, &tx)?;
         let end = self.handle.seek(SeekFrom::End(0))?;
@@ -283,11 +274,11 @@ pub struct SegmentStats {
 #[derive(Debug)]
 pub enum SegmentCommand {
     Write(
-        Vec<u8>,
+        Chunk,
         ChunkID,
         channel::oneshot::Sender<Result<SegmentDescriptor>>,
     ),
-    Read(SegmentDescriptor, channel::oneshot::Sender<Result<Vec<u8>>>),
+    Read(SegmentDescriptor, channel::oneshot::Sender<Result<Chunk>>),
     Stats(channel::oneshot::Sender<SegmentStats>),
     Close(channel::oneshot::Sender<()>),
 }
@@ -307,7 +298,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
             while let Some(command) = rx.next().await {
                 match command {
                     SegmentCommand::Write(data, id, ret) => {
-                        let res = segment.write_chunk(&data[..], id);
+                        let res = segment.write_chunk(data, id);
                         let out = res.map(|(start, _)| SegmentDescriptor { segment_id, start });
                         ret.send(out).unwrap();
                     }
@@ -341,7 +332,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
         }
     }
 
-    pub async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    pub async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         let (tx, rx) = channel::oneshot::channel();
         self.command_tx
             .send(SegmentCommand::Write(chunk, id, tx))
@@ -350,7 +341,7 @@ impl<R: Read + Write + Seek + Send + 'static> TaskedSegment<R> {
         rx.await?
     }
 
-    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    pub async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         let (tx, rx) = channel::oneshot::channel();
         self.command_tx
             .send(SegmentCommand::Read(location, tx))
@@ -410,20 +401,4 @@ mod tests {
         assert!(segment.read_header().unwrap().validate())
     }
 
-    #[tokio::test]
-    async fn tasked_segment_read_write() {
-        let cursor = Cursor::new(Vec::<u8>::new());
-        let mut segment = TaskedSegment::new(cursor, 1_000_000, 0);
-        let mut data = Vec::<u8>::new();
-        for i in 0..10_000 {
-            data.push(i as u8);
-        }
-        let location = segment
-            .write_chunk(data.clone(), ChunkID::manifest_id())
-            .await
-            .unwrap();
-        let out = segment.read_chunk(location).await.unwrap();
-
-        assert_eq!(data, out);
-    }
 }

@@ -132,7 +132,7 @@ impl UnpackedChunk {
 /// Data chunk
 ///
 /// Encrypted, compressed object, to be stored in the repository
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Chunk {
     /// The data of the chunk, stored as a vec of raw bytes
     #[serde(with = "serde_bytes")]
@@ -270,6 +270,14 @@ impl Chunk {
         }
     }
 }
+
+impl PartialEq for Chunk {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.data == other.data
+    }
+}
+
+impl Eq for Chunk {}
 
 #[cfg(test)]
 mod tests {

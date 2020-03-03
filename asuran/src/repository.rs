@@ -40,9 +40,6 @@
 //!
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
-
-use rmp_serde::{Deserializer, Serializer};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub use crate::repository::backend::{Backend, Index, SegmentDescriptor};
@@ -151,7 +148,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Already_Present will be true if the chunk already exists in the
     /// repository.
-    pub async fn write_raw(&mut self, chunk: &Chunk) -> Result<(ChunkID, bool)> {
+    pub async fn write_raw(&mut self, chunk: Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();
         let span = span!(Level::DEBUG, "Writing Chunk", ?id);
         let _guard = span.enter();
@@ -163,16 +160,14 @@ impl<T: Backend + 'static> Repository<T> {
             Ok((id, true))
         } else {
             trace!("Chunk did not exist, continuning");
-            let mut buff = Vec::<u8>::new();
-            chunk.serialize(&mut Serializer::new(&mut buff)).unwrap();
 
             // Get highest segment and check to see if has enough space
             let backend = &mut self.backend;
-            let location = backend.write_chunk(buff, chunk.get_id()).await?;
+            let location = backend.write_chunk(chunk, id).await?;
 
             self.backend
                 .get_index()
-                .set_chunk(chunk.get_id(), location)
+                .set_chunk(id, location)
                 .await?;
 
             Ok((id, false))
@@ -200,7 +195,7 @@ impl<T: Backend + 'static> Repository<T> {
                 self.key.clone(),
             )
             .await;
-        self.write_raw(&chunk).await
+        self.write_raw(chunk).await
     }
 
     /// Writes an unpacked chunk to the repository using all defaults
@@ -238,7 +233,7 @@ impl<T: Backend + 'static> Repository<T> {
                 self.key.clone(),
             )
             .await;
-        self.write_raw(&chunk).await
+        self.write_raw(chunk).await
     }
 
     /// Determines if a chunk exists in the index
@@ -256,10 +251,7 @@ impl<T: Backend + 'static> Repository<T> {
         if self.has_chunk(id).await {
             let mut index = self.backend.get_index();
             let location = index.lookup_chunk(id).await.unwrap();
-            let chunk_bytes = self.backend.read_chunk(location).await?;
-
-            let mut de = Deserializer::new(&chunk_bytes[..]);
-            let chunk: Chunk = Deserialize::deserialize(&mut de).unwrap();
+            let chunk = self.backend.read_chunk(location).await?;
 
             let data = chunk.unpack(&self.key)?;
 

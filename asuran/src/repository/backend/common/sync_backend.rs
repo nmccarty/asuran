@@ -13,7 +13,7 @@
 //! versions of their async equivlants in the main Backend traits.
 use crate::manifest::StoredArchive;
 use crate::repository::backend::{Backend, Index, Manifest, Result, SegmentDescriptor};
-use crate::repository::{ChunkID, ChunkSettings, EncryptedKey};
+use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 
 use async_trait::async_trait;
 use chrono::prelude::*;
@@ -55,8 +55,8 @@ pub trait SyncBackend: 'static + Send + std::fmt::Debug {
     fn get_manifest(&mut self) -> &mut Self::SyncManifest;
     fn write_key(&mut self, key: EncryptedKey) -> Result<()>;
     fn read_key(&mut self) -> Result<EncryptedKey>;
-    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>>;
-    fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor>;
+    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk>;
+    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor>;
 }
 
 enum SyncIndexCommand {
@@ -77,8 +77,8 @@ enum SyncManifestCommand<I> {
 }
 
 enum SyncBackendCommand {
-    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Vec<u8>>>),
-    WriteChunk(Vec<u8>, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Chunk>>),
+    WriteChunk(Chunk, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
     ReadKey(oneshot::Sender<Result<EncryptedKey>>),
     WriteKey(EncryptedKey, oneshot::Sender<Result<()>>),
     Close(oneshot::Sender<()>),
@@ -341,7 +341,7 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
     fn get_manifest(&self) -> Self::Manifest {
         self.clone()
     }
-    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         let (i, o) = oneshot::channel();
         self.channel
             .send(SyncCommand::Backend(SyncBackendCommand::ReadChunk(
@@ -351,7 +351,7 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
             .unwrap();
         o.await?
     }
-    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         let (i, o) = oneshot::channel();
         self.channel
             .send(SyncCommand::Backend(SyncBackendCommand::WriteChunk(

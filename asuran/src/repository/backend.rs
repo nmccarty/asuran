@@ -1,9 +1,7 @@
 //! The backend provides abstract IO access to the real location of the data in
 //! the repository.
 use crate::manifest::StoredArchive;
-use crate::repository::ChunkID;
-use crate::repository::ChunkSettings;
-use crate::repository::EncryptedKey;
+use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -116,14 +114,14 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     /// Starts reading a chunk from the backend
     ///
     /// The chunk will be written to the oneshot once reading is complete
-    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>>;
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk>;
     /// Starts writing a chunk to the backend
     ///
     /// A segment descriptor describing it will be written to oneshot once reading is complete
     ///
     /// This must be passed owned data because it will be sent into a task, so the caller has no
     /// control over drop time
-    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor>;
+    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor>;
     /// Consumes the current backend handle, and does any work nessicary to close out the backend
     /// properly
     ///

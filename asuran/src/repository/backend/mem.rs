@@ -1,10 +1,12 @@
 use crate::repository::backend::common;
 use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
-use crate::repository::EncryptedKey;
+use crate::repository::{EncryptedKey, Chunk};
+
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
+extern crate rmp_serde as rmps;
 
 use super::Result;
 
@@ -111,11 +113,11 @@ impl SyncBackend for Mem {
             ))
         }
     }
-    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.data.read_chunk(location.start, 0)
     }
-    fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
-        let (start, _) = self.data.write_chunk(&chunk[..], id)?;
+    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
+        let (start, _) = self.data.write_chunk(chunk, id)?;
         Ok(SegmentDescriptor {
             segment_id: 0,
             start,

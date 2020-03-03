@@ -1,4 +1,4 @@
-use crate::repository::{ChunkID, ChunkSettings, EncryptedKey};
+use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 
 use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
 use chrono::prelude::*;
@@ -91,7 +91,7 @@ pub struct Configuration {
 #[derive(Serialize, Deserialize)]
 pub enum FlatFileTransaction {
     /// An insertion of a data chunk into the repository
-    Insert { id: ChunkID, chunk: Vec<u8> },
+    Insert { id: ChunkID, chunk: Chunk },
     /// A deletion of a data chunk from the repository
     Delete { id: ChunkID },
     /// An insertion of an `Archive` into the repository

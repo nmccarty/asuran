@@ -89,12 +89,12 @@ impl Backend for MultiFile {
     }
 
     /// Starts reading a chunk, and returns a oneshot recieve with the result of that process
-    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.segment_handle.read_chunk(location).await
     }
 
     /// Starts writing a chunk, and returns a oneshot reciever with the result of that process
-    async fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         self.segment_handle.write_chunk(chunk, id).await
     }
 

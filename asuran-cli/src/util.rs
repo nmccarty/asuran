@@ -2,7 +2,7 @@ use asuran::repository::backend::common::sync_backend::BackendHandle;
 use asuran::repository::backend::flatfile::FlatFile;
 use asuran::repository::backend::multifile::MultiFile;
 use asuran::repository::backend::*;
-use asuran::repository::ChunkID;
+use asuran::repository::{Chunk, ChunkID};
 
 use async_trait::async_trait;
 use std::collections::HashSet;
@@ -132,7 +132,7 @@ impl Backend for DynamicBackend {
             DynamicBackend::FlatFile(x) => DynamicManifest::FlatFile(x.get_manifest()),
         }
     }
-    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         match self {
             DynamicBackend::MultiFile(x) => x.read_chunk(location).await,
             DynamicBackend::FlatFile(x) => x.read_chunk(location).await,
@@ -140,7 +140,7 @@ impl Backend for DynamicBackend {
     }
     async fn write_chunk(
         &mut self,
-        chunk: Vec<u8>,
+        chunk: Chunk,
         id: asuran::repository::ChunkID,
     ) -> Result<SegmentDescriptor> {
         match self {

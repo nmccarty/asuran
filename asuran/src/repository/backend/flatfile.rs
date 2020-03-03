@@ -246,7 +246,7 @@ impl SyncBackend for FlatFile {
     fn read_key(&mut self) -> Result<EncryptedKey> {
         Ok(self.header.configuration.key.clone())
     }
-    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Vec<u8>> {
+    fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         // Seek to the location of the chunk
         self.read.seek(SeekFrom::Start(location.start))?;
         // attempt to read the transaction
@@ -259,7 +259,7 @@ impl SyncBackend for FlatFile {
             ))
         }
     }
-    fn write_chunk(&mut self, chunk: Vec<u8>, id: ChunkID) -> Result<SegmentDescriptor> {
+    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
         let start = self.write.seek(SeekFrom::End(0))?;
         let tx = FlatFileTransaction::Insert { chunk, id };
         rmps::encode::write(&mut self.write, &tx)?;
