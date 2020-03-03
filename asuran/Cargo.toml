@@ -2,7 +2,7 @@
 name = "asuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "MIT"
-version = "0.0.7"
+version = "0.0.6"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
@@ -12,8 +12,8 @@ keywords = ["encryption", "compression","deduplication","backup","archive"]
 readme = "README.md"
 
 [dependencies]
-asuran-chunker = { version = "0.0.7" , path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "0.0.7", path = "../asuran-core/" }
+asuran-chunker = { version = "0.0.6" , path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "0.0.6", path = "../asuran-core/" }
 async-trait = "0.1.24"
 base64 = "0.11.0"
 bincode = "1.2.1"

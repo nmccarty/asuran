@@ -2,7 +2,7 @@
 name = "asuran-cli"
 description = "Deduplicating, secure, tamper resistant archiver"
 license = "MIT"
-version = "0.0.7"
+version = "0.0.6"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran-cli"
 homepage = "https://asuran.rs"
@@ -16,7 +16,7 @@ anyhow = "1.0.26"
 chrono = "0.4.10"
 clap = { version = "2.33.0", features = ["yaml"] }
 futures = "0.3.4"
-asuran = { version = "0.0.7", path = "../asuran" }
+asuran = { version = "0.0.6", path = "../asuran" }
 prettytable-rs = "0.8.0"
 read_input = "0.8.4"
 rpassword = "4.0.5"
