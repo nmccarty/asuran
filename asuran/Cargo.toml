@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 asuran-chunker = { version = "^0.0.8-dev", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "^0.0.7", path = "../asuran-core/" }
+asuran-core = { version = "^0.0.8-dev", path = "../asuran-core/" }
 async-trait = "0.1.24"
 base64 = "0.11.0"
 bincode = "1.2.1"
