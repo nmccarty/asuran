@@ -42,6 +42,37 @@ pub struct Node {
     pub node_type: NodeType,
 }
 
+impl Node {
+    /// Returns true if the Node is a directory
+    pub fn is_directory(&self) -> bool {
+        match self.node_type {
+            NodeType::Directory { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the Node is a file
+    pub fn is_file(&self) -> bool {
+        match self.node_type {
+            NodeType::File => true,
+            _ => false,
+        }
+    }
+
+    /// Returns a copy of self with any children (in a NodeType::Directory) removed
+    pub fn drain_children(&self) -> Node {
+        let node_type = match &self.node_type {
+            NodeType::Directory { .. } => NodeType::Directory {
+                children: Vec::new(),
+            },
+            x => x.clone(),
+        };
+        let mut new = self.clone();
+        new.node_type = node_type;
+        new
+    }
+}
+
 /// Describes an abstract representation of a directory structure.
 ///
 /// Conceptually represents the structure as a DAG
@@ -114,11 +145,10 @@ impl Iterator for ListingIterator {
         if let NodeType::Directory { children } = &next.node_type {
             for child_path in children {
                 // Get the node out of the node_map
-                let child = self
-                    .node_map
-                    .remove(child_path)
-                    .expect("Invalid path in listing!");
-                self.children_buffer.push(child);
+                let child = self.node_map.remove(child_path);
+                if let Some(child) = child {
+                    self.children_buffer.push(child)
+                };
             }
         }
         Some(next)
@@ -165,11 +195,10 @@ impl<'a> Iterator for RefListingIterator<'a> {
         if let NodeType::Directory { children } = &next.node_type {
             for child_path in children {
                 // Get the node out of the node_map
-                let child = self
-                    .node_map
-                    .remove(child_path)
-                    .expect("Invalid path in listing!");
-                self.children_buffer.push(child);
+                let child = self.node_map.remove(child_path);
+                if let Some(child) = child {
+                    self.children_buffer.push(child);
+                }
             }
         }
         Some(next)

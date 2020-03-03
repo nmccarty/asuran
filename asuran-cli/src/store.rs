@@ -41,10 +41,10 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     // will pop off the oldest task future and `await`ing it, but only after staring
     // the next task.
     //
-    // TODO (#44): The job of managing the futures here really needs to be moved into the `asuran` crate, with
-    // methods attached to BackupDriver for managing this automatically. Both to improve ergonomics, as
-    // well as reducing unnessicary clones.
-    let max_queue_len = 10;
+    // TODO (#44): The job of managing the futures here really needs to be moved into the `asuran`
+    // crate, with methods attached to BackupDriver for managing this automatically. Both to improve
+    // ergonomics, as well as reducing unnessicary clones.
+    let max_queue_len = 30;
     let mut task_queue = Vec::new();
     for path in paths {
         if metadata(target.join(&path))
@@ -68,7 +68,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
                 let (result, _, new_queue) = select_all(task_queue).await;
                 let (path, x) = result?;
                 x?;
-                println!("Stored File: {}", path);
+                //println!("Stored File: {}", path);
                 task_queue = new_queue;
             }
         }
