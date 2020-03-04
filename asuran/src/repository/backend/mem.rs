@@ -1,7 +1,7 @@
 use crate::repository::backend::common;
 use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
-use crate::repository::{EncryptedKey, Chunk};
+use crate::repository::{Chunk, EncryptedKey};
 
 use std::collections::HashMap;
 use std::convert::TryInto;

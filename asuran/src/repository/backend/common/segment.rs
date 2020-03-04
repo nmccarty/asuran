@@ -400,5 +400,4 @@ mod tests {
 
         assert!(segment.read_header().unwrap().validate())
     }
-
 }

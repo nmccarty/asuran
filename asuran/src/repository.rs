@@ -165,10 +165,7 @@ impl<T: Backend + 'static> Repository<T> {
             let backend = &mut self.backend;
             let location = backend.write_chunk(chunk, id).await?;
 
-            self.backend
-                .get_index()
-                .set_chunk(id, location)
-                .await?;
+            self.backend.get_index().set_chunk(id, location).await?;
 
             Ok((id, false))
         }
