@@ -1,3 +1,8 @@
+/*!
+This module contains data structures and methods for interacting with selectable
+encryption algorithms.
+*/
+
 // In this case, this lint results in harder to read code for security critical portions
 #![allow(clippy::match_same_arms)]
 
@@ -91,13 +96,21 @@ impl Encryption {
     /// Still requires a key in the event of no encryption, but it does not read this
     /// key, so any value can be used. Will pad key with zeros if it is too short
     ///
-    /// Will panic on encryption failure
+    /// # Panics
+    ///
+    /// Will panic if the user selects an encryption algorithm for which support has not
+    /// been compiled in, or if encryption otherwise fails.
     pub fn encrypt(&self, data: &[u8], key: &Key) -> Vec<u8> {
         self.encrypt_bytes(data, key.key())
     }
 
     /// Internal method that does the actual encryption, please use the encrypt method
     /// to avoid key confusion
+    ///
+    /// # Panics:
+    ///
+    /// Panics if the user selects an encryption algorithm that support was not compiled
+    /// in for.
     #[allow(unused_variables)]
     pub fn encrypt_bytes(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
@@ -166,10 +179,17 @@ impl Encryption {
 
     /// Decrypts a bytestring with the given key
     ///
-    /// Still requires a key in the event of no encryption, but it does not read this key,
-    /// so any value can be used. Will pad key with zeros if it is too short.
+    /// Still requires a key in the event of no encryption, but it does not read this
+    /// key, so any value can be used. Will pad key with zeros if it is too short.
     ///
-    /// Will return None on encryption failure
+    /// # Errors
+    ///
+    /// Will return `Err` if decryption fails
+    ///
+    /// # Panics
+    ///
+    /// Panics if the user selects an encryption method for which support has not been
+    /// compiled in.
     pub fn decrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>> {
         self.decrypt_bytes(data, key.key())
     }

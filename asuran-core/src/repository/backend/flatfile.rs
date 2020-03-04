@@ -1,3 +1,7 @@
+/*!
+This module contains data structures describing components of the `FlatFile`
+on-disk representation.
+*/
 use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 
 use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
@@ -23,7 +27,9 @@ pub enum FlatFileHeaderError {
 /// The header used by flatfile repositories
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Header {
+    /// The magic number, ASCII 'ASURAN_F'
     pub magic_number: [u8; 8],
+    /// The UUID of the implemenation that wrote this flatfile
     pub implementation_uuid: [u8; 16],
     pub semver_major: u16,
     pub semver_minor: u16,

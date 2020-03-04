@@ -1,3 +1,7 @@
+/*!
+This module contains chunks for describing and interacting with cryptographic
+key material
+*/
 use crate::repository::Encryption;
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
@@ -19,7 +23,25 @@ pub enum KeyError {
 
 type Result<T> = std::result::Result<T, KeyError>;
 
-/// Stores the encryption key used by the archive
+/// Stores the Key material used by an asuran repository.
+///
+/// Contains 5 separate pieces of key material:
+///
+/// - `key`:
+///
+/// The key used for encryption/decryption operations
+///
+/// - `hmac_key`:
+///
+/// The key used for generating the integrity validation HMAC tag
+///
+/// - `id_key`:
+///
+/// The key used for `ChunkID` generation using the HMAC
+///
+/// - `chunker_nonce`:
+///
+/// A random `u64` used for chunker randomization with supported chunking algorithms
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Zeroize)]
 #[zeroize(drop)]
 pub struct Key {
@@ -32,7 +54,9 @@ pub struct Key {
 impl Key {
     /// Creates a key from the given array of bytes
     ///
-    /// Will split the key stream into thirds
+    /// Will split the key stream into thirds.
+    ///
+    /// Does not perform any padding.
     pub fn from_bytes(bytes: &[u8], chunker_nonce: u64) -> Key {
         let mut buffer1 = Vec::new();
         let mut buffer2 = Vec::new();
@@ -53,9 +77,9 @@ impl Key {
         }
     }
 
-    /// Securely generates a random key
+    /// Securely generates a random bundle of key material
     ///
-    /// Takes the desired length in bytes of each individual key
+    /// Takes the desired length in bytes of each individual key component
     pub fn random(length: usize) -> Key {
         let mut buffer1 = vec![0; length];
         thread_rng().fill_bytes(&mut buffer1);
@@ -95,7 +119,7 @@ impl Key {
 /// Stores the key, encrypted with another key dervied from the user specified
 /// password/passphrase
 ///
-/// Uses argon2 to derive the key
+/// Uses argon2 to derive the key encryption key from the user supplied key.
 ///
 /// Uses a 32 byte salt that is randomly generated
 ///
@@ -157,23 +181,23 @@ impl EncryptedKey {
         }
     }
 
-    /// Convience function that uses scrypt paramaters that the author of this
-    /// programs believes are reasonable as of time of writing. Please review
-    /// them and apply your own common sense before blaming the author for the
-    /// FBI reading your data.
+    /// Convience function that uses argon2 paramaters that the author of this program
+    /// believes are reasonable as of time of writing. Please review them and apply your
+    /// own common sense before blaming the author for the FBI reading your data.
     ///
     /// Paramaters are:
-    ///  - N: 32768 (passed in as 15, as the scrypt function uses the log_2 of n)
-    ///  - r: 8
-    ///  - p: 1
+    /// - mem_cost: 65536
+    /// - time_cost: 10
     #[cfg_attr(tarpaulin, skip)]
     pub fn encrypt_defaults(key: &Key, encryption: Encryption, user_key: &[u8]) -> EncryptedKey {
         EncryptedKey::encrypt(key, 65536, 10, encryption, user_key)
     }
 
-    /// Attempts to decrypt the key using the provided user key
+    /// Attempts to decrypt the key material using the user supplied key.
     ///
-    /// Will return none on failure
+    /// # Errors:
+    ///
+    /// Will return `Err(KeyError)` if key decryption fails
     pub fn decrypt(&self, user_key: &[u8]) -> Result<Key> {
         // Derive the key from the user key
         let config = Config {

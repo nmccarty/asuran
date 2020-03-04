@@ -1,7 +1,12 @@
-//! Data structures for describing chunks of data
-//!
-//! Contains structs representing both encrypted and unencrypted data
+/*!
+The Chunk is the lowest level of abstraction in an asuran repository.
 
+Chunks are raw binary blobs, optionally compressed and encrypted, and keyed by
+an HMAC of their plain text contents, and tagged with an HMAC of their encrypted
+contents (different keys are used for both HMACs).
+
+They can contain any arbitrary sequence of bytes.
+*/
 use super::{Compression, Encryption, Key, HMAC};
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -22,13 +27,18 @@ pub enum ChunkError {
 
 type Result<T> = std::result::Result<T, ChunkError>;
 
-/// Key for an object in a repository
+/// Key used for indexing a `Chunk` in a repository
+///
+/// These are usually derived via an HMAC of the chunks plain text, and are used for
+/// reduplication. If two chunks have the same `ChunkID`, it is assumed that they
+/// are identical.
 #[derive(PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash, Debug)]
 pub struct ChunkID {
     /// Keys are a bytestring of length 32
     ///
-    /// This lines up well with SHA256 and other 256 bit hashes.
-    /// Longer hashes will be truncated and shorter ones (not reccomended) will be padded.
+    /// This lines up well with SHA256 and other 256 bit hashes. Longer hashes will be
+    /// truncated and shorter ones (not reccomended) will be padded with zeros at the
+    /// end.
     id: [u8; 32],
 }
 
@@ -44,7 +54,7 @@ impl ChunkID {
         ChunkID { id }
     }
 
-    /// Returns an immutable refrence to the key in bytestring form
+    /// Provides a reference to a key's raw bytes
     #[cfg_attr(tarpaulin, skip)]
     pub fn get_id(&self) -> &[u8] {
         &self.id
@@ -71,8 +81,6 @@ impl ChunkID {
     }
 }
 
-/// Chunk Settings
-///
 /// Encapsulates the Encryption, Compression, and HMAC tags for a chunk
 #[derive(Serialize, Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ChunkSettings {
@@ -82,7 +90,11 @@ pub struct ChunkSettings {
 }
 
 impl ChunkSettings {
-    /// Returns a chunksettings with no compression, no encryption, and blake2b
+    /// Returns a `ChunkSettings` with `Encryption::NoEncryption`,
+    /// `Compression::NoCompression`, and `HMAC::Blake2b`.
+    ///
+    /// These settings are, very nearly, the least computationally intensive that asuran
+    /// supports.
     pub fn lightweight() -> ChunkSettings {
         ChunkSettings {
             compression: Compression::NoCompression,
@@ -92,21 +104,16 @@ impl ChunkSettings {
     }
 }
 
-/// A raw block of data and its associated `ChunkID`
-///
-/// This data is not encrypted, compressed, or otherwise tampered with, and can not be directly
-/// inserted into the repo.
+/// A binary blob that has not yet undergone encryption, compression, or HMACing,
+/// but has had a `ChunkID` generated.
 pub struct UnpackedChunk {
     data: Vec<u8>,
     id: ChunkID,
 }
 
 impl UnpackedChunk {
-    /// Creates a new unpacked chunk
-    ///
-    /// HMAC algorthim used for chunkid is specified by chunksettings
-    ///
-    /// Key used for ChunkID generation is determined by key
+    /// Creates a new `UnpackedChunk` using the provided data, and generating an ID
+    /// using the `hmac` value of the provided `ChunkSettings` and the provided key.
     pub fn new(data: Vec<u8>, settings: ChunkSettings, key: &Key) -> UnpackedChunk {
         let id = settings.hmac.id(data.as_slice(), &key);
         let cid = ChunkID::new(&id);
@@ -129,9 +136,17 @@ impl UnpackedChunk {
     }
 }
 
-/// Data chunk
+/// A binary blob, ready to be commited to storage
 ///
-/// Encrypted, compressed object, to be stored in the repository
+/// A `Chunk` is an arbitrary sequence of bytes, along with its associated `ChunkID`
+/// key.
+///
+/// Data in a `Chunk` has already undergone any selected compression and encryption,
+/// and has an associated HMAC tag used for verifying the integrity of the data.
+/// This HMAC tag is unrelated to the `ChunkID` key, and uses a separate HMAC key.
+///
+/// Chunks are additionally tagged with the encryption and compression modes used
+/// for them.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Chunk {
     /// The data of the chunk, stored as a vec of raw bytes
@@ -142,18 +157,24 @@ pub struct Chunk {
     /// Encryption Algorithim used, also stores IV
     encryption: Encryption,
     /// HMAC algorithim used
-    ///
-    /// HAMC key is also the same as the repo encryption key
     hmac: HMAC,
-    /// Actual MAC value of this chunk
+    /// HMAC tag of the cyphertext bytes of this chunk
     #[serde(with = "serde_bytes")]
     mac: Vec<u8>,
-    /// Chunk ID, generated from the HMAC
+    /// `ChunkID`, used for indexing in the repository and deduplication
     id: ChunkID,
 }
 
 impl Chunk {
-    /// Will Pack the data into a chunk with the given compression and encryption
+    /// Produces a `Chunk` from the given data, using the specified
+    /// encryption, and hmac algorithms, as well as the supplied key material.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if any of the compression, encryption, or HMACing operations fail.
+    /// This would represent a massive programming oversight which the user of the
+    /// library has little hope of recovering from safely without compromising
+    /// cryptographic integrity.
     pub fn pack(
         data: Vec<u8>,
         compression: Compression,
@@ -176,7 +197,10 @@ impl Chunk {
         }
     }
 
-    /// Constructs a chunk from its parts
+    /// Constructs a `Chunk` from its raw parts.
+    ///
+    /// This has potentially dangerous consequences if done incorrectly, and should be
+    /// avoided if another method is available.
     pub fn from_parts(
         data: Vec<u8>,
         compression: Compression,
@@ -195,9 +219,11 @@ impl Chunk {
         }
     }
 
-    /// Will pack a chunk, but manually setting the id instead of hashing
+    /// Produces a `Chunk` using the provided settings, but overriding the `ChunkID`
+    /// key.
     ///
-    /// This function should be used carefully, as it has potentiall to do major damage to the repository
+    /// This has the potential to do serious damage to a repository if used incorrectly,
+    /// and should be avoided if another method is available.
     pub fn pack_with_id(
         data: Vec<u8>,
         compression: Compression,
@@ -219,11 +245,18 @@ impl Chunk {
         }
     }
 
-    /// Decrypts and decompresses the data in the chunk
+    /// Validates, decrypts, and decompresses the data in a `Chunk`.
     ///
-    /// Will return none if either the decompression or the decryption fail
+    /// # Errors
     ///
-    /// Will also return none if the HMAC verification fails
+    /// Will return `Err(HMACVailidationFailed)` if the chunk fails validation.
+    ///
+    /// Will return `Err(EncryptionError)` if decryption fails.
+    ///
+    /// Will return `Err(CompressionError)` if decompression fails.
+    ///
+    /// All of these error values indicate that the `Chunk` is corrupted or otherwise
+    /// malformed.
     pub fn unpack(&self, key: &Key) -> Result<Vec<u8>> {
         if self.hmac.verify_hmac(&self.mac, &self.data, key) {
             let decrypted_data = self.encryption.decrypt(&self.data, key)?;
@@ -236,7 +269,7 @@ impl Chunk {
     }
 
     #[cfg_attr(tarpaulin, skip)]
-    /// Returns the length of the data bytes
+    /// Returns the length of the data in the `Chunk`
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -253,7 +286,7 @@ impl Chunk {
         &self.data
     }
 
-    /// Gets the key for this block
+    /// Returns the `ChunkID` key assocaited with the data in this chunk.
     pub fn get_id(&self) -> ChunkID {
         self.id
     }

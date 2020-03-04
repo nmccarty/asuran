@@ -1,3 +1,14 @@
+/*!
+This module contains structures for describing and interacting with HMAC
+algorithms and tags.
+
+Unlike the `compression` and `encryption` modules, there is not a `NoHMAC`
+option, as the repository's structure does not make sense without an HMAC
+algorithm.
+
+As such, at least one HMAC algorithm feature must be enabled, or else you will
+get a compile time error.
+*/
 #[cfg(feature = "blake2b_simd")]
 use blake2b_simd::blake2bp;
 #[cfg(feature = "blake2b_simd")]
@@ -26,7 +37,7 @@ type HmacSha256 = Hmac<Sha256>;
 #[cfg(feature = "sha3")]
 type HmacSHA3 = Hmac<Sha3_256>;
 
-/// Tag for the HMAC algorithim used by a particular chunk
+/// Tag for the HMAC algorithim used by a particular `Chunk`
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HMAC {
     SHA256,
@@ -37,8 +48,13 @@ pub enum HMAC {
 }
 
 impl HMAC {
-    /// Produces a MAC for the given data with the given key, using the
-    /// algorthim specified in the tag.
+    /// Produces an HMAC for the given data with the given key, using the algorithm
+    /// specified by the variant of `self`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the user attempts to produce an HMAC using an algorithm for which
+    /// support was not compiled in.
     #[allow(unused_variables)]
     fn internal_mac(self, data: &[u8], key: &[u8]) -> Vec<u8> {
         match self {
@@ -106,20 +122,39 @@ impl HMAC {
         }
     }
 
-    /// Produces a mac for the given data using the HMAC key
+    /// Produces an HMAC tag using the section of the key material reserved for
+    /// integrity verification.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the user has selected an algorithm for which support has not been
+    /// compiled in.
     pub fn mac(self, data: &[u8], key: &Key) -> Vec<u8> {
         let key = key.hmac_key();
         self.internal_mac(data, key)
     }
 
-    /// Produces a mac for the given data using the ID key
+    /// Produces an HMAC tag using the section of the key material reserved for
+    /// `ChunkID` generation.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the user has selected an algorithm for which support has not been
+    /// compiled in.
     pub fn id(self, data: &[u8], key: &Key) -> Vec<u8> {
         let key = key.id_key();
         self.internal_mac(data, key)
     }
 
-    /// Produces a MAC for the data using the algorthim specified in the tag,
-    /// and verfies it against the supplied MAC
+    /// Produces an HMAC for the supplied data, using the portion of the supplied key
+    /// reserved for integrity verification, and the algorithm specified by the variant
+    /// of `self`, and verifies it against the supplied HMAC, using constant time
+    /// comparisons where possible.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the user has selected an algorithm for which support has not been
+    /// compiled in.
     #[allow(unused_variables)]
     pub fn verify_hmac(self, input_mac: &[u8], data: &[u8], key: &Key) -> bool {
         let key = key.hmac_key();

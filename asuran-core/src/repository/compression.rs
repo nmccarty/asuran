@@ -29,11 +29,13 @@ pub enum Compression {
 }
 
 impl Compression {
-    /// Will compress the data with the algorithim indicated by the marker
+    /// Compresses the data with the algorithm indicated and level by the variant of
+    /// `self`
     ///
     /// # Panics
     ///
-    /// Will panic if compression fails
+    /// Will panic if the user selects a compression algorithm for which support has not
+    /// been compiled in, or if compression otherwise fails.
     #[allow(unused_variables)]
     pub fn compress(self, data: Vec<u8>) -> Vec<u8> {
         match self {
@@ -81,9 +83,17 @@ impl Compression {
         }
     }
 
-    /// Decompresses the given data
+    /// Decompresses the given data with the algorithm specified by the variant of
+    /// `self`
     ///
-    /// Will return none if decompression fails
+    /// # Errors
+    ///
+    /// Will return `Err` if decompression fails.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the user selects a compression algorithm for which support has not
+    /// been compiled in.
     #[allow(unused_variables)]
     pub fn decompress(self, data: Vec<u8>) -> Result<Vec<u8>> {
         match self {
