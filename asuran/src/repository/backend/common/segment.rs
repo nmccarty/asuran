@@ -390,7 +390,10 @@ mod tests {
         assert!(output.validate());
         assert_eq!(input, output);
         assert_eq!(output.uuid(), crate::IMPLEMENTATION_UUID.clone());
-        assert_eq!(output.version_string(), crate::VERSION);
+        assert_eq!(
+            output.version_string(),
+            crate::VERSION.split("-").next().unwrap()
+        );
     }
 
     #[test]

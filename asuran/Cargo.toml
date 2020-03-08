@@ -28,6 +28,7 @@ num_cpus = "1.12.0"
 petgraph = "0.5.0"
 rand = { version = "0.7.3", features = ["small_rng"] }
 rmp-serde = "0.14.3"
+semver = "0.9.0"
 serde = { version = "1.0.104", features = ["derive", "rc"] }
 serde_bytes = "0.11.3"
 thiserror = "1.0.11"
