@@ -8,20 +8,19 @@ use std::io::{Read, Write};
 
 pub use asuran_core::manifest::listing::*;
 
-/// Struct represening and object and a range of bytes it is responsible for
-///
-/// BUG: these need to be refactored into u64
+/// Representation of a `Read`/`Write` for an object, and the range of bytes within
+/// that object it is responsible for
 pub struct ByteRange<T> {
     pub start: u64,
     pub end: u64,
     pub object: T,
 }
 
-/// A collection of readers and byte ranges associated with them, used for reading objects
-/// into the repository.
+/// A collection of `Read`s and the byte ranges that they are associated with, in an
+/// object to be committed to a repository.
 ///
-/// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
-/// a dense file, or a sparse file, respectivly
+/// The `ranges` list may contain zero, one, or many ranges, in the case of an empty
+/// file, a dense file, or a sparse file respectively.
 pub struct BackupObject<T: Read> {
     /// The ranges of bytes that compose this object
     ranges: Vec<ByteRange<T>>,
@@ -30,7 +29,7 @@ pub struct BackupObject<T: Read> {
 }
 
 impl<T: Read> BackupObject<T> {
-    /// Create a new, empty BackupObject with a defined size
+    /// Create a new, empty BackupObject with a predefined total size
     pub fn new(total_size: u64) -> BackupObject<T> {
         let ranges = Vec::new();
         BackupObject { ranges, total_size }
@@ -70,11 +69,11 @@ impl<T: Read> BackupObject<T> {
     }
 }
 
-/// A collection of writers and byte ranges associated with them, used for restoring
-/// objects from the repository.
+/// A collection of `Write`s and their associated byte ranges with in an object to
+/// be restored from a repository.
 ///
-/// The ranges list may contain zero, one, or many ranges, in the case of an empty file,
-/// a dense file, or a sparse file, respectivly
+/// The `ranges` list may contain zero, one, or many ranges, in the case of an empty
+/// file, a dense file, or a sparse file, respectively
 pub struct RestoreObject<T: Write> {
     /// The list of writers and extents used to restore an object
     ranges: Vec<ByteRange<T>>,

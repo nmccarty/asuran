@@ -18,15 +18,19 @@ pub enum DriverError {
 
 type Result<T> = std::result::Result<T, DriverError>;
 
-/// Collection of abstract methods for moving data from a storage target to a repository
+/// Defines a type that can, semi-automatically, drive the storage of objects from
+/// an associated `BackupTarget` into a repository.
 ///
-/// This trait provides reasonable default versions of the functions for you
+/// As this is effectively an extension trait for a `BackupTarget`, and the behavior
+/// will usually be more or less the same, reasonable default implementations have
+/// been provided.
 #[async_trait]
 pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
-    /// Inserts an object into the repository using the output from BackupTarget::backup_object
+    /// Inserts an object into the repository using the output from
+    /// `BackupTarget::backup_object`
     ///
-    /// This method should only really be used directly when you want to change the data in route,
-    /// otherwise use store_object.
+    /// This method should only be used directly when you want to modify the data in
+    /// route, otherwise use `store_object`.
     ///
     /// Stores objects in sub-namespaces of the namespace of the archive object provided
     async fn raw_store_object<B: Backend, C: AsyncChunker + Send + 'static>(
@@ -72,8 +76,8 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
         Ok(())
     }
 
-    /// Stores an object, performing the calls to BackupTarget::backup_object and raw_store_obejct
-    /// for you.
+    /// Convenience method that performs a call to `self.backup_object` for you and
+    /// routes the results into `self.raw_store_object`
     async fn store_object<B: Backend, C: AsyncChunker + Send + 'static>(
         &self,
         repo: &mut Repository<B>,
@@ -87,9 +91,12 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
     }
 }
 
-/// Collection of abstract methods for moving data from a storage target to a reposiotry
+/// Defines a type that can, semi-automatically, drive the retrieval of objects from
+/// a repository into an associated `RestoreTarget`.
 ///
-/// This trait provides resasonable default versions for you
+/// As this is effectively an extension trait for a `RestoreTarget`, and the
+/// behavior will usually be more or less the same, reasonable default
+/// implementations have been provided.
 #[async_trait]
 pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// Retrives an object from the repository using the output from RestoreTarget::restore_object

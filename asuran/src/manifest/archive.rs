@@ -33,7 +33,13 @@ pub enum ArchiveError {
 
 type Result<T> = std::result::Result<T, ArchiveError>;
 
-/// Pointer to an archive in a repository
+/// A 'heavy' pointer to a an `Archive` in a repository.
+///
+/// Contains the `ChunkID` of the chunk the `Archive` is serialized in, as well as
+/// its date of creation.
+///
+/// Currently also contains the name of the `Archive`, but adding this was a mistake
+/// as it leaks information that should not be leaked, so it will be removed soon.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StoredArchive {
     /// The name of the archive
@@ -94,7 +100,11 @@ impl From<ManifestTransaction> for StoredArchive {
 }
 
 #[derive(Clone, Debug)]
-/// An active Archive
+/// A currently open and able to be modified `Archive`
+///
+/// This is basically the same thing as an `Archive`, but has async/await aware
+/// synchronization types wrapping some shared state, allowing the archive to be
+/// used in multiple tasks at once.
 pub struct ActiveArchive {
     /// The name of this archive
     ///
@@ -120,6 +130,7 @@ pub struct ActiveArchive {
 }
 
 impl ActiveArchive {
+    /// Creates a new, empty `ActiveArchive`
     pub fn new(name: &str) -> Self {
         ActiveArchive {
             name: name.to_string(),

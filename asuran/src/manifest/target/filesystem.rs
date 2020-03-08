@@ -12,12 +12,16 @@ use tokio::task;
 use walkdir::WalkDir;
 
 #[derive(Clone)]
+/// A type that handles the complexities of dealing with a file system for you.
 pub struct FileSystemTarget {
     root_directory: String,
     listing: Arc<RwLock<Listing>>,
 }
 
 impl FileSystemTarget {
+    /// Creates a new FileSystemTarget with the given path as its top level directory.
+    ///
+    /// The FileSystemTarget will consider all paths below this directory for backup.
     pub fn new(root_directory: &str) -> FileSystemTarget {
         FileSystemTarget {
             root_directory: root_directory.to_string(),
