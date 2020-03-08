@@ -4,6 +4,15 @@ use std::collections::VecDeque;
 use std::io::Read;
 
 /// Settings for a BuzHash `Chunker`
+///
+/// Uses a randomized lookup table derived from a nonce provided by the repository
+/// key material, to help provide resistance against a chunk size based
+/// fingerprinting attack, for users who are concerned about such a thing.
+///
+/// This is a very tenuous mitigation for such an attack, borrowed from
+/// [borg](https://borgbackup.readthedocs.io/en/stable/internals/security.html#fingerprinting),
+/// and is, fundamentally, a temporary work around. The "correct" solution is to
+/// implement a better repository structure, that does not leak chunk sizes.
 #[derive(Clone, Copy)]
 pub struct BuzHash {
     table: [u64; 256],
