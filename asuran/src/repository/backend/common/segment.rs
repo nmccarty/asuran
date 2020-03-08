@@ -1,13 +1,8 @@
-use crate::repository::backend::{BackendError, Result, SegmentDescriptor, TransactionType};
+use crate::repository::backend::{BackendError, Result, TransactionType};
 use crate::repository::{Chunk, ChunkID};
-use futures::channel;
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
 use rmp_serde as rpms;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
-use std::marker::PhantomData;
-use tokio::task;
 use uuid::Uuid;
 
 /// Magic number used for asuran segment files
@@ -15,9 +10,10 @@ use uuid::Uuid;
 /// More or less completly arbitrary, but used to validate files
 const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_S";
 
-/// Represenetation of the header at the start of each file
+/// Representation of the header at the start of each file
 ///
-/// Designed to be bincoded directly into a spec compliant format with big endian set
+/// Designed to be bincoded directly into a spec compliant format with big endian
+/// set
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Header {
     magic_number: [u8; 8],
@@ -64,18 +60,13 @@ impl Default for Header {
     }
 }
 
-/// Transaction wrapper struct
+/// Struct used to store a transaction inside a segment.
 ///
-/// TODO: Document this better
+/// TODO: Change this to an enum
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     tx_type: TransactionType,
     id: ChunkID,
-    /// Conceptually, this should be an Option<Vec<u8>>. We instead employ an optimization where we use
-    /// a vector with a zero length to simualte the none case. This has the side effect of requiring that
-    /// all chunk payloads be 1 byte or longer, but in practice this is not a serious issue as the content
-    /// will always be packed chunk structs, which will always have a length greater than zero, as they
-    /// contain manditory tags in addition to data.
     chunk: Option<Chunk>,
 }
 
@@ -113,7 +104,6 @@ impl Transaction {
     }
 }
 
-/// Generic segment implemenation wrapping any Read + Write + Seek
 /// Generic segment implemenation wrapping any Read + Write + Seek
 #[derive(Debug)]
 pub struct Segment<T> {
@@ -183,7 +173,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         self.handle.seek(SeekFrom::End(0)).unwrap()
     }
 
-    async fn free_bytes(&mut self) -> u64 {
+    pub async fn free_bytes(&mut self) -> u64 {
         let end = self.handle.seek(SeekFrom::End(0)).unwrap();
         self.size_limit - end
     }
@@ -222,6 +212,7 @@ impl<T: Read + Write + Seek> Segment<T> {
 }
 
 #[derive(Debug)]
+/// Analogue of `Segement` that uses a BufReader, but can only allow read operations
 pub struct ReadSegment<T> {
     handle: BufReader<T>,
     size_limit: u64,
@@ -239,6 +230,7 @@ impl<T: Read + Seek> ReadSegment<T> {
 }
 
 #[derive(Debug)]
+/// Analogue of `Segment` that uses a BufWriter, but can only allow write operations
 pub struct WriteSegment<T: Write> {
     handle: BufWriter<T>,
     size_limit: u64,
