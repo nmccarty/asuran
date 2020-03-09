@@ -104,6 +104,7 @@ impl InternalIndex {
         })
     }
 
+    /// Drains the changes out of the internal buffer and commits them to disk
     fn drain_changes(&mut self) -> Result<()> {
         let mut file = BufWriter::new(&mut self.file);
         file.seek(SeekFrom::End(0))?;
@@ -129,14 +130,12 @@ pub struct Index {
     path: String,
 }
 
-/// Multi file index with lock free multithreading
+/// MultiFile index with lock free multithreading
 ///
-/// # Warnings
+/// # Warning
 ///
-/// 1. In order to ensure locks are freed, you must ensure that your executor runs all futures to
-///    completion before your program terminates
-/// 2. You must call `commit_index` for your changes to be commited to disk, the Index will not do
-///    this for you
+/// You must call `commit_index` for your changes to be commited to disk, the Index
+/// will not do this for you
 impl Index {
     /// Opens and reads the index, creating it if it does not exist.
     ///

@@ -40,9 +40,9 @@ pub enum BackendError {
 pub type Result<T> = std::result::Result<T, BackendError>;
 
 /// Describes the segment id and location there in of a chunk
-///
-/// This does not store the lenght, as segments are responsible for storing chunks in a format
-/// that does not require prior knowlege of the chunk lenght.
+/// 
+/// This does not store the length, as segments are responsible for storing chunks
+/// in a format that does not require prior knowledge of the chunk length.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SegmentDescriptor {
     pub segment_id: u64,

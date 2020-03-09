@@ -294,8 +294,9 @@ enum ManifestCommand {
 ///
 /// # Warnings
 ///
-/// 1. In order to ensure that file locks are freed and data is writeen properly, you must ensure
-///    that your executor runs all futures to completion before your program terminates
+/// 1. In order to ensure that file locks are freed and data is writeen properly,
+///    you must ensure that you call the close method on the manifest before your
+///    program terminates
 #[derive(Clone)]
 pub struct Manifest {
     input: mpsc::Sender<ManifestCommand>,

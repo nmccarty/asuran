@@ -306,8 +306,9 @@ pub struct SegmentHandler {
 ///
 /// # Warnings
 ///
-/// 1. In order to ensure file locks are freed and all data is written to disk, you must ensure your
-///    executor runs all futures to completion before your program terminates
+/// 1. In order to ensure file locks are freed and all data is written to disk, you
+///    must ensure that you call the close function on all segments before the
+///    program terminates.
 impl SegmentHandler {
     /// Opens a segmenthandler, creating the data directory and the inital segment if it does not exist
     pub fn open(

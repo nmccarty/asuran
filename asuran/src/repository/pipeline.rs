@@ -24,8 +24,6 @@ pub struct Pipeline {
 
 impl Pipeline {
     /// Spawns a new pipeline and populates it with a number of tasks
-    ///
-    /// Gets a pass on too_many lines for now
     pub fn new() -> Pipeline {
         let base_threads = num_cpus::get();
 

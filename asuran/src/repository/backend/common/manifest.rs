@@ -21,22 +21,25 @@ pub struct ManifestTransaction {
     name: String,
     /// A 128-bit random nonce
     ///
-    /// This is cononically stored as an array of bytes, to keep the serializer and deserializer
-    /// simple, while preventing isses with other platforms who may not have support for the exact
-    /// same interger types as rust
+    /// This is canonically stored as an array of bytes, to keep the serializer and
+    /// deserializer simple, while preventing issues with other platforms who may not
+    /// have support for the exact same integer types as rust
+    ///
+    /// This value is used for ensuring uniqueness when constructing the Manifest
+    /// Merkle Tree
     nonce: [u8; 16],
     /// The type of HMAC used for this transaction
     hmac: HMAC,
     /// The HMAC tag of this transaction
     ///
-    /// This is calcuated based off the compact (array form) messagepacked encoding of this struct
-    /// with this value esto to all zeros
+    /// This is calculated based off the compact (array form) messagepacked encoding of
+    /// this struct with this value set to all zeros
     tag: ManifestID,
 }
 
 impl ManifestTransaction {
-    /// Constructs a new ManifestTransaction from the given list of previous heads, a pointer, a
-    /// name, and a timestamp, and an HMAC method to use
+    /// Constructs a new ManifestTransaction from the given list of previous heads, a
+    /// pointer, a name, a timestamp, and an HMAC method to use
     ///
     /// Will automatically produce the random nonce, and update the tag
     pub fn new(
