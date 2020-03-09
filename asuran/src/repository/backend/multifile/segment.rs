@@ -268,7 +268,7 @@ impl InternalSegmentHandler {
         let segment = self.open_segement_read(segment_id)?;
         // FIXME (#47): This implementation doesnt use the second argument, but still has it for legacy
         // reasons, this should be refactored out at some point, but for now we just feed it a 0
-        segment.1.read_chunk(location.start, 0)
+        segment.1.read_chunk(location.start)
     }
 
     /// Attempts to write a chunk

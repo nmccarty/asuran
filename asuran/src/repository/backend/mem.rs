@@ -114,10 +114,10 @@ impl SyncBackend for Mem {
         }
     }
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
-        self.data.read_chunk(location.start, 0)
+        self.data.read_chunk(location.start)
     }
     fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
-        let (start, _) = self.data.write_chunk(chunk, id)?;
+        let start = self.data.write_chunk(chunk, id)?;
         Ok(SegmentDescriptor {
             segment_id: 0,
             start,

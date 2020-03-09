@@ -178,7 +178,7 @@ impl<T: Read + Write + Seek> Segment<T> {
         self.size_limit - end
     }
 
-    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Chunk> {
+    pub fn read_chunk(&mut self, start: u64) -> Result<Chunk> {
         self.handle.seek(SeekFrom::Start(start))?;
         let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
         let data = tx.take_data().ok_or_else(|| {
@@ -187,13 +187,11 @@ impl<T: Read + Write + Seek> Segment<T> {
         Ok(data)
     }
 
-    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<(u64, u64)> {
+    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<u64> {
         let tx = Transaction::encode_insert(chunk, id);
         let start = self.handle.seek(SeekFrom::End(0))?;
         rpms::encode::write(&mut self.handle, &tx)?;
-        let end = self.handle.seek(SeekFrom::End(0))?;
-        let length = end - start;
-        Ok((start, length))
+        Ok(start)
     }
 
     pub fn into_read_segment(self) -> ReadSegment<T> {
