@@ -3,10 +3,10 @@ use fastcdc;
 use std::io::Read;
 
 /// Settings for a fastcdc `Chunker`
-/// 
+///
 /// These are limited to `usize`, and not `u64`, because this implementation makes
 /// extensive use of in memory buffers of size `max_size`
-/// 
+///
 /// This chunker, unlike `BuzHash` does not support any attempted mitigation of
 /// chunk based fingerprinting attacks. Those who are concerned about such an
 /// attack may wish to use the `BuzHash` chunker until such a time that a better
