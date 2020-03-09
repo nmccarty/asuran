@@ -291,7 +291,7 @@ impl<T: Backend + 'static> Repository<T> {
     ///
     /// Calls into the backend's implementation
     #[instrument(skip(self))]
-    pub async fn close(self) {
+    pub async fn close(mut self) {
         self.backend.close().await;
     }
 }

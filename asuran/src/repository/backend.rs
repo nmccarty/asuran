@@ -122,11 +122,15 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     /// This must be passed owned data because it will be sent into a task, so the caller has no
     /// control over drop time
     async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor>;
-    /// Consumes the current backend handle, and does any work nessicary to close out the backend
-    /// properly
+    /// Consumes the current backend handle, and does any work necessary to
+    /// close out the backend properly
     ///
-    /// This is seperate from Drop due to the current lack of async drop
-    async fn close(self);
+    /// This is separate from Drop due to the current lack of async drop
+    ///
+    /// This method takes &mut self such that it can be called on trait objects.
+    /// It is not correct to call any methods on a Backend after close has
+    /// returned
+    async fn close(&mut self);
 }
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]

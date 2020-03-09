@@ -34,7 +34,7 @@ pub async fn new(options: Opt) -> Result<()> {
             // Create the directory
             create_dir_all(&options.repo)?;
             // Open the repository and set the key
-            let mf = MultiFile::open_defaults(&options.repo, Some(settings), &key)
+            let mut mf = MultiFile::open_defaults(&options.repo, Some(settings), &key)
                 .with_context(|| "Unable to create MultiFile directory.")?;
             mf.write_key(&encrypted_key)
                 .await
@@ -44,7 +44,7 @@ pub async fn new(options: Opt) -> Result<()> {
         }
         RepositoryType::FlatFile => {
             // Open the repository setting the key
-            let ff = FlatFile::new(&options.repo, Some(settings), Some(encrypted_key))
+            let mut ff = FlatFile::new(&options.repo, Some(settings), Some(encrypted_key))
                 .with_context(|| "Unable to create flatfile.")?;
             ff.close().await;
             Ok(())

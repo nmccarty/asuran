@@ -100,7 +100,7 @@ impl Backend for MultiFile {
 
     /// Closes out the index, segment handler, and manifest cleanly, making sure all operations are
     /// completed and all drop impls from inside the tasks are called
-    async fn close(mut self) {
+    async fn close(&mut self) {
         self.index_handle.close().await;
         self.manifest_handle.close().await;
         self.segment_handle.close().await;
@@ -124,7 +124,7 @@ mod tests {
     #[tokio::test]
     async fn key_store_load() {
         let key = Key::random(32);
-        let (tempdir, mf) = setup(&key);
+        let (tempdir, mut mf) = setup(&key);
         // Encrypt the key and store it
         let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), b"");
         mf.write_key(&enc_key).await.expect("Unable to write key");

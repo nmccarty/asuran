@@ -291,7 +291,7 @@ mod tests {
         let directory = tempdir().unwrap();
         let file = directory.path().join("temp.asuran");
         // Generate the flatfile, close it, and drop it
-        let flatfile = FlatFile::new(&file, Some(settings), Some(enc_key)).unwrap();
+        let mut flatfile = FlatFile::new(&file, Some(settings), Some(enc_key)).unwrap();
         flatfile.close().await;
         // Load it back up
         let flatfile = FlatFile::new(&file, None, None).unwrap();

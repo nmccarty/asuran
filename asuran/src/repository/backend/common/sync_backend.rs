@@ -361,7 +361,7 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
             .unwrap();
         o.await?
     }
-    async fn close(mut self) {
+    async fn close(&mut self) {
         let (i, o) = oneshot::channel();
         self.channel
             .send(SyncCommand::Backend(SyncBackendCommand::Close(i)))

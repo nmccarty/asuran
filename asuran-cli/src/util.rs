@@ -153,7 +153,7 @@ impl Backend for DynamicBackend {
             DynamicBackend::FlatFile(x) => x.write_chunk(chunk, id).await,
         }
     }
-    async fn close(self) {
+    async fn close(&mut self) {
         match self {
             DynamicBackend::MultiFile(x) => x.close().await,
             DynamicBackend::FlatFile(x) => x.close().await,
