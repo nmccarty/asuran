@@ -12,7 +12,9 @@
 //! Methods in this module are intentionally left undocumented, as they are indented to be syncronus
 //! versions of their async equivlants in the main Backend traits.
 use crate::manifest::StoredArchive;
-use crate::repository::backend::{Backend, Index, Manifest, Result, SegmentDescriptor};
+use crate::repository::backend::{
+    backend_to_object, Backend, BackendObject, Index, Manifest, Result, SegmentDescriptor,
+};
 use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 
 use async_trait::async_trait;
@@ -369,4 +371,9 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
             .unwrap();
         o.await.unwrap()
     }
+
+    fn get_object_handle(&self) -> BackendObject {
+        backend_to_object(self.clone())
+    }
 }
+

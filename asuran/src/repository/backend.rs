@@ -13,6 +13,9 @@ pub mod flatfile;
 pub mod mem;
 pub mod multifile;
 
+pub mod object_wrappers;
+pub use object_wrappers::{backend_to_object, BackendObject};
+
 /// An error for things that can go wrong with backends
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -55,8 +58,8 @@ pub struct SegmentDescriptor {
 ///
 /// All writing methods should commit to hard storage prior to returning
 #[async_trait]
-pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
-    type Iterator: Iterator<Item = StoredArchive>;
+pub trait Manifest: Send + Sync + std::fmt::Debug + 'static {
+    type Iterator: Iterator<Item = StoredArchive> + 'static;
     /// Timestamp of the last modification
     async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>>;
     /// Returns the default settings for new chunks in this repository
@@ -77,7 +80,7 @@ pub trait Manifest: Send + Sync + Clone + std::fmt::Debug {
 ///
 /// Keeps track of where chunks are in the backend
 #[async_trait]
-pub trait Index: Send + Sync + Clone + std::fmt::Debug {
+pub trait Index: Send + Sync + std::fmt::Debug + 'static {
     /// Provides the location of a chunk in the repository
     async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     /// Sets the location of a chunk in the repository
@@ -93,12 +96,15 @@ pub trait Index: Send + Sync + Clone + std::fmt::Debug {
 /// Repository backend
 ///
 /// The backend handles the heavy lifiting of the IO, abstracting the repository
-/// struct itself away from the details of the system used to store the repository.
+/// struct itself away from the details of the system used to store the
+/// repository.
 ///
-/// Cloning a backend should result in a new view over the same storage, and clones
-/// should play nice with multithreaded access.
+/// While the backend trait itself does not require `Clone`, most uses will
+/// require that Backends be `Clone`, as expressed by the `BackendClone` trait.
+///
+/// `Backend` itself can not require clone, for object saftey
 #[async_trait]
-pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
+pub trait Backend: 'static + Send + Sync + std::fmt::Debug + 'static {
     type Manifest: Manifest + 'static;
     type Index: Index + 'static;
     /// Returns a view of the index of the repository
@@ -131,7 +137,15 @@ pub trait Backend: 'static + Send + Sync + Clone + std::fmt::Debug {
     /// It is not correct to call any methods on a Backend after close has
     /// returned
     async fn close(&mut self);
+    /// Creates a new trait-object based BackendHandle
+    ///
+    /// This is required to implement clone for
+    fn get_object_handle(&self) -> BackendObject;
 }
+
+pub trait BackendClone: Backend + Clone {}
+
+impl<T: ?Sized> BackendClone for T where T: Backend + Clone {}
 
 #[derive(Copy, PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]
 pub enum TransactionType {

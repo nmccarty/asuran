@@ -12,7 +12,7 @@ pub mod target;
 
 use crate::repository::backend::Manifest as BackendManifest;
 use crate::repository::backend::Result;
-use crate::repository::{Backend, ChunkSettings, Repository};
+use crate::repository::{Backend, BackendClone, ChunkSettings, Repository};
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ pub struct Manifest<T: Backend> {
     internal_manifest: T::Manifest,
 }
 
-impl<T: Backend> Manifest<T> {
+impl<T: BackendClone> Manifest<T> {
     /// Loads the manifest from the repository
     ///
     /// # Panics
@@ -61,7 +61,7 @@ impl<T: Backend> Manifest<T> {
     /// Will panic if commiting the archive to the repository fails
     pub async fn commit_archive(
         &mut self,
-        repo: &mut Repository<impl Backend>,
+        repo: &mut Repository<impl BackendClone>,
         archive: ActiveArchive,
     ) -> Result<()> {
         let stored_archive = archive.store(repo).await;

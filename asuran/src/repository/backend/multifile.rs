@@ -105,6 +105,10 @@ impl Backend for MultiFile {
         self.manifest_handle.close().await;
         self.segment_handle.close().await;
     }
+
+    fn get_object_handle(&self) -> BackendObject {
+        backend_to_object(self.clone())
+    }
 }
 
 #[cfg(test)]

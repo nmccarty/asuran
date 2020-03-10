@@ -1,6 +1,6 @@
 use crate::chunker::AsyncChunker;
 use crate::repository::backend::common::manifest::ManifestTransaction;
-use crate::repository::{Backend, ChunkID, Repository};
+use crate::repository::{BackendClone, ChunkID, Repository};
 
 pub use asuran_core::manifest::archive::{Archive, ChunkLocation, Extent};
 pub use asuran_core::manifest::listing::{Listing, Node, NodeType};
@@ -54,7 +54,7 @@ pub struct StoredArchive {
 
 impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
-    pub async fn load(&self, repo: &mut Repository<impl Backend>) -> Result<ActiveArchive> {
+    pub async fn load(&self, repo: &mut Repository<impl BackendClone>) -> Result<ActiveArchive> {
         let bytes = repo.read_chunk(self.id).await?;
         let mut de = Deserializer::new(&bytes[..]);
         let dumb_archive: Archive =
@@ -149,7 +149,7 @@ impl ActiveArchive {
     pub async fn put_object<R: Read + Send + 'static>(
         &mut self,
         chunker: &impl AsyncChunker,
-        repository: &mut Repository<impl Backend>,
+        repository: &mut Repository<impl BackendClone>,
         path: &str,
         from_reader: R,
     ) -> Result<()> {
@@ -167,7 +167,7 @@ impl ActiveArchive {
     pub async fn put_sparse_object<R: Read + Send + 'static>(
         &mut self,
         chunker: &impl AsyncChunker,
-        repository: &mut Repository<impl Backend>,
+        repository: &mut Repository<impl BackendClone>,
         path: &str,
         from_readers: Vec<(Extent, R)>,
     ) -> Result<()> {
@@ -224,7 +224,7 @@ impl ActiveArchive {
     /// Will fill in holes with zeros.
     pub async fn get_object(
         &self,
-        repository: &mut Repository<impl Backend>,
+        repository: &mut Repository<impl BackendClone>,
         path: &str,
         mut restore_to: impl Write,
     ) -> Result<()> {
@@ -263,7 +263,7 @@ impl ActiveArchive {
     /// Will write past the end of the last chunk ends after the extent
     pub async fn get_extent(
         &self,
-        repository: &mut Repository<impl Backend>,
+        repository: &mut Repository<impl BackendClone>,
         path: &str,
         extent: Extent,
         mut restore_to: impl Write,
@@ -308,7 +308,7 @@ impl ActiveArchive {
     /// Will not write to extents that are not specified
     pub async fn get_sparse_object(
         &self,
-        repository: &mut Repository<impl Backend>,
+        repository: &mut Repository<impl BackendClone>,
         path: &str,
         mut to_writers: Vec<(Extent, impl Write)>,
     ) -> Result<()> {
@@ -339,7 +339,7 @@ impl ActiveArchive {
     ///  object, and consuming the Archive in the process.
     ///
     /// Returns the key of the serialized archive in the repository
-    pub async fn store(self, repo: &mut Repository<impl Backend>) -> StoredArchive {
+    pub async fn store(self, repo: &mut Repository<impl BackendClone>) -> StoredArchive {
         let dumb_archive = self.into_archive().await;
         let mut bytes = Vec::<u8>::new();
         dumb_archive
@@ -420,7 +420,7 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
-    fn get_repo_mem(key: Key) -> Repository<impl Backend> {
+    fn get_repo_mem(key: Key) -> Repository<impl BackendClone> {
         let settings = ChunkSettings::lightweight();
         let backend = Mem::new(settings);
         Repository::with(backend, settings, key)

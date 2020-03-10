@@ -1,7 +1,7 @@
 use crate::chunker::AsyncChunker;
 use crate::manifest::archive::{ActiveArchive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
-use crate::repository::{Backend, Repository};
+use crate::repository::{BackendClone, Repository};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -33,7 +33,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
     /// route, otherwise use `store_object`.
     ///
     /// Stores objects in sub-namespaces of the namespace of the archive object provided
-    async fn raw_store_object<B: Backend, C: AsyncChunker + Send + 'static>(
+    async fn raw_store_object<B: BackendClone, C: AsyncChunker + Send + 'static>(
         &self,
         repo: &mut Repository<B>,
         chunker: C,
@@ -78,7 +78,7 @@ pub trait BackupDriver<T: Read + Send + 'static>: BackupTarget<T> {
 
     /// Convenience method that performs a call to `self.backup_object` for you and
     /// routes the results into `self.raw_store_object`
-    async fn store_object<B: Backend, C: AsyncChunker + Send + 'static>(
+    async fn store_object<B: BackendClone, C: AsyncChunker + Send + 'static>(
         &self,
         repo: &mut Repository<B>,
         chunker: C,
@@ -105,7 +105,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
     /// otherwise use retrive_object.
     ///
     /// Retrives objects from the stub-namespaces of the namespace of the object provided
-    async fn raw_retrieve_object<B: Backend>(
+    async fn raw_retrieve_object<B: BackendClone>(
         &self,
         repo: &mut Repository<B>,
         archive: &ActiveArchive,
@@ -147,7 +147,7 @@ pub trait RestoreDriver<T: Write + Send + 'static>: RestoreTarget<T> {
 
     /// Retrieves an object, performing the call to BackupTarget::restore_object and raw_retrive_object
     /// for you.
-    async fn retrieve_object<B: Backend>(
+    async fn retrieve_object<B: BackendClone>(
         &self,
         repo: &mut Repository<B>,
         archive: &ActiveArchive,

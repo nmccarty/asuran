@@ -17,7 +17,7 @@ fn get_test_data(size: usize) -> (Vec<u8>, Vec<u8>) {
 
 async fn slice_and_store(
     data: &'static [u8],
-    repo: Repository<impl Backend>,
+    repo: Repository<impl BackendClone>,
     chunker: impl AsyncChunker,
 ) {
     let slicer = chunker.chunk_slice(data);
@@ -33,7 +33,7 @@ async fn slice_and_store(
     let _results = join_all(futs).await;
 }
 
-fn get_repo(key: Key) -> Repository<impl Backend> {
+fn get_repo(key: Key) -> Repository<impl BackendClone> {
     let settings = ChunkSettings {
         compression: Compression::ZStd { level: 1 },
         encryption: Encryption::new_aes256ctr(),

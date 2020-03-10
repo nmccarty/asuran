@@ -159,6 +159,9 @@ impl Backend for DynamicBackend {
             DynamicBackend::FlatFile(x) => x.close().await,
         }
     }
+    fn get_object_handle(&self) -> BackendObject {
+        backend_to_object(self.clone())
+    }
 }
 
 impl From<MultiFile> for DynamicBackend {

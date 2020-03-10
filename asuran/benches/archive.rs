@@ -28,7 +28,7 @@ fn compressable_random(mut rng: impl Rng, length: usize) -> Vec<u8> {
 
 async fn store<'a>(
     data: &'static [u8],
-    mut repo: Repository<impl Backend>,
+    mut repo: Repository<impl BackendClone>,
     chunker: impl AsyncChunker,
 ) {
     let mut manifest = Manifest::load(&repo);
@@ -48,7 +48,7 @@ async fn store<'a>(
     repo.close().await;
 }
 
-fn get_repo(key: Key) -> Repository<impl Backend> {
+fn get_repo(key: Key) -> Repository<impl BackendClone> {
     let settings = ChunkSettings {
         compression: Compression::ZStd { level: 1 },
         encryption: Encryption::new_aes256ctr(),

@@ -42,7 +42,7 @@
 //! effectivly preventing the storage of duplicate chunks.
 use thiserror::Error;
 
-pub use crate::repository::backend::{Backend, Index, SegmentDescriptor};
+pub use crate::repository::backend::{Backend, BackendClone, Index, SegmentDescriptor};
 use crate::repository::pipeline::Pipeline;
 pub use asuran_core::repository::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
 pub use asuran_core::repository::compression::Compression;
@@ -88,7 +88,7 @@ pub struct Repository<T> {
     pipeline: Pipeline,
 }
 
-impl<T: Backend + 'static> Repository<T> {
+impl<T: BackendClone + 'static> Repository<T> {
     /// Creates a new repository with the specificed backend and defaults
     #[instrument(skip(key))]
     pub fn new(
