@@ -51,13 +51,13 @@ impl InternalSegmentHandler {
     ///
     /// Will create the directory if it does not exist
     ///
-    /// Note: the repository_path is the path of the root folder of the repository, not the data
+    /// Note: the `repository_path` is the path of the root folder of the repository, not the data
     /// folder
     ///
     /// Will default to a cache size of 100 file handles.
     ///
     /// This implementation is not thread safe, please see `SegmentHandler` for a thread safe
-    /// implemenation on top of this
+    /// implementation on top of this
     ///
     /// # Errors
     ///
@@ -69,9 +69,9 @@ impl InternalSegmentHandler {
     ///
     /// # TODOs:
     ///
-    /// 1. This function currently recursivly walks the entire data directory to find the highest
-    /// numbered segment, when we can skip the recursion and only inspect the higest numbered
-    /// segement folder, and still have correct behavior
+    /// 1. This function currently recursively walks the entire data directory to find the highest
+    /// numbered segment, when we can skip the recursion and only inspect the highest numbered
+    /// segment folder, and still have correct behavior
     fn open(
         repository_path: impl AsRef<Path>,
         size_limit: u64,
@@ -310,7 +310,13 @@ pub struct SegmentHandler {
 ///    must ensure that you call the close function on all segments before the
 ///    program terminates.
 impl SegmentHandler {
-    /// Opens a segmenthandler, creating the data directory and the inital segment if it does not exist
+    /// Opens a `SegmentHandler`, creating the data directory and the initial
+    /// segment if it does not exist
+    ///
+    /// # Errors
+    ///
+    /// Will error if creating/locking a segment fails, such as if the user does
+    /// not have access to that directory, or if any other I/O error occurs
     pub fn open(
         repository_path: impl AsRef<Path>,
         size_limit: u64,

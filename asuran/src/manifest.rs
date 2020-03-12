@@ -72,7 +72,7 @@ impl<T: BackendClone> Manifest<T> {
 
     /// Returns a copy of the list of archives in this repository
     ///
-    /// Theses can be converted into full archives with StoredArchive::load
+    /// Theses can be converted into full archives with `StoredArchive::load`
     pub async fn archives(&mut self) -> Vec<StoredArchive> {
         self.internal_manifest.archive_iterator().await.collect()
     }

@@ -22,13 +22,13 @@ use tokio::task;
 #[derive(Error, Debug)]
 pub enum ArchiveError {
     #[error("Chunker Error")]
-    ChunkerError(#[from] crate::chunker::ChunkerError),
+    Chunker(#[from] crate::chunker::ChunkerError),
     #[error("I/O Error")]
-    IOError(#[from] std::io::Error),
+    IO(#[from] std::io::Error),
     #[error("Async Task Join Error")]
-    AsyncJoinError(#[from] task::JoinError),
+    AsyncJoin(#[from] task::JoinError),
     #[error("")]
-    RepositoryError(#[from] crate::repository::RepositoryError),
+    Repository(#[from] crate::repository::RepositoryError),
 }
 
 type Result<T> = std::result::Result<T, ArchiveError>;
@@ -145,7 +145,7 @@ impl ActiveArchive {
     ///
     /// Will read holes as 0s
     ///
-    /// This is implemented as a thin wrapper around put_sparse_object
+    /// This is implemented as a thin wrapper around `put_sparse_object`
     pub async fn put_object<R: Read + Send + 'static>(
         &mut self,
         chunker: &impl AsyncChunker,
@@ -373,7 +373,7 @@ impl ActiveArchive {
         &self.timestamp
     }
 
-    /// Converts an Archive into an ActiveArchive
+    /// Converts an Archive into an `ActiveArchive`
     pub fn from_archive(archive: Archive) -> ActiveArchive {
         ActiveArchive {
             name: archive.name,

@@ -94,7 +94,7 @@ enum SyncCommand<I> {
 
 /// Wrapper Type for sync backends that converts them into async backends
 ///
-/// Functions by moving the provided back end into a dedicated tokio task, and then sending SyncCommands
+/// Functions by moving the provided back end into a dedicated tokio task, and then sending `SyncCommands`
 /// to instruct that task on what to do.
 pub struct BackendHandle<B: SyncBackend> {
     channel:
@@ -376,4 +376,3 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
         backend_to_object(self.clone())
     }
 }
-

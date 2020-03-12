@@ -5,7 +5,10 @@
 //! while providing encryption, compression, and global deduplication.
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
-#![allow(clippy::must_use)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::missing_errors_doc)]
 
 use byteorder::{BigEndian, WriteBytesExt};
 use lazy_static::lazy_static;

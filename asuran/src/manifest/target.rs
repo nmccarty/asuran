@@ -29,7 +29,7 @@ pub struct BackupObject<T: Read> {
 }
 
 impl<T: Read> BackupObject<T> {
-    /// Create a new, empty BackupObject with a predefined total size
+    /// Create a new, empty `BackupObject` with a predefined total size
     pub fn new(total_size: u64) -> BackupObject<T> {
         let ranges = Vec::new();
         BackupObject { ranges, total_size }
@@ -43,7 +43,7 @@ impl<T: Read> BackupObject<T> {
     }
 
     #[cfg_attr(tarpaulin, skip)]
-    /// Returns the total_size of the object
+    /// Returns the `total_size` of the object
     pub fn total_size(&self) -> u64 {
         self.total_size
     }
@@ -82,7 +82,7 @@ pub struct RestoreObject<T: Write> {
 }
 
 impl<T: Write> RestoreObject<T> {
-    /// Create a new, empty RestorepObject with a defined size
+    /// Create a new, empty `RestoreObject` with a defined size
     pub fn new(total_size: u64) -> RestoreObject<T> {
         let ranges = Vec::new();
         RestoreObject { ranges, total_size }
@@ -96,7 +96,7 @@ impl<T: Write> RestoreObject<T> {
     }
 
     #[cfg_attr(tarpaulin, skip)]
-    /// Returns the total_size of the object
+    /// Returns the `total_size` of the object
     pub fn total_size(&self) -> u64 {
         self.total_size
     }

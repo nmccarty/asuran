@@ -130,11 +130,11 @@ pub struct Index {
     path: String,
 }
 
-/// MultiFile index with lock free multithreading
+/// `MultiFile` index with lock free multithreading
 ///
 /// # Warning
 ///
-/// You must call `commit_index` for your changes to be commited to disk, the Index
+/// You must call `commit_index` for your changes to be committed to disk, the Index
 /// will not do this for you
 impl Index {
     /// Opens and reads the index, creating it if it does not exist.
@@ -144,7 +144,7 @@ impl Index {
     ///
     /// This method will create the index folder if it does not exist.
     ///
-    /// Files whos names are not strictly base 10 integers are ignored, and will not be added to the
+    /// Files who's names are not strictly base 10 integers are ignored, and will not be added to the
     /// state or written to.
     ///
     /// This method only creates the event loop on its own, the actual index is created by

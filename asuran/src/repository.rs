@@ -144,9 +144,9 @@ impl<T: BackendClone + 'static> Repository<T> {
 
     /// Writes a chunk directly to the repository
     ///
-    /// Will return (Chunk_Id, Already_Present)
+    /// Will return (`Chunk_ID`, `Already_Present`)
     ///
-    /// Already_Present will be true if the chunk already exists in the
+    /// `Already_Present` will be true if the chunk already exists in the
     /// repository.
     pub async fn write_raw(&mut self, chunk: Chunk) -> Result<(ChunkID, bool)> {
         let id = chunk.get_id();

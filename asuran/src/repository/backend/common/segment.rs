@@ -210,7 +210,7 @@ impl<T: Read + Write + Seek> Segment<T> {
 }
 
 #[derive(Debug)]
-/// Analogue of `Segement` that uses a BufReader, but can only allow read operations
+/// Analogue of `Segement` that uses a `BufReader`, but can only allow read operations
 pub struct ReadSegment<T> {
     handle: BufReader<T>,
     size_limit: u64,
@@ -228,7 +228,7 @@ impl<T: Read + Seek> ReadSegment<T> {
 }
 
 #[derive(Debug)]
-/// Analogue of `Segment` that uses a BufWriter, but can only allow write operations
+/// Analogue of `Segment` that uses a `BufWriter`, but can only allow write operations
 pub struct WriteSegment<T: Write> {
     handle: BufWriter<T>,
     size_limit: u64,

@@ -38,7 +38,7 @@ pub struct ManifestTransaction {
 }
 
 impl ManifestTransaction {
-    /// Constructs a new ManifestTransaction from the given list of previous heads, a
+    /// Constructs a new `ManifestTransaction` from the given list of previous heads, a
     /// pointer, a name, a timestamp, and an HMAC method to use
     ///
     /// Will automatically produce the random nonce, and update the tag

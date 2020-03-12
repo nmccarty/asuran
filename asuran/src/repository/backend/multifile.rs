@@ -22,9 +22,15 @@ pub struct MultiFile {
 }
 
 impl MultiFile {
-    /// Opens a new MultiFile backend with default settings
+    /// Opens a new `MultiFile` backend with default settings
     ///
     /// Subject to change in the near future
+    ///
+    /// # Errors
+    ///
+    /// Will error if creating or locking any of the index or manifest files
+    /// fails (such as if the user does not have permissions for that
+    /// directory), or if any other I/O error occurs
     pub fn open_defaults(
         path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
@@ -50,6 +56,10 @@ impl MultiFile {
     /// Does not require that the repository be opened first
     ///
     /// Note: this path is the repository root path, not the key path
+    ///
+    /// # Errors
+    ///
+    /// Will error if the key is corrupted or deserialization otherwise fails
     pub fn read_key(path: impl AsRef<Path>) -> Result<EncryptedKey> {
         let key_path = path.as_ref().join("key");
         let file = File::open(&key_path)?;

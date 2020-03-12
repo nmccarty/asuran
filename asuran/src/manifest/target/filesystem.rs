@@ -19,9 +19,9 @@ pub struct FileSystemTarget {
 }
 
 impl FileSystemTarget {
-    /// Creates a new FileSystemTarget with the given path as its top level directory.
+    /// Creates a new `FileSystemTarget` with the given path as its top level directory.
     ///
-    /// The FileSystemTarget will consider all paths below this directory for backup.
+    /// The `FileSystemTarget` will consider all paths below this directory for backup.
     pub fn new(root_directory: &str) -> FileSystemTarget {
         FileSystemTarget {
             root_directory: root_directory.to_string(),
