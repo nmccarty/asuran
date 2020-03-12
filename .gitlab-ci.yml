@@ -9,7 +9,7 @@ stages:
 
 test:lint:rustfmt:
   stage: format
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   script:
     - cargo fmt --all -- --check
   tags:
@@ -19,7 +19,7 @@ test:lint:rustfmt:
     
 test:lint:clippy:
   stage: lint
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   script:
     - cargo clippy -- -D warnings
   tags:
@@ -30,10 +30,11 @@ test:lint:clippy:
     
 test:test:linux:
   stage: test
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   script:
     - rustc --version
     - cargo --version
+    - cargo install cargo-junit
     - cargo junit --name linux.xml
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
@@ -62,7 +63,7 @@ test:test:windows:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["test:lint:rustfmt"]
   allow_failure: true
   only:
@@ -91,7 +92,7 @@ test:coverage:
 
 build:build:linux:
   stage: build
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   script:
     - cargo build --release
   artifacts:
@@ -122,7 +123,7 @@ build:build:windows:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["test:test:windows"]
   only:
     - master
@@ -130,7 +131,7 @@ build:build:windows:
 
 build:bench:linux:
   stage: bench
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   variables:
     RUSTFLAGS: "-C target-cpu=native"
   script:
@@ -159,7 +160,7 @@ build:bench:windows:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["build:build:windows"]
   only:
     - master
@@ -167,11 +168,11 @@ build:bench:windows:
 
 pages:
   stage: doc
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "guangie88/rustfmt-clippy:stable"
   script:
     - cargo doc --no-deps --document-private-items
     - mv target/doc public
-    - echo '<meta http-equiv="refresh" content="0; url=libasuran">' > public/index.html
+    - echo '<meta http-equiv="refresh" content="0; url=asuran">' > public/index.html
   artifacts:
     paths:
       - public
