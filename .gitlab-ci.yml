@@ -55,9 +55,10 @@ test:test:windows:
   script:
     - choco install rustup.install -y --ignore-checksums
     - refreshenv
-    - \%USERPROFILE\%/.cargo/bin/cargo --version
-    - \%USERPROFILE\%/.cargo/bin/rustc --version
-    - \%USERPROFILE\%/.cargo/bin/cargo test
+    - tree
+    - C:/Users/gitlab_runner/.cargo/bin/cargo --version
+    - C:/Users/gitlab_runner/.cargo/bin/rustc --version
+    - C:/Users/gitlab_runner/.cargo/bin/cargo test
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
