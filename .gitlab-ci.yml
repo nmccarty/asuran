@@ -54,21 +54,28 @@ test:test:linux:
 test:test:windows:
   stage: test
   script:
-    - rustc --version
+    - choco install rust-ms -y
     - cargo --version
-    - cargo test 
+    - rustc --version
+    - cargo install cargo-junit
+    - cargo junit --name windows.xml
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
       - ~/.cargo
       - target
   tags:
-    - windows-own
+    - windows
   needs: ["test:lint:rustfmt"]
   allow_failure: true
   only:
     - master
     - tags
+  artifacts:
+    paths:
+      - windows.xml
+    reports:
+      junit: windows.xml
 
 test:coverage:
   stage: coverage
