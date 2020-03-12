@@ -54,6 +54,7 @@ test:test:windows:
   stage: test
   script:
     - choco install rustup.install -y --ignore-checksums
+    - refreshenv
     - rustup toolchain default stable-msvc
     - cargo --version
     - rustc --version
