@@ -117,6 +117,9 @@ build:build:linux:
 build:build:windows:
   stage: build
   script:
+    - choco install rust-ms -y
+    - cargo --version
+    - rustc --version
     - cargo build --release
   artifacts:
     paths:
@@ -127,7 +130,7 @@ build:build:windows:
       - ~/.cargo
       - target
   tags:
-    - windows-own
+    - windows
   needs: ["test:test:windows"]
   only:
     - master
@@ -157,6 +160,9 @@ build:bench:windows:
   variables:
     RUSTFLAGS: "-C target-cpu=native"
   script:
+    - choco install rust-ms -y
+    - cargo --version
+    - rustc --version
     - cargo bench
   cache:
     key: "$CI_COMMIT_REF_SLUG-bench"
@@ -164,7 +170,7 @@ build:bench:windows:
       - ~/.cargo
       - target
   tags:
-    - windows-own
+    - windows
   needs: ["build:build:windows"]
   only:
     - master
