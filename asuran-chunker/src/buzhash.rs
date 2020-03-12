@@ -3,7 +3,7 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::io::Read;
 
-/// Settings for a BuzHash `Chunker`
+/// Settings for a `BuzHash` `Chunker`
 ///
 /// Uses a randomized lookup table derived from a nonce provided by the repository
 /// key material, to help provide resistance against a chunk size based

@@ -61,7 +61,7 @@ impl FastCDCChunker {
     /// Drains a specified number of bytes from the reader, and refills it back up to `max_size` with
     /// zeros.
     ///
-    /// Additonally updates the pointer to the new end of the vec
+    /// Additionally updates the pointer to the new end of the vec
     ///
     /// # Errors
     ///
@@ -70,7 +70,7 @@ impl FastCDCChunker {
     ///
     /// # Panics
     ///
-    /// Panics if the internal buffer's length is not max_size. This is an invariant, and the end
+    /// Panics if the internal buffer's length is not `max_size`. This is an invariant, and the end
     /// consumer of the struct should never be exposed to this error.
     fn drain_bytes(&mut self, count: usize) -> Result<Vec<u8>, ChunkerError> {
         assert!(self.buffer.len() == self.settings.max_size);
@@ -98,7 +98,7 @@ impl FastCDCChunker {
 
     /// Attempts fill the buffer back up with bytes from the read
     ///
-    /// Returns the number of bytes read. Will not attempt to read bytes if EoF has already been
+    /// Returns the number of bytes read. Will not attempt to read bytes if `EoF` has already been
     /// encountered.
     ///
     /// # Errors
@@ -107,7 +107,7 @@ impl FastCDCChunker {
     ///
     /// # Panics
     ///
-    /// Panics if the internal buffer's length is not max_size. This is an invariant, and the end
+    /// Panics if the internal buffer's length is not `max_size`. This is an invariant, and the end
     /// consumer of the struct shuold never be exposed to this error.
     fn read_bytes(&mut self) -> Result<usize, ChunkerError> {
         assert!(self.buffer.len() == self.settings.max_size);
@@ -132,15 +132,15 @@ impl FastCDCChunker {
         }
     }
 
-    /// Uses the fastcdc algorithim to produce the next chunk of data.
+    /// Uses the `FastCDC` algorithm to produce the next chunk of data.
     ///
     /// # Errors
     ///
-    /// Returns `ChunkerError::Empty` if EoF has been hit
+    /// Returns `ChunkerError::Empty` if `EoF` has been hit
     ///
     /// # Panics
     ///
-    /// Panics if the internal buffer's length is not max_size. This is an invariant, and the end
+    /// Panics if the internal buffer's length is not `max_size`. This is an invariant, and the end
     /// consumer of the struct should never be exposed to this error.
     fn next_chunk(&mut self) -> Result<Vec<u8>, ChunkerError> {
         assert_eq!(self.buffer.len(), self.settings.max_size);
@@ -161,7 +161,7 @@ impl FastCDCChunker {
                 let result = self.drain_bytes(chunk.length)?;
                 Ok(result)
             } else {
-                // We really shouldnt be here, since we ruled out the empty case, eairlier but we
+                // We really shouldn't be here, since we ruled out the empty case, earlier but we
                 // will error anyway
                 Err(ChunkerError::Empty)
             }
