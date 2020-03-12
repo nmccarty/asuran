@@ -7,6 +7,7 @@ use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use thiserror::Error;
 use zeroize::Zeroize;
 
@@ -95,17 +96,17 @@ impl Key {
         }
     }
 
-    /// Obtains a refrence to the key bytes
+    /// Obtains a reference to the key bytes
     pub fn key(&self) -> &[u8] {
         &self.key
     }
 
-    /// Obtains a refrence to the HMAC key bytes
+    /// Obtains a reference to the HMAC key bytes
     pub fn hmac_key(&self) -> &[u8] {
         &self.hmac_key
     }
 
-    /// Obtains a refrence to the ID key bytes
+    /// Obtains a reference to the ID key bytes
     pub fn id_key(&self) -> &[u8] {
         &self.id_key
     }
@@ -116,7 +117,7 @@ impl Key {
     }
 }
 
-/// Stores the key, encrypted with another key dervied from the user specified
+/// Stores the key, encrypted with another key derived from the user specified
 /// password/passphrase
 ///
 /// Uses argon2 to derive the key encryption key from the user supplied key.
@@ -134,12 +135,7 @@ pub struct EncryptedKey {
 }
 
 impl EncryptedKey {
-    /// Produces an encrypted key from the specified userkey and encryption method
-    ///
-    /// # Panics
-    ///
-    /// Will panic if passed Encryption::NoEncryption as an encryption method. This encryption
-    /// method has a 0 byte key length, and argon 2 is unable to produce a hash of size 0.
+    /// Produces an encrypted key from the specified user key and encryption method
     pub fn encrypt(
         key: &Key,
         mem_cost: u32,
@@ -166,7 +162,10 @@ impl EncryptedKey {
             lanes: 1,
             secret: &[],
             ad: &[],
-            hash_length: encryption.key_length() as u32,
+            hash_length: encryption
+                .key_length()
+                .try_into()
+                .expect("Key length was too large (larger than usize)"),
         };
 
         let generated_key_bytes = argon2::hash_raw(&user_key, &salt, &config).unwrap();
@@ -181,13 +180,13 @@ impl EncryptedKey {
         }
     }
 
-    /// Convience function that uses argon2 paramaters that the author of this program
+    /// Convince function that uses argon2 parameters that the author of this program
     /// believes are reasonable as of time of writing. Please review them and apply your
     /// own common sense before blaming the author for the FBI reading your data.
     ///
-    /// Paramaters are:
-    /// - mem_cost: 65536
-    /// - time_cost: 10
+    /// Parameters are:
+    /// - `mem_cost`: 65536
+    /// - `time_cost`: 10
     #[cfg_attr(tarpaulin, skip)]
     pub fn encrypt_defaults(key: &Key, encryption: Encryption, user_key: &[u8]) -> EncryptedKey {
         EncryptedKey::encrypt(key, 65536, 10, encryption, user_key)
@@ -209,7 +208,11 @@ impl EncryptedKey {
             lanes: 1,
             secret: &[],
             ad: &[],
-            hash_length: self.encryption.key_length() as u32,
+            hash_length: self
+                .encryption
+                .key_length()
+                .try_into()
+                .expect("Key length was too large (larger than usize)"),
         };
         let generated_key_bytes = argon2::hash_raw(&user_key, &self.salt, &config)?;
         // Decrypt the key

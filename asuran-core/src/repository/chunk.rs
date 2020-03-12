@@ -104,7 +104,7 @@ impl ChunkSettings {
     }
 }
 
-/// A binary blob that has not yet undergone encryption, compression, or HMACing,
+/// A binary blob that has not yet undergone encryption, compression, or `HMAC`,
 /// but has had a `ChunkID` generated.
 pub struct UnpackedChunk {
     data: Vec<u8>,
@@ -171,7 +171,7 @@ impl Chunk {
     ///
     /// # Panics
     ///
-    /// Will panic if any of the compression, encryption, or HMACing operations fail.
+    /// Will panic if any of the compression, encryption, or `HMAC` operations fail.
     /// This would represent a massive programming oversight which the user of the
     /// library has little hope of recovering from safely without compromising
     /// cryptographic integrity.

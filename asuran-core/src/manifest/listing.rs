@@ -59,7 +59,7 @@ impl Node {
         }
     }
 
-    /// Returns a copy of self with any children (in a NodeType::Directory) removed
+    /// Returns a copy of self with any children (in a `NodeType::Directory`) removed
     pub fn drain_children(&self) -> Node {
         let node_type = match &self.node_type {
             NodeType::Directory { .. } => NodeType::Directory {

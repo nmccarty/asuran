@@ -56,21 +56,21 @@ pub enum Encryption {
 }
 
 impl Encryption {
-    /// Creates an AES256CBC with a random, securely generated IV
+    /// Creates an `AES256CBC` with a random, securely generated IV
     pub fn new_aes256cbc() -> Encryption {
         let mut iv: [u8; 16] = [0; 16];
         thread_rng().fill_bytes(&mut iv);
         Encryption::AES256CBC { iv }
     }
 
-    /// Creates a new AES256CTR with a random securely generated IV
+    /// Creates a new `AES256CTR` with a random securely generated IV
     pub fn new_aes256ctr() -> Encryption {
         let mut iv: [u8; 16] = [0; 16];
         thread_rng().fill_bytes(&mut iv);
         Encryption::AES256CTR { iv }
     }
 
-    /// Creates a new ChaCha20 with a random securely generated IV
+    /// Creates a new `ChaCha20` with a random securely generated IV
     pub fn new_chacha20() -> Encryption {
         let mut iv: [u8; 12] = [0; 12];
         thread_rng().fill_bytes(&mut iv);
@@ -79,7 +79,7 @@ impl Encryption {
 
     /// Returns the key length of this encryption method in bytes
     ///
-    /// NoEncryption has a key length of 16 bytes, as some things rely on a non-zero key
+    /// `NoEncryption` has a key length of 16 bytes, as some things rely on a non-zero key
     /// length.
     pub fn key_length(&self) -> usize {
         match self {
