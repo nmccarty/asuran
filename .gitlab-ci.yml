@@ -53,28 +53,20 @@ test:test:linux:
 test:test:windows:
   stage: test
   script:
-    - choco install rustup.install -y --ignore-checksums
-    - refreshenv
-    - tree
-    - C:/Users/gitlab_runner/.cargo/bin/cargo --version
-    - C:/Users/gitlab_runner/.cargo/bin/rustc --version
-    - C:/Users/gitlab_runner/.cargo/bin/cargo test
+    - cargo --version
+    - rustc --version
+    - cargo test
   cache:
     key: "$CI_COMMIT_REF_SLUG-test"
     paths:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["test:lint:rustfmt"]
   only:
     - master
     - tags
-  artifacts:
-    paths:
-      - windows.xml
-    reports:
-      junit: windows.xml
 
 test:coverage:
   stage: coverage
@@ -119,7 +111,6 @@ build:build:linux:
 build:build:windows:
   stage: build
   script:
-    - choco install rust-ms -y
     - cargo --version
     - rustc --version
     - cargo build --release
@@ -132,7 +123,7 @@ build:build:windows:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["test:test:windows"]
   only:
     - master
@@ -162,7 +153,6 @@ build:bench:windows:
   variables:
     RUSTFLAGS: "-C target-cpu=native"
   script:
-    - choco install rust-ms -y
     - cargo --version
     - rustc --version
     - cargo bench
@@ -172,7 +162,7 @@ build:bench:windows:
       - ~/.cargo
       - target
   tags:
-    - windows
+    - windows-own
   needs: ["test:lint:rustfmt"]
   only:
     - master
