@@ -2,7 +2,7 @@
 name = "asuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "BSD-2-Clause-Patent"
-version = "0.0.8-dev"
+version = "0.0.8"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
