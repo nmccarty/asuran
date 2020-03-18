@@ -1,6 +1,6 @@
 [package]
 name = "asuran-core"
-license = "MIT"
+license = "BSD-2-Clause-Patent"
 version = "0.0.8-dev"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"

@@ -1,7 +1,7 @@
 [package]
 name = "asuran-cli"
 description = "Deduplicating, secure, tamper resistant archiver"
-license = "MIT"
+license = "BSD-2-Clause-Patent"
 version = "0.0.8-dev"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran-cli"

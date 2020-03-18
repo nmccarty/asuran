@@ -14,7 +14,7 @@ Asuran should be sutible for the long term archival of data, should be operating
 
 It should strive to make backups a fast and easy process, and to allow the user to preserve as much of their file history as possible in the space they have avaible. After all, what good is a backup that never ran because it would have taken too long, or the backup that got deleted because it was using too much space?
 
-Asuran should be safe for use on untrusted storage, and should not leak any data that could reveal, to any extent, the contents of the repository. 
+Asuran should be safe for use on untrusted storage, and should not leak any data that could reveal, to any extent, the contents of the repository.
 
 How Does it Work?
 -----------------
@@ -69,9 +69,9 @@ The asuran format is split into three logical layers
 License
 -------
 
-Asuran is distrubuted under the terms of the [MIT](LICENSE) License.
+Asuran is distrubuted under the terms of the [BSD 2 Clause + Patent](LICENSE) License.
 
-By contributing to this project, you agree to license your contributions under the terms of the MIT License.
+By contributing to this project, you agree to license your contributions under the terms of the BSD 2 Clause + Patent License.
 
 Contributing
 ------------
@@ -82,7 +82,7 @@ If you have any questions, feel free to hop in the chat and ask! We welcome anyo
 
 I am now doing a weekly blog segment on development status [my personal website](https://mccarty.io/). This might be helpful for new contributors to get caught up on what is currently being done.
 
-If you are on github, please hop on over to our gitlab. The github repo is strictly a mirror. 
+If you are on github, please hop on over to our gitlab. The github repo is strictly a mirror.
 
 Chat & Support
 --------------
