@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 pub mod chunker;
 pub mod manifest;
+pub mod prelude;
 pub mod repository;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
