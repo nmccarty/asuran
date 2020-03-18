@@ -16,7 +16,8 @@ streams = ["tokio", "futures"]
 [dependencies]
 fastcdc = "1.0.2"
 futures = { version = "0.3.4", default-features = false, features = ["std"], optional = true }
-rand = { version = "0.7.3", features = ["small_rng"] }
+rand = "0.7.3"
+rand_chacha = "0.2.2"
 thiserror = "1.0.11"
 tokio = { version = "0.2.13", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"], optional = true }
 
