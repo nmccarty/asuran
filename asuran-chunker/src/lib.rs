@@ -9,8 +9,10 @@
 
 pub mod buzhash;
 pub mod fastcdc;
+pub mod static_size;
 pub use self::buzhash::*;
 pub use self::fastcdc::*;
+pub use self::static_size::*;
 
 use std::io;
 use thiserror::Error;
