@@ -15,10 +15,10 @@ readme = "README.md"
 asuran-chunker = { version = "^0.0.8-dev", path = "../asuran-chunker/", features = ["streams"] }
 asuran-core = { version = "^0.0.8-dev", path = "../asuran-core/" }
 async-trait = "0.1.24"
-base64 = "0.11.0"
+base64 = "0.12.0"
 bincode = "1.2.1"
 byteorder = "1.3.4"
-chrono = { version = "0.4.10", features = ["serde"] }
+chrono = { version = "0.4.11", features = ["serde"] }
 fastcdc = "1.0.2"
 futures = { version = "0.3.4", default-features = false, features = ["std"] }
 futures-intrusive = "0.3.0"
