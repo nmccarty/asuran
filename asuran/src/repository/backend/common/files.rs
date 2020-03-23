@@ -21,7 +21,15 @@ impl LockedFile {
     pub fn open_read_write<T: AsRef<Path>>(path: T) -> Result<Option<LockedFile>> {
         // generate the lock file path
         let path = path.as_ref().to_path_buf();
-        let lock_file_path = path.with_extension("lock");
+        let extension = if let Some(ext) = path.extension() {
+            // FIXME: Really need to handle this in a way that doesn't panic on non unicode
+            let mut ext = ext.to_str().unwrap().to_string();
+            ext.push_str(".lock");
+            ext
+        } else {
+            "lock".to_string()
+        };
+        let lock_file_path = path.with_extension(extension);
         // Check to see if the lock file exists
         if Path::exists(&lock_file_path) {
             // Unable to return the lock, failing

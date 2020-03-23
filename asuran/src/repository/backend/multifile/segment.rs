@@ -135,6 +135,15 @@ impl InternalSegmentHandler {
     /// 1. The segment or the folder containing it does not exist
     /// 2. Some IO error (such as lack of permissions) occurs opening the file
     fn open_segement_read(&mut self, segment_id: u64) -> Result<&mut SegmentPair<File>> {
+        // if the segment we are looking for happens to be the one in the write position, we can go
+        // ahead and flush it and discard it
+        if let Some(segment) = self.current_segment.as_mut() {
+            if segment.0 == segment_id {
+                segment.1.flush()?;
+                self.current_segment = None;
+            }
+        }
+
         // First, check the cache for the file
         let cache = &mut self.ro_segment_cache;
         // Due to what can only be described as lifetime nonsense, instead of branching on a if let
@@ -259,6 +268,8 @@ impl InternalSegmentHandler {
                             )?,
                         );
                         if segment.1.size() < self.size_limit {
+                            // If the segment is in the cache, we need to invalidate it
+                            self.ro_segment_cache.pop(&segment.0);
                             self.current_segment = Some(segment);
                             return Ok(self.current_segment.as_mut().unwrap());
                         }
@@ -277,10 +288,20 @@ impl InternalSegmentHandler {
             let segment_path = folder_path.join(segment_id.to_string());
             let header_path = folder_path.join(format!("{}.header", segment_id.to_string()));
             let segment_file = LockedFile::open_read_write(&segment_path)?.ok_or_else(|| {
-                BackendError::SegmentError("Unable to lock newly created segement file".to_string())
+                BackendError::SegmentError(format!(
+                    "Unable to lock newly created segment. File: {:?} Src File: {} Line: {}",
+                    &segment_path,
+                    file!(),
+                    line!()
+                ))
             })?;
             let header_file = LockedFile::open_read_write(&header_path)?.ok_or_else(|| {
-                BackendError::SegmentError("Unable to lock newly created segement file".to_string())
+                BackendError::SegmentError(format!(
+                    "Unable to lock newly created segment. File: {:?} Src File: {} Line: {}",
+                    &header_path,
+                    file!(),
+                    line!()
+                ))
             })?;
             let segment = SegmentPair(
                 segment_id,
@@ -323,9 +344,19 @@ impl InternalSegmentHandler {
         };
         // If we have exceeded the max size, close out the current segment
         if segment.1.size() >= self.size_limit {
+            self.current_segment.as_mut().map(|x| x.1.flush());
             self.current_segment = None
         }
         Ok(descriptor)
+    }
+
+    /// Flushes the changes to the current segment
+    fn flush(&mut self) -> Result<()> {
+        if let Some(segment) = self.current_segment.as_mut() {
+            segment.1.flush()
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -385,6 +416,7 @@ impl SegmentHandler {
                         task::block_in_place(|| ret.send(handler.write_chunk(chunk)).unwrap());
                     }
                     SegmentHandlerCommand::Close(ret) => {
+                        handler.flush().unwrap();
                         final_ret = Some(ret);
                         break;
                     }

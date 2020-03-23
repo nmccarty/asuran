@@ -294,7 +294,7 @@ pub struct Segment<T: Read + Write + Seek> {
     header_handle: SegmentHeaderPart<T>,
 }
 
-impl<T: Read + Write + Seek> Segment<T> {
+impl<T: Read + Write + Seek + std::fmt::Debug> Segment<T> {
     /// Creates a new segment given a reader and a maximum size
     pub fn new(
         data_handle: T,
@@ -327,7 +327,10 @@ impl<T: Read + Write + Seek> Segment<T> {
             .try_into()
             .expect("Index provided to read_chunk larger than could possibly fit into memory");
         let entry = self.header_handle.get_header(index).ok_or_else(|| {
-            BackendError::SegmentError("Invalid index provided to read_chunk".to_string())
+            BackendError::SegmentError(format!(
+                "Invalid index {} provided to read_chunk. {:?}",
+                index, self.header_handle
+            ))
         })?;
         self.data_handle.read_chunk(entry)
     }
@@ -340,6 +343,10 @@ impl<T: Read + Write + Seek> Segment<T> {
 
     pub fn read_header(&mut self) -> Result<Header> {
         self.data_handle.read_header()
+    }
+
+    pub fn flush(&mut self) -> Result<()> {
+        self.header_handle.flush()
     }
 }
 
