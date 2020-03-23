@@ -54,7 +54,7 @@ fn get_repo(key: Key) -> Repository<impl BackendClone> {
         encryption: Encryption::new_aes256ctr(),
         hmac: HMAC::Blake3,
     };
-    let backend = Mem::new(settings);
+    let backend = Mem::new(settings, key.clone());
     Repository::with(backend, settings, key)
 }
 
