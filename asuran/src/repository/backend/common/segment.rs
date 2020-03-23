@@ -268,7 +268,7 @@ impl<T: Read + Write + Seek> SegmentDataPart<T> {
             .try_into()
             .expect("Chunk size too big to fit in memory");
         let mut buffer = vec![0_u8; length];
-        self.handle.seek(SeekFrom::Start(header.end_offset))?;
+        self.handle.seek(SeekFrom::Start(header.start_offset))?;
         self.handle.read_exact(&mut buffer[..])?;
         let body = ChunkBody(buffer);
         Ok(Chunk::unsplit(header.header, body))
@@ -303,24 +303,39 @@ impl<T: Read + Write + Seek> Segment<T> {
         chunk_settings: ChunkSettings,
         key: Key,
     ) -> Result<Segment<T>> {
-        todo!()
+        let data_handle = SegmentDataPart::new(data_handle, size_limit)?;
+        let header_handle = SegmentHeaderPart::open(header_handle, key, chunk_settings)?;
+        Ok(Segment {
+            data_handle,
+            header_handle,
+        })
     }
 
     /// Returns the size in bytes of the segment
     pub fn size(&mut self) -> u64 {
-        todo!()
+        self.data_handle.size().unwrap()
     }
 
+    /// Returns the number of bytes of free space remaining in the segment
     pub fn free_bytes(&mut self) -> u64 {
-        todo!()
+        self.data_handle.free_bytes().unwrap()
     }
 
+    /// Reads the chunk with the specified index from the segment
     pub fn read_chunk(&mut self, index: u64) -> Result<Chunk> {
-        todo!()
+        let index: usize = index
+            .try_into()
+            .expect("Index provided to read_chunk larger than could possibly fit into memory");
+        let entry = self.header_handle.get_header(index).ok_or_else(|| {
+            BackendError::SegmentError("Invalid index provided to read_chunk".to_string())
+        })?;
+        self.data_handle.read_chunk(entry)
     }
 
     pub fn write_chunk(&mut self, chunk: Chunk) -> Result<u64> {
-        todo!()
+        let entry = self.data_handle.write_chunk(chunk)?;
+        let index = self.header_handle.insert_header(entry);
+        Ok(index as u64)
     }
 
     pub fn read_header(&mut self) -> Result<Header> {
