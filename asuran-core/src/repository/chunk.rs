@@ -136,6 +136,21 @@ impl UnpackedChunk {
     }
 }
 
+/// A split representation of a `Chunk`'s 'header' or metadata.
+/// Used for on disk storage
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChunkHeader {
+    compression: Compression,
+    encryption: Encryption,
+    hmac: HMAC,
+    mac: Vec<u8>,
+    id: ChunkID,
+}
+
+/// A split representation of a `Chunk`'s body, or contained data
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChunkBody(Vec<u8>);
+
 /// A binary blob, ready to be commited to storage
 ///
 /// A `Chunk` is an arbitrary sequence of bytes, along with its associated `ChunkID`
@@ -291,6 +306,32 @@ impl Chunk {
         self.id
     }
 
+    /// Splits a `Chunk` into its header and body components
+    pub fn split(self) -> (ChunkHeader, ChunkBody) {
+        let header = ChunkHeader {
+            compression: self.compression,
+            encryption: self.encryption,
+            hmac: self.hmac,
+            mac: self.mac,
+            id: self.id,
+        };
+        let body = ChunkBody(self.data);
+
+        (header, body)
+    }
+
+    /// Combines a header and a body into a `Chunk`
+    pub fn unsplit(header: ChunkHeader, body: ChunkBody) -> Chunk {
+        Chunk {
+            data: body.0,
+            compression: header.compression,
+            encryption: header.encryption,
+            hmac: header.hmac,
+            mac: header.mac,
+            id: header.id,
+        }
+    }
+
     #[cfg(test)]
     #[cfg_attr(tarpaulin, skip)]
     /// Testing only function used to corrupt the data
@@ -387,5 +428,24 @@ mod tests {
         let id = ChunkID::new(&data1);
         assert!(id.verify(&data1));
         assert!(!id.verify(&data2));
+    }
+
+    #[test]
+    fn split_unsplit() {
+        let data_string = "I am but a humble test string";
+        let data_bytes = data_string.as_bytes().to_vec();
+        let compression = Compression::LZ4 { level: 1 };
+        let encryption = Encryption::new_aes256ctr();
+        let hmac = HMAC::SHA256;
+
+        let key = Key::random(32);
+
+        let packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
+        let (header, body) = packed.split();
+        let packed = Chunk::unsplit(header, body);
+
+        let result = packed.unpack(&key);
+
+        assert!(result.is_ok());
     }
 }
