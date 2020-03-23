@@ -37,6 +37,8 @@ pub enum BackendError {
     FileLockError,
     #[error("Cancelled oneshot")]
     CancelledOneshotError(#[from] futures::channel::oneshot::Canceled),
+    #[error("Chunk Unpacking Error")]
+    ChunkUnpackError(#[from] asuran_core::repository::chunk::ChunkError),
     #[error("Unknown Error")]
     Unknown(String),
 }

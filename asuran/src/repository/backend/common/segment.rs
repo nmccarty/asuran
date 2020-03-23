@@ -1,6 +1,7 @@
 use crate::repository::backend::{BackendError, Result, TransactionType};
-use crate::repository::{Chunk, ChunkID};
-use rmp_serde as rpms;
+use crate::repository::{Chunk, ChunkID, ChunkSettings, Key};
+use asuran_core::repository::chunk::ChunkHeader;
+use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use uuid::Uuid;
@@ -57,6 +58,112 @@ impl Default for Header {
             minor: crate::VERSION_PIECES[1],
             patch: crate::VERSION_PIECES[2],
         }
+    }
+}
+
+/// Represents an entry in the Header Part of a segment
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SegmentHeaderEntry {
+    pub header: ChunkHeader,
+    pub start_offset: u64,
+    pub end_offset: u64,
+}
+
+/// A view over the header portion of a segment
+///
+/// Will cache the state of the header internally and flush the changes either when
+/// the `flush` method is called, or on drop.
+///
+/// It is strongly recommended to call the `flush` method before dropping this type.
+/// The `Drop` impl will attempt to call `flush`, but will ignore any errors that
+/// occur.
+pub struct SegmentHeaderPart<T: Read + Write + Seek> {
+    handle: T,
+    entries: Vec<SegmentHeaderEntry>,
+    settings: ChunkSettings,
+    key: Key,
+    changed: bool,
+}
+
+impl<T: Read + Write + Seek> SegmentHeaderPart<T> {
+    /// Attempts to open the header part of a `Segment`.
+    ///
+    /// # Errors:
+    ///
+    /// Will error if decryption fails, the header file has a malformed chunk, or if
+    /// some other IO error occurs.
+    pub fn open(mut handle: T, key: Key, settings: ChunkSettings) -> Result<Self> {
+        let len = handle.seek(SeekFrom::End(0))?;
+        // if we are empty, we don't need to actually read anything
+        if len > 0 {
+            handle.seek(SeekFrom::Start(0))?;
+            let chunk: Chunk = rmps::decode::from_read(&mut handle)?;
+            let data = chunk.unpack(&key)?;
+            let entries: Vec<SegmentHeaderEntry> = rmps::decode::from_slice(&data[..])?;
+            Ok(SegmentHeaderPart {
+                handle,
+                entries,
+                settings,
+                key,
+                changed: false,
+            })
+        } else {
+            Ok(SegmentHeaderPart {
+                handle,
+                entries: Vec::new(),
+                settings,
+                key,
+                changed: true,
+            })
+        }
+    }
+
+    /// Flushes the in-memory buffer to disk.
+    ///
+    /// Will not do anything if no changes have been added.
+    ///
+    /// Will additionally reset the changed flag.
+    ///
+    /// # Errors:
+    ///
+    /// Will error if an I/O error occurs during writing.
+    ///
+    pub fn flush(&mut self) -> Result<()> {
+        if self.changed {
+            self.handle.seek(SeekFrom::Start(0))?;
+            let data = rmps::encode::to_vec(&self.entries)?;
+            let chunk = Chunk::pack(
+                data,
+                self.settings.compression,
+                self.settings.encryption,
+                self.settings.hmac,
+                &self.key,
+            );
+            rmps::encode::write(&mut self.handle, &chunk)?;
+            self.changed = false;
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Will return the chunk header information at the given index, if one exists
+    pub fn get_header(&self, index: usize) -> Option<SegmentHeaderEntry> {
+        self.entries.get(index).cloned()
+    }
+
+    /// Will insert the chunk header information and provide its index
+    pub fn insert_header(&mut self, header: SegmentHeaderEntry) -> usize {
+        let index = self.entries.len();
+        self.entries.push(header);
+        self.changed = true;
+        index
+    }
+}
+
+impl<T: Read + Write + Seek> Drop for SegmentHeaderPart<T> {
+    fn drop(&mut self) {
+        let _ = self.flush();
     }
 }
 
@@ -180,7 +287,7 @@ impl<T: Read + Write + Seek> Segment<T> {
 
     pub fn read_chunk(&mut self, start: u64) -> Result<Chunk> {
         self.handle.seek(SeekFrom::Start(start))?;
-        let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
+        let tx: Transaction = rmps::decode::from_read(&mut self.handle)?;
         let data = tx.take_data().ok_or_else(|| {
             BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
         })?;
@@ -190,7 +297,7 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<u64> {
         let tx = Transaction::encode_insert(chunk, id);
         let start = self.handle.seek(SeekFrom::End(0))?;
-        rpms::encode::write(&mut self.handle, &tx)?;
+        rmps::encode::write(&mut self.handle, &tx)?;
         Ok(start)
     }
 
@@ -219,7 +326,7 @@ pub struct ReadSegment<T> {
 impl<T: Read + Seek> ReadSegment<T> {
     pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Chunk> {
         self.handle.seek(SeekFrom::Start(start))?;
-        let tx: Transaction = rpms::decode::from_read(&mut self.handle)?;
+        let tx: Transaction = rmps::decode::from_read(&mut self.handle)?;
         let data = tx.take_data().ok_or_else(|| {
             BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
         })?;
@@ -243,7 +350,7 @@ impl<T: Write + Seek> WriteSegment<T> {
     pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<(u64, u64)> {
         let tx = Transaction::encode_insert(chunk, id);
         let start = self.handle.seek(SeekFrom::End(0))?;
-        rpms::encode::write(&mut self.handle, &tx)?;
+        rmps::encode::write(&mut self.handle, &tx)?;
         let end = self.handle.seek(SeekFrom::End(0))?;
         let length = end - start;
         Ok((start, length))
