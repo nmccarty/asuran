@@ -138,17 +138,19 @@ mod tests {
     use tempfile::{tempdir, TempDir};
 
     // Utility function, sets up a tempdir and opens a MultiFile Backend
-    fn setup(key: &Key) -> (TempDir, MultiFile) {
+    async fn setup(key: &Key) -> (TempDir, MultiFile) {
         let tempdir = tempdir().unwrap();
         let path = tempdir.path().to_path_buf();
-        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), key).unwrap();
+        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), key)
+            .await
+            .unwrap();
         (tempdir, mf)
     }
 
     #[tokio::test]
     async fn key_store_load() {
         let key = Key::random(32);
-        let (tempdir, mut mf) = setup(&key);
+        let (tempdir, mut mf) = setup(&key).await;
         // Encrypt the key and store it
         let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), b"");
         mf.write_key(&enc_key).await.expect("Unable to write key");

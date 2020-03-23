@@ -96,8 +96,8 @@ mod tests {
             hmac: HMAC::Blake2b,
         };
 
-        let backend = crate::repository::backend::mem::Mem::new(settings);
         let key = Key::random(32);
+        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
         let repo = Repository::with(backend, settings, key);
         let mut manifest = Manifest::load(&repo);
 
@@ -110,8 +110,8 @@ mod tests {
     #[tokio::test(threaded_scheduler)]
     async fn new_archive_updates_time() {
         let settings = ChunkSettings::lightweight();
-        let backend = crate::repository::backend::mem::Mem::new(settings);
         let key = Key::random(32);
+        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
         let repo = Repository::with(backend.clone(), settings, key);
 
         let mut manifest = Manifest::load(&repo);

@@ -18,7 +18,7 @@ async fn backup_restore_no_empty_dirs_filesystem() {
     let repo_root = tempdir().unwrap();
     let repo_root_path = repo_root.path().to_str().unwrap();
     let key = Key::random(32);
-    let mut repo = common::get_repo_bare(repo_root_path, key);
+    let mut repo = common::get_repo_bare(repo_root_path, key).await;
     let chunker = FastCDC::default();
 
     let archive = ActiveArchive::new("test");

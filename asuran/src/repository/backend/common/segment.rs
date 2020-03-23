@@ -1,5 +1,5 @@
-use crate::repository::backend::{BackendError, Result, TransactionType};
-use crate::repository::{Chunk, ChunkID, ChunkSettings, Key};
+use crate::repository::backend::{BackendError, Result};
+use crate::repository::{Chunk, ChunkSettings, Key};
 use asuran_core::repository::chunk::{ChunkBody, ChunkHeader};
 use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
@@ -287,50 +287,6 @@ impl<T: Read + Write + Seek> SegmentDataPart<T> {
     }
 }
 
-/// Struct used to store a transaction inside a segment.
-///
-/// TODO: Change this to an enum
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct Transaction {
-    tx_type: TransactionType,
-    id: ChunkID,
-    chunk: Option<Chunk>,
-}
-
-impl Transaction {
-    pub fn transaction_type(&self) -> TransactionType {
-        self.tx_type
-    }
-
-    pub fn encode_insert(input: Chunk, id: ChunkID) -> Transaction {
-        Transaction {
-            tx_type: TransactionType::Insert,
-            id,
-            chunk: Some(input),
-        }
-    }
-
-    pub fn encode_delete(id: ChunkID) -> Transaction {
-        Transaction {
-            tx_type: TransactionType::Delete,
-            id,
-            chunk: None,
-        }
-    }
-
-    pub fn data(&self) -> Option<&Chunk> {
-        self.chunk.as_ref()
-    }
-
-    pub fn take_data(self) -> Option<Chunk> {
-        self.chunk
-    }
-
-    pub fn id(&self) -> ChunkID {
-        self.id
-    }
-}
-
 /// Generic segment implementation wrapping any Read + Write + Seek
 #[derive(Debug)]
 pub struct Segment<T: Read + Write + Seek> {
@@ -366,6 +322,10 @@ impl<T: Read + Write + Seek> Segment<T> {
     pub fn write_chunk(&mut self, chunk: Chunk) -> Result<u64> {
         todo!()
     }
+
+    pub fn read_header(&mut self) -> Result<Header> {
+        self.data_handle.read_header()
+    }
 }
 
 #[cfg(test)]
@@ -397,8 +357,17 @@ mod tests {
 
     #[test]
     fn segment_header_sanity() {
+        let key = Key::random(32);
         let cursor = Cursor::new(Vec::<u8>::new());
-        let mut segment = Segment::new(cursor, 100).unwrap();
+        let header_cursor = Cursor::new(Vec::<u8>::new());
+        let mut segment = Segment::new(
+            cursor,
+            header_cursor,
+            100,
+            ChunkSettings::lightweight(),
+            key,
+        )
+        .unwrap();
 
         assert!(segment.read_header().unwrap().validate())
     }

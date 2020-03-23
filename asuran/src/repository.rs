@@ -309,7 +309,7 @@ mod tests {
             hmac: HMAC::Blake2b,
             encryption: Encryption::new_aes256ctr(),
         };
-        let backend = Mem::new(settings);
+        let backend = Mem::new(settings, key.clone());
         Repository::with(backend, settings, key)
     }
 

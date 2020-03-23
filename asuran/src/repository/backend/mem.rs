@@ -143,15 +143,16 @@ mod tests {
     #[tokio::test(threaded_scheduler)]
     #[should_panic]
     async fn bad_key_access() {
-        let backend = Mem::new(ChunkSettings::lightweight());
+        let key = Key::random(32);
+        let backend = Mem::new(ChunkSettings::lightweight(), key);
         backend.read_key().await.unwrap();
     }
 
     /// Checks to make sure setting and retriving a key works
     #[tokio::test(threaded_scheduler)]
     async fn key_sanity() {
-        let backend = Mem::new(ChunkSettings::lightweight());
         let key = Key::random(32);
+        let backend = Mem::new(ChunkSettings::lightweight(), key.clone());
         let key_key = [0_u8; 128];
         let encrypted_key =
             EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);

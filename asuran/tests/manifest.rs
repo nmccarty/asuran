@@ -12,7 +12,7 @@ async fn put_drop_get_multifile() {
     let tempdir = tempdir().unwrap();
     let root_path = tempdir.path().to_str().unwrap();
     let key = Key::random(32);
-    let mut repo = common::get_repo_bare(root_path, key.clone());
+    let mut repo = common::get_repo_bare(root_path, key.clone()).await;
 
     let chunker = FastCDC::default();
 
@@ -47,7 +47,7 @@ async fn put_drop_get_multifile() {
         println!("Manifest: \n {:?}", manifest);
     }
     repo.close().await;
-    let mut repo = common::get_repo_bare(root_path, key);
+    let mut repo = common::get_repo_bare(root_path, key).await;
 
     let mut manifest = Manifest::load(&mut repo);
     let archive = manifest.archives().await[0].load(&mut repo).await.unwrap();
