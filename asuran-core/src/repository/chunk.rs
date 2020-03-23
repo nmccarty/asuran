@@ -149,7 +149,7 @@ pub struct ChunkHeader {
 
 /// A split representation of a `Chunk`'s body, or contained data
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ChunkBody(Vec<u8>);
+pub struct ChunkBody(pub Vec<u8>);
 
 /// A binary blob, ready to be commited to storage
 ///

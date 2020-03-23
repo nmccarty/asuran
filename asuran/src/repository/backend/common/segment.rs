@@ -1,9 +1,12 @@
 use crate::repository::backend::{BackendError, Result, TransactionType};
 use crate::repository::{Chunk, ChunkID, ChunkSettings, Key};
-use asuran_core::repository::chunk::ChunkHeader;
+use asuran_core::repository::chunk::{ChunkBody, ChunkHeader};
 use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::{
+    convert::TryInto,
+    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+};
 use uuid::Uuid;
 
 /// Magic number used for asuran segment files
@@ -167,6 +170,121 @@ impl<T: Read + Write + Seek> Drop for SegmentHeaderPart<T> {
     }
 }
 
+/// A view over the data portion of a segment.
+pub struct SegmentDataPart<T> {
+    handle: T,
+    size_limit: u64,
+}
+
+impl<T: Read + Write + Seek> SegmentDataPart<T> {
+    /// Will attempt to open the given handle as a `SegmentDataPart`
+    ///
+    /// # Errors
+    ///
+    /// - Will propagate any IO errors
+    /// - Will return `Err(BackendError::SegmentError)` if the segment has a header and
+    ///   it fails validation
+    pub fn new(handle: T, size_limit: u64) -> Result<Self> {
+        let mut s = SegmentDataPart { handle, size_limit };
+        // Attempt to write the header
+        let written = s.write_header()?;
+        if written {
+            // Segment was empty, pass along as is
+            Ok(s)
+        } else {
+            // Attempt to read the header
+            let header = s.read_header()?;
+            // Validate it
+            if header.validate() {
+                Ok(s)
+            } else {
+                Err(BackendError::SegmentError(
+                    "Segment failed header validation".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// If the segment has non-zero length, will do nothing and return Ok(false).
+    ///
+    /// Otherwise, will write the header to the segment file.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if any underlying I/O errors occur
+    pub fn write_header(&mut self) -> Result<bool> {
+        // Am i empty?
+        let end = self.handle.seek(SeekFrom::End(0))?;
+        if end == 0 {
+            // If we are empty, then the handle is at the start of the file
+            let header = Header::default();
+            let mut config = bincode::config();
+            config
+                .big_endian()
+                .serialize_into(&mut self.handle, &header)
+                .map_err(|_| BackendError::Unknown("Header Serialization failed".to_string()))?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Will attempt to read the header from the segment
+    ///
+    /// # Errors
+    ///
+    /// - Will return `Err(BackendError::Unknown)` if deserializing the header fails
+    /// - Will propagate any I/O errors that occur
+    pub fn read_header(&mut self) -> Result<Header> {
+        self.handle.seek(SeekFrom::Start(0))?;
+        let mut config = bincode::config();
+        let header: Header = config
+            .big_endian()
+            .deserialize_from(&mut self.handle)
+            .map_err(|_| BackendError::Unknown("Header deserialization failed".to_string()))?;
+        Ok(header)
+    }
+
+    /// Returns the current size of the segment file
+    ///
+    /// # Errors
+    ///
+    /// Will propagate any I/O errors that occur
+    pub fn size(&mut self) -> Result<u64> {
+        let len = self.handle.seek(SeekFrom::End(0))?;
+        Ok(len)
+    }
+
+    /// Returns the number of free bytes remaining in this segment
+    pub fn free_bytes(&mut self) -> Result<u64> {
+        let len = self.handle.seek(SeekFrom::End(0))?;
+        Ok(self.size_limit - len)
+    }
+
+    pub fn read_chunk(&mut self, header: SegmentHeaderEntry) -> Result<Chunk> {
+        let length: usize = (header.end_offset - header.start_offset)
+            .try_into()
+            .expect("Chunk size too big to fit in memory");
+        let mut buffer = vec![0_u8; length];
+        self.handle.seek(SeekFrom::Start(header.end_offset))?;
+        self.handle.read_exact(&mut buffer[..])?;
+        let body = ChunkBody(buffer);
+        Ok(Chunk::unsplit(header.header, body))
+    }
+
+    pub fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentHeaderEntry> {
+        let start_offset: u64 = self.handle.seek(SeekFrom::End(1))?;
+        let end_offset: u64 = start_offset + chunk.get_bytes().len() as u64;
+        let (header, body) = chunk.split();
+        self.handle.write_all(&body.0[..])?;
+        Ok(SegmentHeaderEntry {
+            header,
+            start_offset,
+            end_offset,
+        })
+    }
+}
+
 /// Struct used to store a transaction inside a segment.
 ///
 /// TODO: Change this to an enum
@@ -241,7 +359,6 @@ impl<T: Read + Write + Seek> Segment<T> {
         }
     }
 
-    ///
     /// If the segment has non-zero length, will do nothing and return Ok(false)
     ///
     /// An error in reading/writing will bubble up.
