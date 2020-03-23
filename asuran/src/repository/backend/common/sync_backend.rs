@@ -58,7 +58,7 @@ pub trait SyncBackend: 'static + Send + std::fmt::Debug {
     fn write_key(&mut self, key: EncryptedKey) -> Result<()>;
     fn read_key(&mut self) -> Result<EncryptedKey>;
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk>;
-    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor>;
+    fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor>;
 }
 
 enum SyncIndexCommand {
@@ -80,7 +80,7 @@ enum SyncManifestCommand<I> {
 
 enum SyncBackendCommand {
     ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Chunk>>),
-    WriteChunk(Chunk, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    WriteChunk(Chunk, oneshot::Sender<Result<SegmentDescriptor>>),
     ReadKey(oneshot::Sender<Result<EncryptedKey>>),
     WriteKey(EncryptedKey, oneshot::Sender<Result<()>>),
     Close(oneshot::Sender<()>),
@@ -158,8 +158,8 @@ where
                         SyncBackendCommand::ReadChunk(location, ret) => {
                             ret.send(backend.read_chunk(location)).unwrap();
                         }
-                        SyncBackendCommand::WriteChunk(chunk, id, ret) => {
-                            ret.send(backend.write_chunk(chunk, id)).unwrap();
+                        SyncBackendCommand::WriteChunk(chunk, ret) => {
+                            ret.send(backend.write_chunk(chunk)).unwrap();
                         }
                         SyncBackendCommand::WriteKey(key, ret) => {
                             ret.send(backend.write_key(key)).unwrap();
@@ -353,11 +353,11 @@ impl<B: SyncBackend> Backend for BackendHandle<B> {
             .unwrap();
         o.await?
     }
-    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
         let (i, o) = oneshot::channel();
         self.channel
             .send(SyncCommand::Backend(SyncBackendCommand::WriteChunk(
-                chunk, id, i,
+                chunk, i,
             )))
             .await
             .unwrap();

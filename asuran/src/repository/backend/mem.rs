@@ -1,7 +1,7 @@
 use crate::repository::backend::common;
 use crate::repository::backend::common::sync_backend::*;
 use crate::repository::backend::*;
-use crate::repository::{Chunk, EncryptedKey};
+use crate::repository::{Chunk, EncryptedKey, Key};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -17,25 +17,34 @@ pub struct Mem {
     manifest: Vec<StoredArchive>,
     chunk_settings: ChunkSettings,
     key: Option<EncryptedKey>,
+    actual_key: Key,
     len: u64,
 }
 
 impl Mem {
-    pub fn new_raw(chunk_settings: ChunkSettings) -> Mem {
+    pub fn new_raw(chunk_settings: ChunkSettings, key: Key) -> Mem {
         let max = usize::max_value().try_into().unwrap();
-        let data = common::Segment::new(Cursor::new(Vec::new()), max).unwrap();
+        let data = common::Segment::new(
+            Cursor::new(Vec::new()),
+            Cursor::new(Vec::new()),
+            max,
+            chunk_settings,
+            key.clone(),
+        )
+        .unwrap();
         Mem {
             data,
             index: HashMap::new(),
             manifest: Vec::new(),
             chunk_settings,
+            actual_key: key,
             key: None,
             len: num_cpus::get() as u64,
         }
     }
 
-    pub fn new(chunk_settings: ChunkSettings) -> BackendHandle<Mem> {
-        BackendHandle::new(Self::new_raw(chunk_settings))
+    pub fn new(chunk_settings: ChunkSettings, key: Key) -> BackendHandle<Mem> {
+        BackendHandle::new(Self::new_raw(chunk_settings, key))
     }
 }
 
@@ -116,8 +125,8 @@ impl SyncBackend for Mem {
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.data.read_chunk(location.start)
     }
-    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
-        let start = self.data.write_chunk(chunk, id)?;
+    fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
+        let start = self.data.write_chunk(chunk)?;
         Ok(SegmentDescriptor {
             segment_id: 0,
             start,

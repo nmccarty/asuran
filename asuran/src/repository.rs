@@ -163,7 +163,7 @@ impl<T: BackendClone + 'static> Repository<T> {
 
             // Get highest segment and check to see if has enough space
             let backend = &mut self.backend;
-            let location = backend.write_chunk(chunk, id).await?;
+            let location = backend.write_chunk(chunk).await?;
 
             self.backend.get_index().set_chunk(id, location).await?;
 

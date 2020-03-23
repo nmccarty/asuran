@@ -35,6 +35,7 @@ pub async fn new(options: Opt) -> Result<()> {
             create_dir_all(&options.repo)?;
             // Open the repository and set the key
             let mut mf = MultiFile::open_defaults(&options.repo, Some(settings), &key)
+                .await
                 .with_context(|| "Unable to create MultiFile directory.")?;
             mf.write_key(&encrypted_key)
                 .await

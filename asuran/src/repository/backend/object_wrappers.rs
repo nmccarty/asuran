@@ -98,8 +98,8 @@ impl<T: Backend> Backend for BackendWrapper<T> {
     async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.0.read_chunk(location).await
     }
-    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
-        self.0.write_chunk(chunk, id).await
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
+        self.0.write_chunk(chunk).await
     }
     async fn close(&mut self) {
         self.0.close().await
@@ -130,8 +130,8 @@ impl Backend for BackendObject {
     async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.read_chunk(location).await
     }
-    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
-        self.write_chunk(chunk, id).await
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
+        self.write_chunk(chunk).await
     }
     async fn close(&mut self) {
         self.close().await

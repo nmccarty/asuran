@@ -254,6 +254,7 @@ impl Opt {
                 let chunk_settings = self.get_chunk_settings();
                 let multifile =
                     multifile::MultiFile::open_defaults(&self.repo, Some(chunk_settings), &key)
+                        .await
                         .with_context(|| "Exeprienced an internal backend error.")?;
                 Ok((DynamicBackend::from(multifile), key))
             }

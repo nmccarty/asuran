@@ -259,8 +259,9 @@ impl SyncBackend for FlatFile {
             ))
         }
     }
-    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
+    fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
         let start = self.write.seek(SeekFrom::End(0))?;
+        let id = chunk.get_id();
         let tx = FlatFileTransaction::Insert { chunk, id };
         rmps::encode::write(&mut self.write, &tx)?;
         Ok(SegmentDescriptor {

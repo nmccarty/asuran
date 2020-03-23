@@ -1,7 +1,7 @@
 use crate::repository::backend::common::files::*;
 use crate::repository::backend::common::segment::*;
 use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
-use crate::repository::{Chunk, ChunkID};
+use crate::repository::{Chunk, ChunkSettings, Key};
 
 use futures::channel::mpsc;
 use futures::channel::oneshot;
@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 use tokio::task;
 use walkdir::WalkDir;
 
-struct SegmentPair<R>(u64, Segment<R>);
-struct WriteSegmentPair<R: std::io::Write>(u64, WriteSegment<R>);
+use std::io::{Read, Seek, Write};
 
+struct SegmentPair<R: Read + Write + Seek>(u64, Segment<R>);
 /// An internal struct for handling the state of the segments
 ///
 /// Maintains a handle to the currently being written segment, and will keep it up to date as the
@@ -30,7 +30,7 @@ struct WriteSegmentPair<R: std::io::Write>(u64, WriteSegment<R>);
 /// 2. Swtich `ro_segment_cache` to an ARC
 struct InternalSegmentHandler {
     /// The segment we are currently writing too, if it exists
-    current_segment: Option<WriteSegmentPair<LockedFile>>,
+    current_segment: Option<SegmentPair<LockedFile>>,
     /// The ID of the highest segment we have encountered
     highest_segment: u64,
     /// The size limit of each segment, in bytes
@@ -44,6 +44,10 @@ struct InternalSegmentHandler {
     path: PathBuf,
     /// The number of segments per directory
     segments_per_directory: u64,
+    /// The chunk settings used for encrypting headers
+    chunk_settings: ChunkSettings,
+    /// They key used for encrypting/decrypting headers
+    key: Key,
 }
 
 impl InternalSegmentHandler {
@@ -76,6 +80,8 @@ impl InternalSegmentHandler {
         repository_path: impl AsRef<Path>,
         size_limit: u64,
         segments_per_directory: u64,
+        chunk_settings: ChunkSettings,
+        key: Key,
     ) -> Result<InternalSegmentHandler> {
         // Construct the path of the data foler
         let data_path = repository_path.as_ref().join("data");
@@ -105,6 +111,8 @@ impl InternalSegmentHandler {
             ro_segment_cache: LruCache::new(100),
             path: data_path,
             segments_per_directory,
+            chunk_settings,
+            key,
         };
 
         // Open the writing segment to ensure that the data directory is lockable
@@ -150,6 +158,7 @@ impl InternalSegmentHandler {
             }
             // Get the path of the segement and check to see if it exists
             let segment_path = folder_path.join(segment_id.to_string());
+            let header_path = folder_path.join(format!("{}.header", segment_id.to_string()));
             if !(segment_path.exists() && segment_path.is_file()) {
                 return Err(BackendError::SegmentError(format!(
                     "File for segment {} opened in read only mode does not exists",
@@ -158,9 +167,18 @@ impl InternalSegmentHandler {
             }
             // Open the file
             let segment_file = File::open(segment_path)?;
+            let header_file = File::open(header_path)?;
             // Pack it and load it into the cache
-            let segment_pair =
-                SegmentPair(segment_id, Segment::new(segment_file, self.size_limit)?);
+            let segment_pair = SegmentPair(
+                segment_id,
+                Segment::new(
+                    segment_file,
+                    header_file,
+                    self.size_limit,
+                    self.chunk_settings,
+                    self.key.clone(),
+                )?,
+            );
             cache.put(segment_id, segment_pair);
         }
 
@@ -193,7 +211,7 @@ impl InternalSegmentHandler {
     ///    directory
     /// 3. We need to create a new segement, but some other instance beats us to the punch and the
     ///    new name we have chosen gets created and locked while we are running
-    fn open_segment_write(&mut self) -> Result<&mut WriteSegmentPair<LockedFile>> {
+    fn open_segment_write(&mut self) -> Result<&mut SegmentPair<LockedFile>> {
         // Check to see if we have a currently open segment, and open one up if we do not
         //
         // To make the lifetime juggling eaiser, we are going much the same route as
@@ -225,15 +243,25 @@ impl InternalSegmentHandler {
                 }
                 // Construct the path for the segment proper, and construct the segment
                 let segment_path = folder_path.join(segment_id.to_string());
+                let header_path = folder_path.join(format!("{}.header", segment_id.to_string()));
                 let segment_file = LockedFile::open_read_write(&segment_path)?;
+                let header_file = LockedFile::open_read_write(&header_path)?;
                 if let Some(segment_file) = segment_file {
-                    let mut segment = WriteSegmentPair(
-                        segment_id,
-                        Segment::new(segment_file, self.size_limit)?.into_write_segment(),
-                    );
-                    if segment.1.size() < self.size_limit {
-                        self.current_segment = Some(segment);
-                        return Ok(self.current_segment.as_mut().unwrap());
+                    if let Some(header_file) = header_file {
+                        let mut segment = SegmentPair(
+                            segment_id,
+                            Segment::new(
+                                segment_file,
+                                header_file,
+                                self.size_limit,
+                                self.chunk_settings,
+                                self.key.clone(),
+                            )?,
+                        );
+                        if segment.1.size() < self.size_limit {
+                            self.current_segment = Some(segment);
+                            return Ok(self.current_segment.as_mut().unwrap());
+                        }
                     }
                 }
             }
@@ -247,12 +275,22 @@ impl InternalSegmentHandler {
             }
             // Construct the path for the segment proper, and construct the segment
             let segment_path = folder_path.join(segment_id.to_string());
+            let header_path = folder_path.join(format!("{}.header", segment_id.to_string()));
             let segment_file = LockedFile::open_read_write(&segment_path)?.ok_or_else(|| {
                 BackendError::SegmentError("Unable to lock newly created segement file".to_string())
             })?;
-            let segment = WriteSegmentPair(
+            let header_file = LockedFile::open_read_write(&header_path)?.ok_or_else(|| {
+                BackendError::SegmentError("Unable to lock newly created segement file".to_string())
+            })?;
+            let segment = SegmentPair(
                 segment_id,
-                Segment::new(segment_file, self.size_limit)?.into_write_segment(),
+                Segment::new(
+                    segment_file,
+                    header_file,
+                    self.size_limit,
+                    self.chunk_settings,
+                    self.key.clone(),
+                )?,
             );
             self.current_segment = Some(segment);
         }
@@ -275,10 +313,10 @@ impl InternalSegmentHandler {
     ///
     /// Will close out the current segment if the size, after the write completes, execeds the max
     /// size
-    fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
+    fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
         // Write the chunk
         let segment = self.open_segment_write()?;
-        let (start, length) = segment.1.write_chunk(chunk, id)?;
+        let start = segment.1.write_chunk(chunk)?;
         let descriptor = SegmentDescriptor {
             segment_id: segment.0,
             start,
@@ -293,7 +331,7 @@ impl InternalSegmentHandler {
 
 enum SegmentHandlerCommand {
     ReadChunk(SegmentDescriptor, oneshot::Sender<Result<Chunk>>),
-    WriteChunk(Chunk, ChunkID, oneshot::Sender<Result<SegmentDescriptor>>),
+    WriteChunk(Chunk, oneshot::Sender<Result<SegmentDescriptor>>),
     Close(oneshot::Sender<()>),
 }
 
@@ -321,10 +359,17 @@ impl SegmentHandler {
         repository_path: impl AsRef<Path>,
         size_limit: u64,
         segments_per_directory: u64,
+        chunk_settings: ChunkSettings,
+        key: Key,
     ) -> Result<SegmentHandler> {
         // Create the internal handler
-        let mut handler =
-            InternalSegmentHandler::open(repository_path, size_limit, segments_per_directory)?;
+        let mut handler = InternalSegmentHandler::open(
+            repository_path,
+            size_limit,
+            segments_per_directory,
+            chunk_settings,
+            key,
+        )?;
         // get the path from it
         let path = handler.path.to_str().unwrap().to_string();
         // Create the communication channel and open the event processing loop in its own task
@@ -336,8 +381,8 @@ impl SegmentHandler {
                     SegmentHandlerCommand::ReadChunk(location, ret) => {
                         task::block_in_place(|| ret.send(handler.read_chunk(location)).unwrap());
                     }
-                    SegmentHandlerCommand::WriteChunk(chunk, id, ret) => {
-                        task::block_in_place(|| ret.send(handler.write_chunk(chunk, id)).unwrap());
+                    SegmentHandlerCommand::WriteChunk(chunk, ret) => {
+                        task::block_in_place(|| ret.send(handler.write_chunk(chunk)).unwrap());
                     }
                     SegmentHandlerCommand::Close(ret) => {
                         final_ret = Some(ret);
@@ -366,10 +411,10 @@ impl SegmentHandler {
         output.await.unwrap()
     }
 
-    pub async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
+    pub async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
         let (input, output) = oneshot::channel();
         self.input
-            .send(SegmentHandlerCommand::WriteChunk(chunk, id, input))
+            .send(SegmentHandlerCommand::WriteChunk(chunk, input))
             .await
             .unwrap();
         output.await.unwrap()

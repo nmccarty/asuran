@@ -31,7 +31,7 @@ impl MultiFile {
     /// Will error if creating or locking any of the index or manifest files
     /// fails (such as if the user does not have permissions for that
     /// directory), or if any other I/O error occurs
-    pub fn open_defaults(
+    pub async fn open_defaults(
         path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
@@ -39,9 +39,19 @@ impl MultiFile {
         let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
         let index_handle = index::Index::open(&path)?;
-        let manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)?;
-        let segment_handle =
-            segment::SegmentHandler::open(&path, size_limit, segments_per_directory)?;
+        let mut manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)?;
+        let chunk_settings = if let Some(chunk_settings) = chunk_settings {
+            chunk_settings
+        } else {
+            manifest_handle.chunk_settings().await
+        };
+        let segment_handle = segment::SegmentHandler::open(
+            &path,
+            size_limit,
+            segments_per_directory,
+            chunk_settings,
+            key.clone(),
+        )?;
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {
             index_handle,
@@ -104,8 +114,8 @@ impl Backend for MultiFile {
     }
 
     /// Starts writing a chunk, and returns a oneshot reciever with the result of that process
-    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor> {
-        self.segment_handle.write_chunk(chunk, id).await
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
+        self.segment_handle.write_chunk(chunk).await
     }
 
     /// Closes out the index, segment handler, and manifest cleanly, making sure all operations are

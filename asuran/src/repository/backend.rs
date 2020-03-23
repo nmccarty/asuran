@@ -129,7 +129,7 @@ pub trait Backend: 'static + Send + Sync + std::fmt::Debug + 'static {
     ///
     /// This must be passed owned data because it will be sent into a task, so the caller has no
     /// control over drop time
-    async fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<SegmentDescriptor>;
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor>;
     /// Consumes the current backend handle, and does any work necessary to
     /// close out the backend properly
     ///

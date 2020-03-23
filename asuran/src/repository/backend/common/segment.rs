@@ -5,7 +5,7 @@ use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryInto,
-    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write},
 };
 use uuid::Uuid;
 
@@ -80,6 +80,7 @@ pub struct SegmentHeaderEntry {
 /// It is strongly recommended to call the `flush` method before dropping this type.
 /// The `Drop` impl will attempt to call `flush`, but will ignore any errors that
 /// occur.
+#[derive(Debug)]
 pub struct SegmentHeaderPart<T: Read + Write + Seek> {
     handle: T,
     entries: Vec<SegmentHeaderEntry>,
@@ -171,6 +172,7 @@ impl<T: Read + Write + Seek> Drop for SegmentHeaderPart<T> {
 }
 
 /// A view over the data portion of a segment.
+#[derive(Debug)]
 pub struct SegmentDataPart<T> {
     handle: T,
     size_limit: u64,
@@ -329,148 +331,40 @@ impl Transaction {
     }
 }
 
-/// Generic segment implemenation wrapping any Read + Write + Seek
+/// Generic segment implementation wrapping any Read + Write + Seek
 #[derive(Debug)]
-pub struct Segment<T> {
-    handle: T,
-    size_limit: u64,
+pub struct Segment<T: Read + Write + Seek> {
+    data_handle: SegmentDataPart<T>,
+    header_handle: SegmentHeaderPart<T>,
 }
 
 impl<T: Read + Write + Seek> Segment<T> {
     /// Creates a new segment given a reader and a maximum size
-    pub fn new(handle: T, size_limit: u64) -> Result<Segment<T>> {
-        let mut s = Segment { handle, size_limit };
-        // Attempt to write the header
-        let written = s.write_header()?;
-        if written {
-            // Segment was empty, pass along as is
-            Ok(s)
-        } else {
-            // Attempt to read the header
-            let header = s.read_header()?;
-            // Validate it
-            if header.validate() {
-                Ok(s)
-            } else {
-                Err(BackendError::SegmentError(
-                    "Segment failed header validation".to_string(),
-                ))
-            }
-        }
-    }
-
-    /// If the segment has non-zero length, will do nothing and return Ok(false)
-    ///
-    /// An error in reading/writing will bubble up.
-    pub fn write_header(&mut self) -> Result<bool> {
-        // Am i empty?
-        let end = self.handle.seek(SeekFrom::End(0))?;
-        if end == 0 {
-            // If we are empty, then the handle is at the start of the file
-            let header = Header::default();
-            let mut config = bincode::config();
-            config
-                .big_endian()
-                .serialize_into(&mut self.handle, &header)
-                .map_err(|_| BackendError::Unknown("Header Serialization failed".to_string()))?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// Attempts to read the header from the Segment
-    ///
-    /// Will return error if the read fails
-    pub fn read_header(&mut self) -> Result<Header> {
-        self.handle.seek(SeekFrom::Start(0))?;
-        let mut config = bincode::config();
-        let header: Header = config
-            .big_endian()
-            .deserialize_from(&mut self.handle)
-            .map_err(|_| BackendError::Unknown("Header deserialization failed".to_string()))?;
-        Ok(header)
+    pub fn new(
+        data_handle: T,
+        header_handle: T,
+        size_limit: u64,
+        chunk_settings: ChunkSettings,
+        key: Key,
+    ) -> Result<Segment<T>> {
+        todo!()
     }
 
     /// Returns the size in bytes of the segment
     pub fn size(&mut self) -> u64 {
-        self.handle.seek(SeekFrom::End(0)).unwrap()
+        todo!()
     }
 
-    pub async fn free_bytes(&mut self) -> u64 {
-        let end = self.handle.seek(SeekFrom::End(0)).unwrap();
-        self.size_limit - end
+    pub fn free_bytes(&mut self) -> u64 {
+        todo!()
     }
 
-    pub fn read_chunk(&mut self, start: u64) -> Result<Chunk> {
-        self.handle.seek(SeekFrom::Start(start))?;
-        let tx: Transaction = rmps::decode::from_read(&mut self.handle)?;
-        let data = tx.take_data().ok_or_else(|| {
-            BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
-        })?;
-        Ok(data)
+    pub fn read_chunk(&mut self, index: u64) -> Result<Chunk> {
+        todo!()
     }
 
-    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<u64> {
-        let tx = Transaction::encode_insert(chunk, id);
-        let start = self.handle.seek(SeekFrom::End(0))?;
-        rmps::encode::write(&mut self.handle, &tx)?;
-        Ok(start)
-    }
-
-    pub fn into_read_segment(self) -> ReadSegment<T> {
-        ReadSegment {
-            handle: BufReader::with_capacity(1_000_000, self.handle),
-            size_limit: self.size_limit,
-        }
-    }
-
-    pub fn into_write_segment(self) -> WriteSegment<T> {
-        WriteSegment {
-            handle: BufWriter::with_capacity(1_000_000, self.handle),
-            size_limit: self.size_limit,
-        }
-    }
-}
-
-#[derive(Debug)]
-/// Analogue of `Segement` that uses a `BufReader`, but can only allow read operations
-pub struct ReadSegment<T> {
-    handle: BufReader<T>,
-    size_limit: u64,
-}
-
-impl<T: Read + Seek> ReadSegment<T> {
-    pub fn read_chunk(&mut self, start: u64, _length: u64) -> Result<Chunk> {
-        self.handle.seek(SeekFrom::Start(start))?;
-        let tx: Transaction = rmps::decode::from_read(&mut self.handle)?;
-        let data = tx.take_data().ok_or_else(|| {
-            BackendError::SegmentError("Read transaction does not have a chunk in it.".to_string())
-        })?;
-        Ok(data)
-    }
-}
-
-#[derive(Debug)]
-/// Analogue of `Segment` that uses a `BufWriter`, but can only allow write operations
-pub struct WriteSegment<T: Write> {
-    handle: BufWriter<T>,
-    size_limit: u64,
-}
-
-impl<T: Write + Seek> WriteSegment<T> {
-    /// Returns the size in bytes of the segment
-    pub fn size(&mut self) -> u64 {
-        self.handle.seek(SeekFrom::End(0)).unwrap()
-    }
-
-    pub fn write_chunk(&mut self, chunk: Chunk, id: ChunkID) -> Result<(u64, u64)> {
-        let tx = Transaction::encode_insert(chunk, id);
-        let start = self.handle.seek(SeekFrom::End(0))?;
-        rmps::encode::write(&mut self.handle, &tx)?;
-        let end = self.handle.seek(SeekFrom::End(0))?;
-        let length = end - start;
-        Ok((start, length))
+    pub fn write_chunk(&mut self, chunk: Chunk) -> Result<u64> {
+        todo!()
     }
 }
 

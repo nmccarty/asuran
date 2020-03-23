@@ -143,14 +143,10 @@ impl Backend for DynamicBackend {
             DynamicBackend::FlatFile(x) => x.read_chunk(location).await,
         }
     }
-    async fn write_chunk(
-        &mut self,
-        chunk: Chunk,
-        id: asuran::repository::ChunkID,
-    ) -> Result<SegmentDescriptor> {
+    async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
         match self {
-            DynamicBackend::MultiFile(x) => x.write_chunk(chunk, id).await,
-            DynamicBackend::FlatFile(x) => x.write_chunk(chunk, id).await,
+            DynamicBackend::MultiFile(x) => x.write_chunk(chunk).await,
+            DynamicBackend::FlatFile(x) => x.write_chunk(chunk).await,
         }
     }
     async fn close(&mut self) {
