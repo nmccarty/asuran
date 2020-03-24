@@ -66,10 +66,69 @@ The asuran format is split into three logical layers
 
 	The manifest is a special data structure stored outside, but adjacent to, the other parts of the repository. It maintains pointers to all the archive structures and provides the root of verification for all the data in the repository.
 
+Comparisons
+===========
+
+Comparison with Borg
+--------------------
+
+-	Asuran Has better use of multithreading
+
+	Asuran has a pipeline that is much better suited to good use of CPU cores, and since archiving speed is typically bound by compression, rather than read/write or encryption/hmac on modren CPUs with an SSD (or just fast spinning rust storage), this leads to a significant speed boost.
+
+-	Switchable storage backends
+
+	Asuran has a framework for describing new storage backends and switching between them at runtime, so you aren't tied to only storing files on a local filesystem or linux machines running ssh
+
+-	Selectable slicer
+
+	Asuran allows you to chose your content defined chunking algorithm, including the use of FastCDC or a static chunk size slicer, allowing you to decide on your performance/deduplication ratio trade off
+
+-	Repository format hides chunk length
+
+	Asuran does not suffer from chunk length based fingerprinting attacks like borg does, since we use a repository format that hides chunk length.
+
+Comparison with Restic
+----------------------
+
+-	Asuran is much faster
+
+	Asuran is generally faster than borg, and borg is generally faster than Restic, so this one just follows
+
+-	Optional/Switchable Encryption
+
+	Asuran supports multiple cipher suites of roughly equivalent security, allowing you to meet organizational requirements to use a specific cipher, or to select the cipher that runs fastest on your hardware. You can also completely disable encryption in the event that you actually are backing up to trusted storage.
+
+-	Support for compression
+
+	Asuran lets you chose between no compression, ZStd, LZMA, or LZ4 compression for your repository, allowing you to choose your time/space trade off
+
+Comparison with Rdedup
+----------------------
+
+-	Built in directory traversal
+
+	Asuran will traverse a directory and store its structure automatically. No need to perform an extra step and decrease deduplication by creating a tarball beforehand
+
+-	Multiple backend support
+
+	See the above note in the borg section
+
+Improvements To All
+-------------------
+
+-	High level api suitable for embedding
+
+	Asuran presents a high level api that is consumed by `asuran-cli`, making it easy to embed support for asuran archives into other applications
+
+-	Multiple input format support
+
+	Asuran is agnostic to where the files it is backing up are coming from. It doesn't have to be from a filesystem, asuran could just as easily import individual files from a tarball or directly dump tables from a database.
+
 License
 -------
 
-Asuran is distrubuted under the terms of the [BSD 2 Clause + Patent](LICENSE) License.
+Asuran is distributed under the terms of the [BSD 2 Clause + Patent](LICENSE) License.
 
 By contributing to this project, you agree to license your contributions under the terms of the BSD 2 Clause + Patent License.
 
