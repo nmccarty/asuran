@@ -12,10 +12,10 @@ use std::fs::create_dir_all;
 /// specified location
 pub async fn new(options: Opt) -> Result<()> {
     // Ensure that the repository path does not exist
-    if options.repo.exists() {
+    if options.repo_opts().repo.exists() {
         return Err(anyhow!(
             "Repository location already exists! {:?}",
-            &options.repo
+            &options.repo_opts().repo
         ));
     }
 
@@ -25,16 +25,19 @@ pub async fn new(options: Opt) -> Result<()> {
     // Make them a new random key
     let key = Key::random(key_length);
     // Attempt to encrypt that key with the user supplied password
-    let encrypted_key =
-        EncryptedKey::encrypt_defaults(&key, settings.encryption, options.password.as_bytes());
+    let encrypted_key = EncryptedKey::encrypt_defaults(
+        &key,
+        settings.encryption,
+        options.repo_opts().password.as_bytes(),
+    );
 
     // Figure out which type of repository they want, and create it
-    match options.repository_type {
+    match options.repo_opts().repository_type {
         RepositoryType::MultiFile => {
             // Create the directory
-            create_dir_all(&options.repo)?;
+            create_dir_all(&options.repo_opts().repo)?;
             // Open the repository and set the key
-            let mut mf = MultiFile::open_defaults(&options.repo, Some(settings), &key)
+            let mut mf = MultiFile::open_defaults(&options.repo_opts().repo, Some(settings), &key)
                 .await
                 .with_context(|| "Unable to create MultiFile directory.")?;
             mf.write_key(&encrypted_key)
@@ -45,8 +48,12 @@ pub async fn new(options: Opt) -> Result<()> {
         }
         RepositoryType::FlatFile => {
             // Open the repository setting the key
-            let mut ff = FlatFile::new(&options.repo, Some(settings), Some(encrypted_key))
-                .with_context(|| "Unable to create flatfile.")?;
+            let mut ff = FlatFile::new(
+                &options.repo_opts().repo,
+                Some(settings),
+                Some(encrypted_key),
+            )
+            .with_context(|| "Unable to create flatfile.")?;
             ff.close().await;
             Ok(())
         }

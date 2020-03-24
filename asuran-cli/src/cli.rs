@@ -28,7 +28,7 @@ arg_enum! {
     ///
     /// These are a 1-to-1 corrospondance with the name of the struct
     /// implementing that backend in the `asuran` crate.
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum RepositoryType {
         MultiFile,
         FlatFile,
@@ -41,7 +41,7 @@ arg_enum! {
     /// These are, more or less, a 1-to-1 corrospondance with the name of the
     /// `Encryption` enum variant in the `asuran` crate, but these do not carry
     /// an IV with them.
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum Encryption {
         AES256CBC,
         AES256CTR,
@@ -55,7 +55,7 @@ arg_enum! {
    /// These are, more or less, a 1-to-1 corrospondance with the name of the
    /// `Compression` enum variant in the `asuran` crate, but these do not carry
    /// a compression level with them.
-   #[derive(Debug)]
+   #[derive(Debug, Clone)]
    pub enum Compression {
        ZStd,
        LZ4,
@@ -69,7 +69,7 @@ arg_enum! {
     ///
     /// These are a 1-to-1 corrospondance with the `HMAC` enum variant in the
     /// `asuran` crate
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum HMAC {
         SHA256,
         Blake2b,
@@ -83,9 +83,14 @@ arg_enum! {
 #[derive(StructOpt, Debug, Clone)]
 pub enum Command {
     /// Provides a listing of the archives in a repository
-    List,
+    List {
+        #[structopt(flatten)]
+        repo_opts: RepoOpt,
+    },
     /// Creates a new archive in a repository
     Store {
+        #[structopt(flatten)]
+        repo_opts: RepoOpt,
         /// Location of the directory to store
         #[structopt(name = "TARGET")]
         target: PathBuf,
@@ -95,6 +100,8 @@ pub enum Command {
     },
     /// Extracts an archive from a repository
     Extract {
+        #[structopt(flatten)]
+        repo_opts: RepoOpt,
         /// Location to restore to
         #[structopt(name = "TARGET")]
         target: PathBuf,
@@ -103,18 +110,26 @@ pub enum Command {
         archive: String,
     },
     /// Creates a new repository
-    New,
+    New {
+        #[structopt(flatten)]
+        repo_opts: RepoOpt,
+    },
 }
-/// Struct for holding the options the user has selected
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "Asuran-CLI",
-    about = "Deduplicating, encrypting, tamper evident archiver",
-    author = env!("CARGO_PKG_AUTHORS"),
-    version = VERSION,
-    global_setting(AppSettings::ColoredHelp),
-)]
-pub struct Opt {
+
+impl Command {
+    pub fn repo_opts(&self) -> &RepoOpt {
+        match self {
+            Self::List { repo_opts } => repo_opts,
+            Self::Store { repo_opts, .. } => repo_opts,
+            Self::Extract { repo_opts, .. } => repo_opts,
+            Self::New { repo_opts, .. } => repo_opts,
+        }
+    }
+}
+
+/// Options that are shared among all repository commands
+#[derive(Debug, StructOpt, Clone)]
+pub struct RepoOpt {
     /// Location of the Asuran repository
     #[structopt(name = "REPO")]
     pub repo: PathBuf,
@@ -163,12 +178,36 @@ pub struct Opt {
         possible_values(&HMAC::variants())
     )]
     pub hmac: HMAC,
+}
+
+/// Struct for holding the options the user has selected
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "Asuran-CLI",
+    about = "Deduplicating, encrypting, tamper evident archiver",
+    author = env!("CARGO_PKG_AUTHORS"),
+    version = VERSION,
+    global_setting(AppSettings::ColoredHelp),
+)]
+pub struct Opt {
     /// Operation to perform
     #[structopt(subcommand)]
     pub command: Command,
 }
 
 impl Opt {
+    pub fn get_chunk_settings(&self) -> repository::ChunkSettings {
+        self.command.repo_opts().get_chunk_settings()
+    }
+    pub async fn open_repo_backend(&self) -> Result<(DynamicBackend, Key)> {
+        self.command.repo_opts().open_repo_backend().await
+    }
+    pub fn repo_opts(&self) -> &RepoOpt {
+        self.command.repo_opts()
+    }
+}
+
+impl RepoOpt {
     /// Generates an `asuran::repostiory::ChunkSettings` from the options the
     /// user has selected
     pub fn get_chunk_settings(&self) -> repository::ChunkSettings {
