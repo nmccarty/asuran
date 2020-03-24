@@ -74,7 +74,11 @@ than any of these.
     println!("\n                                === Results ===\n");
     // Make the output table
     let mut table = Table::new();
-    table.set_titles(row!["Encryption Type", "HMAC Type", "Speed"]);
+    table.set_titles(row![
+        "       Encryption Type        ",
+        "       HMAC Type      ",
+        "       Speed      "
+    ]);
     for enc in encryptions {
         let mut first = true;
         let results = map.remove(&enc).unwrap();
