@@ -114,6 +114,8 @@ pub enum Command {
         #[structopt(flatten)]
         repo_opts: RepoOpt,
     },
+    /// Runs benchmarks on all combinations of asuran's supported crypto primitives.
+    BenchCrypto,
 }
 
 impl Command {
@@ -123,6 +125,7 @@ impl Command {
             Self::Store { repo_opts, .. } => repo_opts,
             Self::Extract { repo_opts, .. } => repo_opts,
             Self::New { repo_opts, .. } => repo_opts,
+            Self::BenchCrypto => unimplemented!("asuran-cli bench does not interact with a repository, and does not have repository options."),
         }
     }
 }

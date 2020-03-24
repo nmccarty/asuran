@@ -6,6 +6,7 @@ repositories.
 mod cli;
 mod util;
 
+mod bench;
 mod extract;
 mod list;
 mod new;
@@ -28,5 +29,6 @@ async fn main() -> Result<()> {
         Command::Extract {
             target, archive, ..
         } => extract::extract(options, target, archive).await,
+        Command::BenchCrypto => bench::bench_crypto().await,
     }
 }
