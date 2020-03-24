@@ -12,8 +12,8 @@ keywords = ["encryption", "compression","deduplication","backup","archive"]
 readme = "README.md"
 
 [dependencies]
-asuran-chunker = { version = "0.0.9-dev", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "0.0.9-dev", path = "../asuran-core/" }
+asuran-chunker = { version = "0.0.9", path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "0.0.9", path = "../asuran-core/" }
 async-trait = "0.1.24"
 base64 = "0.12.0"
 bincode = "1.2.1"
