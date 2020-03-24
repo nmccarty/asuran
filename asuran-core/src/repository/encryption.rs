@@ -47,7 +47,7 @@ pub enum EncryptionError {
 type Result<T> = std::result::Result<T, EncryptionError>;
 
 /// Tag for the encryption algorthim and IV used by a particular chunk
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub enum Encryption {
     NoEncryption,
     AES256CBC { iv: [u8; 16] },

@@ -38,7 +38,7 @@ type HmacSha256 = Hmac<Sha256>;
 type HmacSHA3 = Hmac<Sha3_256>;
 
 /// Tag for the HMAC algorithim used by a particular `Chunk`
-#[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum HMAC {
     SHA256,
     Blake2b,

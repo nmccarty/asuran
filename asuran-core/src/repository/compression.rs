@@ -20,7 +20,7 @@ pub enum CompressionError {
 type Result<T> = std::result::Result<T, CompressionError>;
 
 /// Marker for the type of compression used by a particular chunk
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub enum Compression {
     NoCompression,
     ZStd { level: i32 },
