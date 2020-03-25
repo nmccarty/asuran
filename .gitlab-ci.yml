@@ -56,11 +56,6 @@ test:test:windows:
     - cargo --version
     - rustc --version
     - cargo test
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-test"
-    paths:
-      - ~/.cargo
-      - target
   tags:
     - windows-own
   needs: ["test:lint:rustfmt"]
@@ -117,11 +112,6 @@ build:build:windows:
   artifacts:
     paths:
       - target/release/
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-build"
-    paths:
-      - ~/.cargo
-      - target
   tags:
     - windows-own
   needs: ["test:test:windows"]
