@@ -9,7 +9,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use thiserror::Error;
-use tracing::{trace, Error};
+use tracing::{error, trace};
 use zeroize::Zeroize;
 
 /// Error describing things that can go wrong with key handling

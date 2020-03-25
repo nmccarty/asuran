@@ -64,7 +64,7 @@ than any of these.
     for enc in encryptions.clone() {
         let mut results: Vec<(HMAC, f64)> = Vec::new();
         for hmac in &hmacs {
-            results.push((*hmac, bench_with_settings(enc.clone(), *hmac)));
+            results.push((*hmac, bench_with_settings(enc, *hmac)));
             // Print a dot and flush to indicate progress
             print!("*");
             io::stdout().flush()?;
@@ -84,7 +84,7 @@ than any of these.
         let results = map.remove(&enc).unwrap();
         for (hmac, result) in results {
             let enc = if first {
-                format!("{}", encryption_to_str(&enc))
+                encryption_to_str(&enc).to_string()
             } else {
                 "".to_string()
             };
