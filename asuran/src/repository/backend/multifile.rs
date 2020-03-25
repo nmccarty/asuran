@@ -6,8 +6,10 @@ use crate::repository::{ChunkSettings, Key};
 use super::{BackendError, Result};
 use async_trait::async_trait;
 use rmp_serde as rmps;
-use std::fs::File;
+use std::fs::{create_dir_all, remove_file, File, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use uuid::Uuid;
 
 pub mod index;
 pub mod manifest;
@@ -19,6 +21,10 @@ pub struct MultiFile {
     manifest_handle: manifest::Manifest,
     segment_handle: segment::SegmentHandler,
     path: PathBuf,
+    /// Connection uuid, used for read locks.
+    uuid: Uuid,
+    /// Path to readlock for this connection, must be deleted on close
+    read_lock_path: Arc<PathBuf>,
 }
 
 impl MultiFile {
@@ -44,15 +50,20 @@ impl MultiFile {
                 global_lock_path
             )));
         }
+        // Generate a uuid
+        let uuid = Uuid::new_v4();
         let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
+        // Open up an index connection
         let index_handle = index::Index::open(&path)?;
+        // Open up a manifest connection
         let mut manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)?;
         let chunk_settings = if let Some(chunk_settings) = chunk_settings {
             chunk_settings
         } else {
             manifest_handle.chunk_settings().await
         };
+        // Open up a segment handler connection
         let segment_handle = segment::SegmentHandler::open(
             &path,
             size_limit,
@@ -60,12 +71,28 @@ impl MultiFile {
             chunk_settings,
             key.clone(),
         )?;
+        // Make sure the readlocks directory exists
+        create_dir_all(path.as_ref().join("readlocks"))?;
+        // generate a path to our readlock
+        let read_lock_path = path
+            .as_ref()
+            .join("readlocks")
+            .join(uuid.to_simple().to_string());
+        // Create the read_lock file
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&read_lock_path)
+            .unwrap();
+
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {
             index_handle,
             manifest_handle,
             segment_handle,
             path,
+            uuid,
+            read_lock_path: Arc::new(read_lock_path),
         })
     }
 
@@ -132,6 +159,12 @@ impl Backend for MultiFile {
         self.index_handle.close().await;
         self.manifest_handle.close().await;
         self.segment_handle.close().await;
+        // Check if the read_lock_file exists and delete it
+        if self.read_lock_path.exists() {
+            // FIXME: We ignore this error for now, as this method does not currently return a
+            // result
+            let _ = remove_file(self.read_lock_path.as_ref());
+        }
     }
 
     fn get_object_handle(&self) -> BackendObject {
@@ -143,7 +176,6 @@ impl Backend for MultiFile {
 mod tests {
     use super::*;
     use crate::repository::Encryption;
-    use std::fs::OpenOptions;
     use tempfile::{tempdir, TempDir};
 
     // Utility function, sets up a tempdir and opens a MultiFile Backend
@@ -200,5 +232,20 @@ mod tests {
         assert!(mf.is_err());
         // It should also, specifically, be a RepositoryGloballyLocked
         assert!(matches!(mf, Err(BackendError::RepositoryGloballyLocked(_))));
+    }
+
+    // Tests to make sure that readlocks are created and destroyed properly
+    #[tokio::test]
+    async fn read_lock_create_destroy() {
+        let key = Key::random(32);
+        let (tempdir, mut mf) = setup(&key).await;
+        let lock_path: Arc<PathBuf> = mf.read_lock_path.clone();
+        // the connection is open, assert that the lock exists
+        assert!(lock_path.exists());
+        // Close the connection
+        mf.close().await;
+        std::mem::drop(mf);
+        // The connection is now closed, assert that the lock does not exist
+        assert!(!lock_path.exists());
     }
 }
