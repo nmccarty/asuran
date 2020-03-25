@@ -9,6 +9,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use thiserror::Error;
+use tracing::{trace, Error};
 use zeroize::Zeroize;
 
 /// Error describing things that can go wrong with key handling
@@ -81,6 +82,7 @@ impl Key {
     /// Securely generates a random bundle of key material
     ///
     /// Takes the desired length in bytes of each individual key component
+    #[tracing::instrument(level = "trace")]
     pub fn random(length: usize) -> Key {
         let mut buffer1 = vec![0; length];
         thread_rng().fill_bytes(&mut buffer1);
@@ -88,6 +90,7 @@ impl Key {
         thread_rng().fill_bytes(&mut buffer2);
         let mut buffer3 = vec![0; length];
         thread_rng().fill_bytes(&mut buffer3);
+        trace!("Generated a random key");
         Key {
             key: buffer1,
             hmac_key: buffer2,
@@ -136,6 +139,7 @@ pub struct EncryptedKey {
 
 impl EncryptedKey {
     /// Produces an encrypted key from the specified user key and encryption method
+    #[tracing::instrument(level = "trace")]
     pub fn encrypt(
         key: &Key,
         mem_cost: u32,
@@ -170,7 +174,7 @@ impl EncryptedKey {
 
         let generated_key_bytes = argon2::hash_raw(&user_key, &salt, &config).unwrap();
         let encrypted_bytes = encryption.encrypt_bytes(&key_buffer, &generated_key_bytes);
-
+        trace!("Encrypted key");
         EncryptedKey {
             encrypted_bytes,
             salt,
@@ -188,7 +192,9 @@ impl EncryptedKey {
     /// - `mem_cost`: 65536
     /// - `time_cost`: 10
     #[cfg_attr(tarpaulin, skip)]
+    #[tracing::instrument(level = "trace")]
     pub fn encrypt_defaults(key: &Key, encryption: Encryption, user_key: &[u8]) -> EncryptedKey {
+        trace!("Encrypting key with default settings");
         EncryptedKey::encrypt(key, 65536, 10, encryption, user_key)
     }
 
@@ -197,6 +203,7 @@ impl EncryptedKey {
     /// # Errors:
     ///
     /// Will return `Err(KeyError)` if key decryption fails
+    #[tracing::instrument(level = "error")]
     pub fn decrypt(&self, user_key: &[u8]) -> Result<Key> {
         // Derive the key from the user key
         let config = Config {
