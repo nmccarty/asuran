@@ -3,7 +3,7 @@ use crate::repository::backend::common::files::*;
 use crate::repository::backend::*;
 use crate::repository::{ChunkSettings, Key};
 
-use super::Result;
+use super::{BackendError, Result};
 use async_trait::async_trait;
 use rmp_serde as rmps;
 use std::fs::File;
@@ -36,6 +36,14 @@ impl MultiFile {
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
     ) -> Result<MultiFile> {
+        // First, check to see if the global lock exists, and return an error early if it does
+        let global_lock_path = path.as_ref().join("lock");
+        if Path::exists(&global_lock_path) {
+            return Err(BackendError::RepositoryGloballyLocked(format!(
+                "Global lock for this repository already exists at: {:?}",
+                global_lock_path
+            )));
+        }
         let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
         let index_handle = index::Index::open(&path)?;
@@ -135,6 +143,7 @@ impl Backend for MultiFile {
 mod tests {
     use super::*;
     use crate::repository::Encryption;
+    use std::fs::OpenOptions;
     use tempfile::{tempdir, TempDir};
 
     // Utility function, sets up a tempdir and opens a MultiFile Backend
@@ -171,5 +180,25 @@ mod tests {
             .decrypt(b"")
             .expect("Unable to decrypt key (after drop)");
         assert_eq!(key, new_key);
+    }
+
+    // Test to make sure that attempting to open a repository respects an existing global lock
+    #[tokio::test]
+    async fn repository_global_lock() {
+        let tempdir = tempdir().unwrap();
+        let path = tempdir.path().to_path_buf();
+        let key = Key::random(32);
+        // Create the lock
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(path.join("lock"))
+            .unwrap();
+        // Attempt to open the backend
+        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), &key).await;
+        // This should error
+        assert!(mf.is_err());
+        // It should also, specifically, be a RepositoryGloballyLocked
+        assert!(matches!(mf, Err(BackendError::RepositoryGloballyLocked(_))));
     }
 }

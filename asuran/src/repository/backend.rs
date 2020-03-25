@@ -39,6 +39,8 @@ pub enum BackendError {
     CancelledOneshotError(#[from] futures::channel::oneshot::Canceled),
     #[error("Chunk Unpacking Error")]
     ChunkUnpackError(#[from] asuran_core::repository::chunk::ChunkError),
+    #[error("Repository has an existing global lock")]
+    RepositoryGloballyLocked(String),
     #[error("Unknown Error")]
     Unknown(String),
 }
