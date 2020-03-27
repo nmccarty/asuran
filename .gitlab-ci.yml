@@ -65,15 +65,10 @@ test:test:windows:
 
 test:coverage:
   stage: coverage
-  image: "thatonelutenist/rust-nathan:latest"
+  image: "xd009642/tarpaulin"
   script:
-    - cargo check
-    - cd asuran-core
-    - cargo kcov
-    - cd ../asuran
-    - cargo kcov
-    - cd ..
-    - bash <(curl -s https://codecov.io/bash) -s target/cov
+    - cargo tarpaulin --out Xml
+    - bash <(curl -s https://codecov.io/bash)
   cache:
     key: "$CI_COMMIT_REF_SLUG-cov"
     paths:
