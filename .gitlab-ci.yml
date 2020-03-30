@@ -67,6 +67,7 @@ test:coverage:
   stage: coverage
   image: "xd009642/tarpaulin"
   script:
+    - apt-get update
     - apt-get install curl -y
     - cargo tarpaulin --out Xml
     - bash <(curl -s https://codecov.io/bash)
