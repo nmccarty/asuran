@@ -75,7 +75,8 @@ test:coverage:
       - ~/.cargo
       - target
   tags:
-    - linux
+    - linux-own
+  allow_failure: true
   needs: ["test:lint:rustfmt"]
 
 build:build:linux:
