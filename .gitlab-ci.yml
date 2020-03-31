@@ -63,6 +63,19 @@ test:test:windows:
     - master
     - tags
 
+test:test:macos:
+  stage: test
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo test
+  tags:
+    - macos
+  needs: ["test:lint:rustfmt"]
+  only:
+    - master
+    - tags
+    
 test:coverage:
   stage: coverage
   image: "xd009642/tarpaulin"
@@ -117,6 +130,22 @@ build:build:windows:
     - master
     - tags
 
+build:build:macos:
+  stage: build
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+  tags:
+    - macs
+  needs: ["test:test:macos"]
+  only:
+    - master
+    - tags
+    
 build:bench:linux:
   stage: bench
   image: "guangie88/rustfmt-clippy:stable"
@@ -147,7 +176,6 @@ build:bench:windows:
   cache:
     key: "$CI_COMMIT_REF_SLUG-bench"
     paths:
-      - ~/.cargo
       - target
   tags:
     - windows-own
@@ -156,6 +184,25 @@ build:bench:windows:
     - master
     - tags
 
+build:bench:macos:
+  stage: bench
+  variables:
+    RUSTFLAGS: "-C target-cpu=native"
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo bench
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-bench-macos"
+    paths:
+      - target
+  tags:
+    - macos
+  needs: ["build:build:macos"]
+  only:
+    - master
+    - tags
+    
 pages:
   stage: doc
   image: "guangie88/rustfmt-clippy:stable"
