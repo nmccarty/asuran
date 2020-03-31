@@ -85,11 +85,6 @@ test:coverage:
     - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
   after_script:
     - bash <(curl -s https://codecov.io/bash)
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-cov"
-    paths:
-      - ~/.cargo
-      - target
   tags:
     - linux-own
   allow_failure: true
