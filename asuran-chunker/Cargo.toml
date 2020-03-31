@@ -18,7 +18,7 @@ fastcdc = "1.0.3"
 futures = { version = "0.3.4", default-features = false, features = ["std"], optional = true }
 rand = "0.7.3"
 rand_chacha = "0.2.2"
-thiserror = "1.0.13"
+thiserror = "1.0.14"
 tokio = { version = "0.2.13", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"], optional = true }
 
 [dev-dependencies]
