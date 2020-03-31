@@ -84,7 +84,7 @@ test:coverage:
     - apt-get install curl -y
     - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
   after_script:
-    - bash <(curl -s https://codecov.io/bash)
+    - bash <(curl -s https://codecov.io/bash) -v
   tags:
     - linux-own
   allow_failure: true
