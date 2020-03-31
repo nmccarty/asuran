@@ -140,7 +140,7 @@ build:build:macos:
     paths:
       - target/release/
   tags:
-    - macs
+    - macos
   needs: ["test:test:macos"]
   only:
     - master
