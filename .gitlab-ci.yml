@@ -81,7 +81,7 @@ test:coverage:
   image: "xd009642/tarpaulin"
   script:
     - apt-get update
-    - apt-get install curl -y
+    - apt-get install curl git -y
     - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean
   after_script:
     - bash <(curl -s https://codecov.io/bash) -v
