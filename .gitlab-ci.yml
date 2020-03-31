@@ -82,9 +82,9 @@ test:coverage:
   script:
     - apt-get update
     - apt-get install curl git -y
-    - cargo tarpaulin -t 600 --ignore-tests --force-clean
+    - cargo tarpaulin --out Xml -t 600 --ignore-tests --force-clean --output-dir tarp
   after_script:
-    - bash <(curl -s https://codecov.io/bash)
+    - bash <(curl -s https://codecov.io/bash) -f tarp/cobertura.xml
   tags:
     - linux-own
   allow_failure: true
