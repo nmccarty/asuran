@@ -1,3 +1,40 @@
+<a name="0.0.11"></a>
+## 0.0.11 (2020-04-20)
+
+
+#### Other Changes
+
+*   Improve test coverage ([230da7b5](230da7b5))
+*   Exclude asuran-cli from cargo tarpaulin ([7679ff91](7679ff91))
+* **asuran:**
+  *  Improve test coverage for multifile manifest ([924a4027](924a4027))
+  *  Create integration test for #56 ([eea0adcf](eea0adcf))
+* **asuran-core:**
+  *  Remove unused UnpackedChunk type ([423ae195](423ae195))
+  *  Add unit tests for listing module ([01303fde](01303fde))
+
+#### Features
+
+*   Eq derives for listing types ([b0e342d2](b0e342d2))
+*   Add Hash derive to chunk settings enums ([311a81d7](311a81d7))
+*   Restructure StructOpt to include repository options on subcommands ([17123547](17123547))
+* **asuran:**
+  *  MultiFile backend now creates readlocks ([a49e9bb3](a49e9bb3), closes [#32](32))
+  *  make MultiFile backend respects global locks ([caaa3fe7](caaa3fe7))
+* **asuran-cli:**
+  *  Add preview to asuran-cli extract ([ce544436](ce544436))
+  *  Add glob filtering to asuran-cli extract ([553efacb](553efacb), closes [#57](57))
+  *  Add contents command ([0752a85a](0752a85a))
+* **cli:**
+  *  Expand table in bench-crypto to 80 cols ([5254b524](5254b524))
+  *  Add bench-crypto command ([37e0c220](37e0c220), closes [#55](55))
+
+#### Bug Fixes
+
+* **asuran-core:**  Correct use of copy_from_slice ([aa267598](aa267598), closes [#56](56))
+
+
+
 <a name="0.0.9"></a>
 ## 0.0.9 (2020-03-24)
 
