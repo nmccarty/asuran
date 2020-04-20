@@ -13,18 +13,19 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.28"
+asuran = { version = "0.0.11-alpha.0", path = "../asuran" }
+async-trait = "0.1.30"
 chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
 futures = "0.3.4"
-asuran = { version = "0.0.11-alpha.0", path = "../asuran" }
+globset = "0.4.5"
 prettytable-rs = "0.8.0"
 read_input = "0.8.4"
 rpassword = "4.0.5"
+structopt = "0.3.13"
 tokio = { version = "0.2.18", features = ["full"] }
 tracing = "0.1.13"
 tracing-subscriber = "0.2.4"
-structopt = "0.3.13"
-async-trait = "0.1.30"
 
 [build-dependencies]
 vergen = "3.1.0"
