@@ -23,6 +23,7 @@ pub mod repository;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[cfg_attr(tarpaulin, skip)]
 lazy_static! {
     /// The pieces of the version string for this version of libasuran
     pub static ref VERSION_PIECES: [u16; 3] = {

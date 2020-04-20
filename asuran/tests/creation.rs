@@ -39,3 +39,14 @@ async fn create_multifile_noencryption() {
     )
     .await
 }
+
+// Attempts to reproduce gitlab issue #58
+#[tokio::test(threaded_scheduler)]
+async fn create_lzma_9() {
+    create_multifile_repository(
+        Encryption::new_aes256ctr(),
+        Compression::LZMA { level: 9 },
+        HMAC::Blake3,
+    )
+    .await
+}

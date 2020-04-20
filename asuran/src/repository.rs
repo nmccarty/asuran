@@ -351,4 +351,25 @@ mod tests {
         assert_eq!(key_1, key_2);
         std::mem::drop(repo);
     }
+
+    // Ensure writing a chunk with an ID works
+    #[tokio::test(threaded_scheduler)]
+    async fn chunk_with_id() {
+        let mut repo = get_repo_mem(Key::random(32));
+        // generate our chunk
+        let size = 7 * 10_u64.pow(3);
+        let mut data = vec![0_u8; size as usize];
+        thread_rng().fill_bytes(&mut data);
+        let id = ChunkID::manifest_id();
+        // write it
+        repo.write_chunk_with_id(data.clone(), id)
+            .await
+            .expect("Unable to write with id");
+        // Read it
+        let data_restore = repo
+            .read_chunk(id)
+            .await
+            .expect("Unable to read chunk back out");
+        assert_eq!(data, data_restore);
+    }
 }

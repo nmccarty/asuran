@@ -13,6 +13,7 @@ pub mod flatfile;
 pub mod mem;
 pub mod multifile;
 
+#[cfg_attr(tarpaulin, skip)]
 pub mod object_wrappers;
 pub use object_wrappers::{backend_to_object, BackendObject};
 
