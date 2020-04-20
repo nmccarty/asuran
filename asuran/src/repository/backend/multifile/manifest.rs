@@ -469,6 +469,7 @@ mod tests {
     // 2. Creates the manifest directory
     // 3. Creates the initial manifest file (manifest/0)
     // 4. Locks the initial manifest file (manifest/0.lock)
+    // 5. last_modification works on a new manifest
     #[tokio::test]
     async fn creation_works() {
         let (tempdir, path) = setup();
@@ -494,6 +495,11 @@ mod tests {
         let manifest_lock = manifest_dir.join("0.lock");
         assert!(manifest_lock.exists());
         assert!(manifest_lock.is_file());
+        // Make sure last_modification works
+        let _last_mod = manifest
+            .last_modification()
+            .await
+            .expect("Last modification failed");
         manifest.close().await;
     }
 
@@ -596,5 +602,27 @@ mod tests {
         for archive in archives {
             assert!(archive_set.contains(&archive));
         }
+    }
+
+    // Test to verify that:
+    // 1. Attempting to open a manifest with a path that points to an existing file Errs
+    // 2. Attempting to create a manifest without chunk settings errors
+    #[tokio::test]
+    async fn manifest_errors() {
+        let settings = ChunkSettings::lightweight();
+        let key = Key::random(32);
+        // First open a tempdir and create a file in
+        let tempdir = tempdir().expect("unable to create tempdir");
+        let file_path = tempdir.path().join("test.file");
+        let _test_file = File::create(&file_path).expect("Unable to create test file");
+
+        // Attempt to open a manifest at that location
+        let mf = Manifest::open(&file_path, Some(settings), &key);
+        // This should error
+        assert!(mf.is_err());
+
+        // Attempt to open a manifest without setting chunk settings
+        let mf = Manifest::open(&file_path, None, &key);
+        assert!(mf.is_err());
     }
 }
