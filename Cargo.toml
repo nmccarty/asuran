@@ -11,6 +11,7 @@ members = [
 lto = true
 codegen-units = 1
 opt-level = 3
+panic = "abort"
 
 [profile.release]
 codegen-units = 1
