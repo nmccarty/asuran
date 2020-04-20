@@ -3,7 +3,6 @@ stages:
   - test
   - coverage
   - build
-  - bench
   - doc
 
 include:

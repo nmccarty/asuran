@@ -26,11 +26,3 @@ build:linux:
     - linux
   needs: []
 
-build:bench:linux:
-  stage: bench
-  image: "thatonelutenist/rustc-sccache:latest"
-  script:
-    - cargo bench
-  tags:
-    - linux-own
-  needs: []
