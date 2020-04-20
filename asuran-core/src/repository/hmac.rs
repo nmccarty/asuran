@@ -24,6 +24,8 @@ use sha3::Sha3_256;
 
 use crate::repository::Key;
 
+use std::cmp::min;
+
 #[cfg(not(any(
     feature = "blake2b_simd",
     feature = "sha2",
@@ -101,7 +103,8 @@ impl HMAC {
                 cfg_if! {
                     if #[cfg(feature = "blake3")] {
                         let mut tmp_key = [0_u8; 32];
-                        tmp_key.copy_from_slice(&key[..32]);
+                        let len = min(32, key.len());
+                        tmp_key[..len].copy_from_slice(&key[..len]);
                         blake3::keyed_hash(&tmp_key, data).as_bytes().to_vec()
                     } else {
                         unimplemented!("Asuran was not compiled with BLAKE3 support")
