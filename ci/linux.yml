@@ -29,10 +29,8 @@ build:linux:
 build:bench:linux:
   stage: bench
   image: "thatonelutenist/rustc-sccache:latest"
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
   script:
     - cargo bench
   tags:
-    - linux
+    - linux-own
   needs: []

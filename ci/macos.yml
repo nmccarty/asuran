@@ -20,15 +20,3 @@ build:macos:
   tags:
     - macos
   needs: ["test:macos"]
-
-bench:macos:
-  stage: bench
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo bench
-  tags:
-    - macos
-  needs: ["build:macos"]

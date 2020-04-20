@@ -20,19 +20,3 @@ build:windows:
   tags:
     - windows-own
   needs: ["test:windows"]
-
-bench:windows:
-  stage: bench
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo bench
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-bench"
-    paths:
-      - target
-  tags:
-    - windows-own
-  needs: ["build:windows"]
