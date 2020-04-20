@@ -104,38 +104,6 @@ impl ChunkSettings {
     }
 }
 
-/// A binary blob that has not yet undergone encryption, compression, or `HMAC`,
-/// but has had a `ChunkID` generated.
-pub struct UnpackedChunk {
-    data: Vec<u8>,
-    id: ChunkID,
-}
-
-impl UnpackedChunk {
-    /// Creates a new `UnpackedChunk` using the provided data, and generating an ID
-    /// using the `hmac` value of the provided `ChunkSettings` and the provided key.
-    pub fn new(data: Vec<u8>, settings: ChunkSettings, key: &Key) -> UnpackedChunk {
-        let id = settings.hmac.id(data.as_slice(), &key);
-        let cid = ChunkID::new(&id);
-        UnpackedChunk { data, id: cid }
-    }
-
-    /// Returns the chunkid
-    pub fn id(&self) -> ChunkID {
-        self.id
-    }
-
-    /// Returns a refrence to the data
-    pub fn data(&self) -> &[u8] {
-        &self.data
-    }
-
-    /// Returns the data consuming self
-    pub fn consuming_data(self) -> Vec<u8> {
-        self.data
-    }
-}
-
 /// A split representation of a `Chunk`'s 'header' or metadata.
 /// Used for on disk storage
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -198,18 +166,8 @@ impl Chunk {
         key: &Key,
     ) -> Chunk {
         let id_mac = hmac.id(&data, key);
-        let compressed_data = compression.compress(data);
-        let data = encryption.encrypt(&compressed_data, key);
         let id = ChunkID::new(&id_mac);
-        let mac = hmac.mac(&data, key);
-        Chunk {
-            data,
-            compression,
-            encryption,
-            hmac,
-            mac,
-            id,
-        }
+        Chunk::pack_with_id(data, compression, encryption, hmac, key, id)
     }
 
     /// Constructs a `Chunk` from its raw parts.

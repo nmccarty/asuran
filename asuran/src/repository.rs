@@ -44,7 +44,7 @@ use thiserror::Error;
 
 pub use crate::repository::backend::{Backend, BackendClone, Index, SegmentDescriptor};
 use crate::repository::pipeline::Pipeline;
-pub use asuran_core::repository::chunk::{Chunk, ChunkID, ChunkSettings, UnpackedChunk};
+pub use asuran_core::repository::chunk::{Chunk, ChunkID, ChunkSettings};
 pub use asuran_core::repository::compression::Compression;
 pub use asuran_core::repository::encryption::Encryption;
 pub use asuran_core::repository::hmac::HMAC;
@@ -193,13 +193,6 @@ impl<T: BackendClone + 'static> Repository<T> {
             )
             .await;
         self.write_raw(chunk).await
-    }
-
-    /// Writes an unpacked chunk to the repository using all defaults
-    #[instrument(skip(self, data))]
-    pub async fn write_unpacked_chunk(&mut self, data: UnpackedChunk) -> Result<(ChunkID, bool)> {
-        let id = data.id();
-        self.write_chunk_with_id(data.consuming_data(), id).await
     }
 
     /// Writes a chunk to the repo
