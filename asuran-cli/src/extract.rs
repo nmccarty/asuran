@@ -1,4 +1,4 @@
-use crate::cli::Opt;
+use crate::cli::{GlobOpt, Opt};
 
 use asuran::manifest::driver::*;
 use asuran::manifest::target::*;
@@ -6,11 +6,17 @@ use asuran::manifest::*;
 use asuran::repository::*;
 
 use anyhow::Result;
+use globset::{Glob, GlobSetBuilder};
 use std::path::PathBuf;
 
 /// Drives a repository and extracts the files from the user provided archive to
 /// the user provided location
-pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Result<()> {
+pub async fn extract(
+    options: Opt,
+    target: PathBuf,
+    archive_name: String,
+    glob_opts: GlobOpt,
+) -> Result<()> {
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
     let chunk_settings = options.get_chunk_settings();
@@ -45,10 +51,35 @@ pub async fn extract(options: Opt, target: PathBuf, archive_name: String) -> Res
             archive.name(),
             archive.timestamp().to_rfc2822()
         );
+        // Build the includes glob
+        let includes = if let Some(include_vec) = glob_opts.include {
+            let mut builder = GlobSetBuilder::new();
+            for include_string in include_vec {
+                builder.add(Glob::new(&include_string)?);
+            }
+            Some(builder.build()?)
+        } else {
+            None
+        };
+        // Build the excludes glob
+        let excludes = if let Some(exclude_vec) = glob_opts.exclude {
+            let mut builder = GlobSetBuilder::new();
+            for exclude_string in exclude_vec {
+                builder.add(Glob::new(&exclude_string)?);
+            }
+            Some(builder.build()?)
+        } else {
+            None
+        };
         // Load listing and setup target
         let listing = archive.listing().await;
         let f_target = FileSystemTarget::load_listing(target.to_str().unwrap(), listing).await;
-        let paths = f_target.restore_listing().await;
+        let paths = f_target
+            .restore_listing()
+            .await
+            .into_iter()
+            .filter(|x| includes.as_ref().map_or(true, |y| y.is_match(&x.path)))
+            .filter(|x| excludes.as_ref().map_or(true, |y| !y.is_match(&x.path)));
         for node in paths {
             println!("Restoring file: {}", node.path);
             // TODO (#36): properly utilize tasks here

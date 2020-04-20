@@ -37,8 +37,11 @@ async fn main() -> Result<()> {
         Command::Store { target, name, .. } => store::store(options, target, name).await,
         Command::List { .. } => list::list(options).await,
         Command::Extract {
-            target, archive, ..
-        } => extract::extract(options, target, archive).await,
+            target,
+            archive,
+            glob_opts,
+            ..
+        } => extract::extract(options, target, archive, glob_opts).await,
         Command::BenchCrypto => bench::bench_crypto().await,
         Command::Contents {
             archive, glob_opts, ..

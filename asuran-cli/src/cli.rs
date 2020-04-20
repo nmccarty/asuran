@@ -102,6 +102,8 @@ pub enum Command {
     Extract {
         #[structopt(flatten)]
         repo_opts: RepoOpt,
+        #[structopt(flatten)]
+        glob_opts: GlobOpt,
         /// Location to restore to
         #[structopt(name = "TARGET")]
         target: PathBuf,
