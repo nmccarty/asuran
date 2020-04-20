@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.28"
-asuran = { version = "0.0.11-alpha.0", path = "../asuran" }
+asuran = { version = "0.0.11", path = "../asuran" }
 async-trait = "0.1.30"
 chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
