@@ -21,3 +21,4 @@ These people have had the unfortunate experience of encountering a bug in Asuran
 
 -	[@aidanhs](https://gitlab.com/aidanhs)
 -	[@snsmac](https://gitlab.com/snsmac)
+-   [@zjzdy](https://gitlab.com/zjzdy)
