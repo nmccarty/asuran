@@ -20,6 +20,8 @@ Optionally add `-C target-cpu=native` for even better performance. The target fe
 
 This crate is ultimatly an extremely thin wrapper around the asuran API, so most documenation will be found there.
 
+Take a look at the output of `asuran-cli --help` for usage information. Keep in mind that each of the sub-commands has its own help page as well (e.g. `asuran-cli extract --help`).
+
 License
 -------
 
