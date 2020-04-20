@@ -1,0 +1,20 @@
+lint:rustfmt:
+  stage: lint
+  image: "thatonelutenist/rustc-sccache:latest"
+  script:
+    - cargo fmt --all -- --check
+  tags:
+    - linux
+  allow_failure: true
+  when: always
+  needs: []
+
+lint:clippy:
+  stage: lint
+  image: "thatonelutenist/rustc-sccache:latest"
+  script:
+    - cargo clippy -- -D warnings
+  tags:
+    - linux
+  allow_failure: true
+  needs: []

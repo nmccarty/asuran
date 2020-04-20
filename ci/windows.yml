@@ -1,0 +1,38 @@
+test:windows:
+  stage: test
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo test
+  tags:
+    - windows-own
+  needs: []
+
+build:windows:
+  stage: build
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+  tags:
+    - windows-own
+  needs: ["test:windows"]
+
+bench:windows:
+  stage: bench
+  variables:
+    RUSTFLAGS: "-C target-cpu=native"
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo bench
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-bench"
+    paths:
+      - target
+  tags:
+    - windows-own
+  needs: ["build:windows"]

@@ -1,0 +1,38 @@
+test:linux:
+  stage: test
+  image: "thatonelutenist/rustc-sccache:latest"
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo junit --name linux.xml
+  tags:
+    - linux
+  needs: []
+  artifacts:
+    paths:
+      - linux.xml
+    reports:
+      junit: linux.xml
+
+build:linux:
+  stage: build
+  image: "thatonelutenist/rustc-sccache:latest"
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+  tags:
+    - linux
+  needs: []
+
+build:bench:linux:
+  stage: bench
+  image: "thatonelutenist/rustc-sccache:latest"
+  variables:
+    RUSTFLAGS: "-C target-cpu=native"
+  script:
+    - cargo bench
+  tags:
+    - linux
+  needs: []

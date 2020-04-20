@@ -1,0 +1,34 @@
+test:macos:
+  stage: test
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo test
+  tags:
+    - macos
+  needs: []
+
+build:macos:
+  stage: build
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+  tags:
+    - macos
+  needs: ["test:macos"]
+
+bench:macos:
+  stage: bench
+  variables:
+    RUSTFLAGS: "-C target-cpu=native"
+  script:
+    - cargo --version
+    - rustc --version
+    - cargo bench
+  tags:
+    - macos
+  needs: ["build:macos"]

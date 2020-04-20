@@ -1,5 +1,4 @@
 stages:
-  - format
   - lint
   - test
   - coverage
@@ -7,74 +6,11 @@ stages:
   - bench
   - doc
 
-test:lint:rustfmt:
-  stage: format
-  image: "guangie88/rustfmt-clippy:stable"
-  script:
-    - cargo fmt --all -- --check
-  tags:
-    - linux
-  allow_failure: true
-  when: always
-    
-test:lint:clippy:
-  stage: lint
-  image: "guangie88/rustfmt-clippy:stable"
-  script:
-    - cargo clippy -- -D warnings
-  tags:
-    - linux
-  allow_failure: true
-  needs: ["test:lint:rustfmt"]
-
-    
-test:test:linux:
-  stage: test
-  image: "guangie88/rustfmt-clippy:stable"
-  script:
-    - rustc --version
-    - cargo --version
-    - cargo install cargo-junit
-    - cargo junit --name linux.xml
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-test"
-    paths:
-      - ~/.cargo
-      - target
-  tags:
-    - linux
-  needs: ["test:lint:rustfmt"]
-  artifacts:
-    paths:
-      - linux.xml
-    reports:
-      junit: linux.xml
-
-test:test:windows:
-  stage: test
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo test
-  tags:
-    - windows-own
-  needs: ["test:lint:rustfmt"]
-  only:
-    - master
-    - tags
-
-test:test:macos:
-  stage: test
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo test
-  tags:
-    - macos
-  needs: ["test:lint:rustfmt"]
-  only:
-    - master
-    - tags
+include:
+  - local: '/ci/lint.yml'
+  - local: '/ci/linux.yml'
+  - local: '/ci/windows.yml'
+  - local: '/ci/macos.yml'
     
 test:coverage:
   stage: coverage
@@ -88,117 +24,8 @@ test:coverage:
   tags:
     - linux-own
   allow_failure: true
-  needs: ["test:lint:rustfmt"]
+  needs: []
 
-build:build:linux:
-  stage: build
-  image: "guangie88/rustfmt-clippy:stable"
-  script:
-    - cargo build --release
-  artifacts:
-    paths:
-      - target/release/
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-build"
-    paths:
-      - ~/.cargo
-      - target
-  tags:
-    - linux
-  needs: ["test:test:linux"]
-  only:
-    - master
-    - tags
-
-build:build:windows:
-  stage: build
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo build --release
-  artifacts:
-    paths:
-      - target/release/
-  tags:
-    - windows-own
-  needs: ["test:test:windows"]
-  only:
-    - master
-    - tags
-
-build:build:macos:
-  stage: build
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo build --release
-  artifacts:
-    paths:
-      - target/release/
-  tags:
-    - macos
-  needs: ["test:test:macos"]
-  only:
-    - master
-    - tags
-    
-build:bench:linux:
-  stage: bench
-  image: "guangie88/rustfmt-clippy:stable"
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
-  script:
-    - cargo bench
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-bench"
-    paths:
-      - ~/.cargo
-      - target
-  tags:
-    - linux
-  needs: ["test:lint:rustfmt"]
-  only:
-    - master
-    - tags
-
-build:bench:windows:
-  stage: bench
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo bench
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-bench"
-    paths:
-      - target
-  tags:
-    - windows-own
-  needs: ["test:lint:rustfmt"]
-  only:
-    - master
-    - tags
-
-build:bench:macos:
-  stage: bench
-  variables:
-    RUSTFLAGS: "-C target-cpu=native"
-  script:
-    - cargo --version
-    - rustc --version
-    - cargo bench
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-bench-macos"
-    paths:
-      - target
-  tags:
-    - macos
-  needs: ["build:build:macos"]
-  only:
-    - master
-    - tags
-    
 pages:
   stage: doc
   image: "guangie88/rustfmt-clippy:stable"
@@ -210,7 +37,8 @@ pages:
     paths:
       - public
       - target
-  needs: ["test:lint:rustfmt"]
+  needs: []
   tags:
     - linux
-  when: always
+  only:
+    - master
