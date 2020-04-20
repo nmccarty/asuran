@@ -116,18 +116,47 @@ pub enum Command {
     },
     /// Runs benchmarks on all combinations of asuran's supported crypto primitives.
     BenchCrypto,
+    /// Lists the contents of an archive, with optional glob filters
+    Contents {
+        #[structopt(flatten)]
+        repo_opts: RepoOpt,
+        #[structopt(flatten)]
+        glob_opts: GlobOpt,
+        /// Name or ID of the archive to list the contents of
+        #[structopt(name = "ARCHIVE")]
+        archive: String,
+    },
 }
 
 impl Command {
     pub fn repo_opts(&self) -> &RepoOpt {
         match self {
-            Self::List { repo_opts } => repo_opts,
+            Self::List { repo_opts, .. } => repo_opts,
             Self::Store { repo_opts, .. } => repo_opts,
             Self::Extract { repo_opts, .. } => repo_opts,
             Self::New { repo_opts, .. } => repo_opts,
+            Self::Contents {repo_opts, ..} => repo_opts,
             Self::BenchCrypto => unimplemented!("asuran-cli bench does not interact with a repository, and does not have repository options."),
         }
     }
+}
+
+/// Shared glob matching options
+#[derive(Debug, StructOpt, Clone)]
+pub struct GlobOpt {
+    /// Patterns to include.
+    ///
+    /// Having this option present will result in only files matched by one of the
+    /// provided globs being included in the operation, with the exception of any files
+    /// matched by one of the exclude globs, if present.
+    #[structopt(short = "I", long)]
+    pub include: Option<Vec<String>>,
+    /// Patterns to exclude
+    ///
+    /// Any files matching globs provided as an exclude will not be included in the
+    /// operation.
+    #[structopt(short = "E", long)]
+    pub exclude: Option<Vec<String>>,
 }
 
 /// Options that are shared among all repository commands

@@ -11,6 +11,8 @@ mod util;
 #[cfg_attr(tarpaulin, skip)]
 mod bench;
 #[cfg_attr(tarpaulin, skip)]
+mod contents;
+#[cfg_attr(tarpaulin, skip)]
 mod extract;
 #[cfg_attr(tarpaulin, skip)]
 mod list;
@@ -38,5 +40,8 @@ async fn main() -> Result<()> {
             target, archive, ..
         } => extract::extract(options, target, archive).await,
         Command::BenchCrypto => bench::bench_crypto().await,
+        Command::Contents {
+            archive, glob_opts, ..
+        } => contents::contents(options, archive, glob_opts).await,
     }
 }
