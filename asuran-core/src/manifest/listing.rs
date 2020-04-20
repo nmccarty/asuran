@@ -11,7 +11,7 @@ use std::collections::HashMap;
 ///
 /// These names are more or less arbitrary, and they don't actually need to be files
 /// or directory.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NodeType {
     /// A node that has assocaited data and potentially associated metadata
     File,
@@ -24,7 +24,7 @@ pub enum NodeType {
 }
 
 /// A node is a description of an object in the listing
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Node {
     /// The path of the object, in its orignal form before archive mangling
     ///
@@ -114,6 +114,8 @@ impl Listing {
     }
 
     /// Creates a by-reference iterator over the Nodes in this listing
+    // This is excluded from tarpaulin, since its just a pass through to into_iter
+    #[cfg_attr(tarpaulin, skip)]
     pub fn iter(&self) -> RefListingIterator<'_> {
         self.into_iter()
     }
@@ -225,5 +227,119 @@ impl<'a> IntoIterator for &'a Listing {
             children_buffer: Vec::new(),
             node_map,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    // Ensures that the drain_children method on node works as expected
+    #[test]
+    fn node_drain_children() {
+        let test_node = Node {
+            path: "test".to_owned(),
+            total_length: 1234,
+            total_size: 1234,
+            extents: None,
+            node_type: NodeType::Directory {
+                children: ["test1", "test2", "test3"]
+                    .iter()
+                    .map(|&x| x.to_owned())
+                    .collect(),
+            },
+        };
+
+        let node = test_node.drain_children();
+        assert_eq!(node.node_type, NodeType::Directory { children: vec![] });
+    }
+
+    // Tests that adding a child behaves appropriately.
+    #[test]
+    fn listing_add_child_iter() {
+        let test_node = Node {
+            path: "test".to_owned(),
+            total_length: 1234,
+            total_size: 1234,
+            extents: None,
+            node_type: NodeType::Directory {
+                children: ["test1", "test2", "test3"]
+                    .iter()
+                    .map(|&x| x.to_owned())
+                    .collect(),
+            },
+        };
+
+        let mut listing = Listing::default();
+
+        // Attempt do add a child with an invalid parent
+        listing.add_child("invalid path!", test_node.clone());
+        // This shouldn't change anything
+        assert_eq!(listing, Listing::default());
+
+        // Now add the child with a valid parent (the root node)
+        listing.add_child("", test_node.clone());
+        assert_ne!(listing, Listing::default());
+    }
+
+    // Test the by reference iterator
+    #[test]
+    fn listing_to_iter_ref() {
+        let test_nodes: HashSet<Node> = ["test1", "test2", "test3", "test4"]
+            .iter()
+            .map(|&x| x.to_owned())
+            .map(|x| Node {
+                path: x,
+                total_length: 1234,
+                total_size: 1234,
+                extents: None,
+                node_type: NodeType::File,
+            })
+            .collect();
+
+        let mut listing = Listing::default();
+
+        for node in &test_nodes {
+            listing.add_child("", node.clone());
+        }
+
+        let mut post_nodes: HashSet<Node> = HashSet::new();
+
+        for node in &listing {
+            post_nodes.insert(node.clone());
+        }
+
+        assert_eq!(test_nodes, post_nodes);
+    }
+
+    // Test the by value iterator
+    #[test]
+    fn listing_to_iter_value() {
+        let test_nodes: HashSet<Node> = ["test1", "test2", "test3", "test4"]
+            .iter()
+            .map(|&x| x.to_owned())
+            .map(|x| Node {
+                path: x,
+                total_length: 1234,
+                total_size: 1234,
+                extents: None,
+                node_type: NodeType::File,
+            })
+            .collect();
+
+        let mut listing = Listing::default();
+
+        for node in &test_nodes {
+            listing.add_child("", node.clone());
+        }
+
+        let mut post_nodes: HashSet<Node> = HashSet::new();
+
+        for node in listing {
+            post_nodes.insert(node);
+        }
+
+        assert_eq!(test_nodes, post_nodes);
     }
 }

@@ -43,7 +43,7 @@ pub struct Archive {
     pub listing: Listing,
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Extent range
 ///
 /// Values are 0 indexed
