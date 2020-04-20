@@ -40,8 +40,9 @@ async fn main() -> Result<()> {
             target,
             archive,
             glob_opts,
+            preview,
             ..
-        } => extract::extract(options, target, archive, glob_opts).await,
+        } => extract::extract(options, target, archive, glob_opts, preview).await,
         Command::BenchCrypto => bench::bench_crypto().await,
         Command::Contents {
             archive, glob_opts, ..

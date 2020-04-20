@@ -16,6 +16,7 @@ pub async fn extract(
     target: PathBuf,
     archive_name: String,
     glob_opts: GlobOpt,
+    preview: bool,
 ) -> Result<()> {
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
@@ -83,7 +84,9 @@ pub async fn extract(
         for node in paths {
             println!("Restoring file: {}", node.path);
             // TODO (#36): properly utilize tasks here
-            f_target.retrieve_object(&mut repo, &archive, node).await?;
+            if !preview {
+                f_target.retrieve_object(&mut repo, &archive, node).await?;
+            }
         }
     }
     repo.close().await;

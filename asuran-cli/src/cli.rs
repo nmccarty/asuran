@@ -110,6 +110,12 @@ pub enum Command {
         /// Name or ID of the archive to be restored
         #[structopt(name = "ARCHIVE")]
         archive: String,
+        /// Preview an extraction without actually performing it
+        ///
+        /// More or less equivalent to contents, but with the same syntax as a normal
+        /// restore command.
+        #[structopt(short = "P", long)]
+        preview: bool,
     },
     /// Creates a new repository
     New {
