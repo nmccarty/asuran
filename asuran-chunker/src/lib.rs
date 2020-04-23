@@ -124,6 +124,8 @@ where
         let mut iter = self.chunk_boxed(read);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                // If we are here, and sending to the channel fails, we have no sensible way to
+                // recover, as we have lost communication with the outside world
                 input.send(chunk).await.unwrap();
             }
         });
@@ -137,6 +139,8 @@ where
         let mut iter = self.chunk(read);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                // If we are here, and sending to the channel fails, we have no sensible way to
+                // recover, as we have lost communication with the outside world
                 input.send(chunk).await.unwrap();
             }
         });
@@ -150,6 +154,8 @@ where
         let mut iter = self.chunk_slice(slice);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
+                // If we are here, and sending to the channel fails, we have no sensible way to
+                // recover, as we have lost communication with the outside world
                 input.send(chunk).await.unwrap();
             }
         });

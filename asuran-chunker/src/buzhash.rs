@@ -89,6 +89,8 @@ impl BuzHashChunker {
         // determine if removal is needed
         if self.count >= self.settings.window_size {
             let hash = self.hash.rotate_left(1);
+            // This unwrap should be infallible
+            // We always fill the buffer before we get here
             let head = self.hash_buffer.pop_front().unwrap();
             let head = self.settings.table[head as usize].rotate_left(self.settings.window_size);
             let tail = self.settings.table[byte as usize];
