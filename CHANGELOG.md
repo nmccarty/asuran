@@ -1,3 +1,19 @@
+<a name="0.1.0"></a>
+## 0.1.0 (2020-04-23)
+
+
+#### Features
+
+* **asuran-cli:**  Add quiet flag ([79f4a021](79f4a021))
+
+#### Other Changes
+
+* **asuran:**  Audit use of unwrap ([5a52bd99](5a52bd99))
+* **asuran-chunker:**  Audit usage of unwrap ([90d3e2e0](90d3e2e0))
+* **asuran-core:**  Audit use of unwrap ([a142aa81](a142aa81))
+
+
+
 <a name="0.0.11"></a>
 ## 0.0.11 (2020-04-20)
 
