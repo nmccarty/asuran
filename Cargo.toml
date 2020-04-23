@@ -16,3 +16,46 @@ panic = "abort"
 [profile.release]
 codegen-units = 1
 lto = true
+
+# Improve test speeds by optimizing some extra slow things
+[profile.test.package.rust-argon2]
+opt-level = 2
+overflow-checks = false
+
+# Improve development experience by optimizing the slow bits
+[profile.dev.package.rust-argon2]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.aes]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.aes-ctr]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.blake2b_simd]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.blake3]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.block-modes]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.lz4]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.chacha20]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.sha2]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.sha3]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.xz2]
+opt-level = 3
+overflow-checks = false
+[profile.dev.package.zstd]
+opt-level = 3
+overflow-checks = false
