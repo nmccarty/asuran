@@ -194,6 +194,7 @@ impl ActiveArchive {
                     result
                 }));
                 while futs.len() >= max_futs {
+                    // This unwrap is sound, since we can only be here if futs has elements in it
                     let loc = futs.pop_front().unwrap().await??;
                     locations.push(loc);
                 }

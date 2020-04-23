@@ -44,8 +44,12 @@ impl Pipeline {
                             &message.key,
                         );
                         if let Some(ret_id) = message.ret_id {
+                            // If sending to this channel fails, we have no way to communicate to
+                            // the outside anymore. Just let this task die.
                             ret_id.send(c.get_id()).unwrap();
                         }
+                        // If sending to this channel fails, we have no way to communicate to
+                        // the outside anymore. Just let this task die.
                         message.ret_chunk.send(c).unwrap();
                     });
                 }
@@ -67,8 +71,12 @@ impl Pipeline {
                             id,
                         );
                         if let Some(ret_id) = message.ret_id {
+                            // If sending to this channel fails, we have no way to communicate to
+                            // the outside anymore. Just let this task die.
                             ret_id.send(c.get_id()).unwrap();
                         }
+                        // If sending to this channel fails, we have no way to communicate to
+                        // the outside anymore. Just let this task die.
                         message.ret_chunk.send(c).unwrap();
                     });
                 }
@@ -98,10 +106,18 @@ impl Pipeline {
             ret_id: Some(id_tx),
         };
         let input = self.input.clone();
-        input.send((data, message)).await.unwrap();
+        input
+            .send((data, message))
+            .await
+            .expect("Not able to communicate with processing tasks. Unable to recover.");
         (
-            id_rx.receive().await.unwrap(),
-            c_rx.receive().await.unwrap(),
+            id_rx
+                .receive()
+                .await
+                .expect("Not able to communicate with processing tasks. Unable to recover."),
+            c_rx.receive()
+                .await
+                .expect("Not able to communicate with processing tasks. Unable to recover."),
         )
     }
 
@@ -125,8 +141,13 @@ impl Pipeline {
             ret_id: None,
         };
         let input = self.input_id.clone();
-        input.send((id, data, message)).await.unwrap();
-        c_rx.receive().await.unwrap()
+        input
+            .send((id, data, message))
+            .await
+            .expect("Not able to communicate with processing tasks. Unable to recover.");
+        c_rx.receive()
+            .await
+            .expect("Not able to communicate with processing tasks. Unable to recover.")
     }
 }
 

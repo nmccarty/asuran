@@ -23,7 +23,8 @@ pub struct Mem {
 
 impl Mem {
     pub fn new_raw(chunk_settings: ChunkSettings, key: Key) -> Mem {
-        let max = usize::max_value().try_into().unwrap();
+        let max = usize::max_value().try_into().expect("Running on a greater than 64 bit system. The mem backend is not supported in this configuration");
+        // We are using fresh vectors for this instead of files, so this unwrap can not fail
         let data = common::Segment::new(
             Cursor::new(Vec::new()),
             Cursor::new(Vec::new()),

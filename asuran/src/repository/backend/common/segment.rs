@@ -313,12 +313,16 @@ impl<T: Read + Write + Seek + std::fmt::Debug> Segment<T> {
 
     /// Returns the size in bytes of the segment
     pub fn size(&mut self) -> u64 {
-        self.data_handle.size().unwrap()
+        self.data_handle
+            .size()
+            .expect("Unable to read size from data handle. Please check file permissions.")
     }
 
     /// Returns the number of bytes of free space remaining in the segment
     pub fn free_bytes(&mut self) -> u64 {
-        self.data_handle.free_bytes().unwrap()
+        self.data_handle
+            .free_bytes()
+            .expect("Unable to read size from data handle. Please check file permissions.")
     }
 
     /// Reads the chunk with the specified index from the segment

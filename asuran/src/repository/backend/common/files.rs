@@ -23,7 +23,7 @@ impl LockedFile {
         let path = path.as_ref().to_path_buf();
         let extension = if let Some(ext) = path.extension() {
             // FIXME: Really need to handle this in a way that doesn't panic on non unicode
-            let mut ext = ext.to_str().unwrap().to_string();
+            let mut ext = String::from(ext.to_string_lossy());
             ext.push_str(".lock");
             ext
         } else {

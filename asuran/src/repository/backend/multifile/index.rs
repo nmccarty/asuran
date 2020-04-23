@@ -51,8 +51,7 @@ impl InternalIndex {
             .filter(|x| x.path().is_file())
             .filter_map(|x| {
                 x.path()
-                    .file_name()
-                    .unwrap()
+                    .file_name()?
                     .to_str()
                     .map(|y| std::result::Result::ok(y.parse::<usize>()))
                     .flatten()
@@ -226,8 +225,12 @@ impl Index {
 
     pub async fn close(&mut self) {
         let (tx, rx) = oneshot::channel();
-        self.input.send(IndexCommand::Close(tx)).await.unwrap();
-        rx.await.unwrap();
+        self.input
+            .send(IndexCommand::Close(tx))
+            .await
+            .expect("Called close on an already closed repository.");
+        rx.await
+            .expect("Called close on an already closed repository.");
     }
 }
 
@@ -244,34 +247,42 @@ impl backend::Index for Index {
         self.input
             .send(IndexCommand::Lookup(id, input))
             .await
-            .unwrap();
-        output.await.unwrap()
+            .expect("Unable to communicate with index task.");
+        output
+            .await
+            .expect("Unable to communicate with index task.")
     }
     async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
         let (input, output) = oneshot::channel();
         self.input
             .send(IndexCommand::Set(id, location, input))
-            .await
-            .unwrap();
-        output.await.unwrap()
+            .await?;
+        output.await?
     }
     async fn known_chunks(&mut self) -> HashSet<ChunkID> {
         let (input, output) = oneshot::channel();
         self.input
             .send(IndexCommand::KnownChunks(input))
             .await
-            .unwrap();
-        output.await.unwrap()
+            .expect("Unable to communicate with index task.");
+        output
+            .await
+            .expect("Unable to communicate with index task.")
     }
     async fn commit_index(&mut self) -> Result<()> {
         let (input, output) = oneshot::channel();
-        self.input.send(IndexCommand::Commit(input)).await.unwrap();
-        output.await.unwrap()
+        self.input.send(IndexCommand::Commit(input)).await?;
+        output.await?
     }
     async fn count_chunk(&mut self) -> usize {
         let (input, output) = oneshot::channel();
-        self.input.send(IndexCommand::Count(input)).await.unwrap();
-        output.await.unwrap()
+        self.input
+            .send(IndexCommand::Count(input))
+            .await
+            .expect("Unable to communicate with index task.");
+        output
+            .await
+            .expect("Unable to communicate with index task.")
     }
 }
 

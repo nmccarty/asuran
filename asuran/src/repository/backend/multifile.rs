@@ -82,8 +82,7 @@ impl MultiFile {
         OpenOptions::new()
             .create(true)
             .write(true)
-            .open(&read_lock_path)
-            .unwrap();
+            .open(&read_lock_path)?;
 
         let path = path.as_ref().to_path_buf();
         Ok(MultiFile {

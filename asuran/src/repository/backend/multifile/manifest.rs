@@ -65,8 +65,7 @@ impl InternalManifest {
             .filter(|x| x.path().is_file())
             .filter_map(|x| {
                 x.path()
-                    .file_name()
-                    .unwrap()
+                    .file_name()?
                     .to_str()
                     .map(|y| std::result::Result::ok(y.parse::<usize>()))
                     .flatten()
@@ -143,7 +142,7 @@ impl InternalManifest {
             if !manifest.verify_tx(head) {
                 return Err(BackendError::ManifestError(format!(
                     "Manifest Transaction failed verification! {:?}",
-                    manifest.known_entries.get(&head).unwrap()
+                    manifest.known_entries.get(&head).ok_or_else(|| BackendError::Unknown("Failed to get the head of the known entries list while reporting an error".to_string()))?
                 )));
             }
         }
@@ -164,6 +163,7 @@ impl InternalManifest {
             index_map.insert(tag, id);
         }
         // Go through each transaction in the graph, adding an edge in the new -> old direction
+        // These unwraps are safe because we just added these entries to our hashmap
         for tx in self.known_entries.values() {
             let id = index_map.get(&tx.tag()).unwrap();
             for other_tx in tx.previous_heads() {
@@ -190,7 +190,11 @@ impl InternalManifest {
         if self.verified_memo_pad.contains(&id) {
             true
         } else {
-            let tx = self.known_entries.get(&id).unwrap().clone();
+            let tx = self
+                .known_entries
+                .get(&id)
+                .expect("Item in verified memo pad was not in known_entries")
+                .clone();
             if tx.verify(&self.key) {
                 self.verified_memo_pad.insert(id);
                 for parent in tx.previous_heads() {
@@ -212,7 +216,10 @@ impl InternalManifest {
         if self.heads.is_empty() {
             Ok(Local::now().with_timezone(Local::now().offset()))
         } else {
-            let first_head = self.known_entries.get(&self.heads[0]).unwrap();
+            let first_head = self
+                .known_entries
+                .get(&self.heads[0])
+                .expect("Item in heads was not in known entries");
             let mut max = first_head.timestamp();
             for id in &self.heads {
                 let tx = self.known_entries.get(id).ok_or_else(|| {
@@ -245,9 +252,10 @@ impl InternalManifest {
 
     /// Sets the chunk settings
     fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
-        let mut sfile = LockedFile::open_read_write(self.path.join("chunk.settings"))
-            .unwrap()
-            .unwrap();
+        let mut sfile =
+            LockedFile::open_read_write(self.path.join("chunk.settings"))?.ok_or_else(|| {
+                BackendError::Unknown("Failed to open chunk settings file for writing.".to_string())
+            })?;
         // Clear the file
         sfile.set_len(0)?;
         // Write our new chunksettings

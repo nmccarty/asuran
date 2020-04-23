@@ -98,7 +98,7 @@ impl InternalSegmentHandler {
             .filter_map(|e| {
                 e.path()
                     .file_name()
-                    .map(|x| x.to_str().unwrap().to_string())
+                    .map(|x| String::from(x.to_string_lossy()))
             })
             .filter_map(|e| std::result::Result::ok(e.parse::<u64>()))
             .max()
@@ -192,6 +192,7 @@ impl InternalSegmentHandler {
         }
 
         // Get the reference and return it
+        // Unwrap is safe as we have just inserted the segement if it didn't already exist.
         let segment_pair = cache.get_mut(&segment_id).unwrap();
         Ok(segment_pair)
     }
@@ -402,7 +403,7 @@ impl SegmentHandler {
             key,
         )?;
         // get the path from it
-        let path = handler.path.to_str().unwrap().to_string();
+        let path = String::from(handler.path.to_string_lossy());
         // Create the communication channel and open the event processing loop in its own task
         let (input, mut output) = mpsc::channel(500);
         task::spawn(async move {

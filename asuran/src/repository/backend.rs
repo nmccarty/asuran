@@ -42,6 +42,8 @@ pub enum BackendError {
     ChunkUnpackError(#[from] asuran_core::repository::chunk::ChunkError),
     #[error("Repository has an existing global lock")]
     RepositoryGloballyLocked(String),
+    #[error("Task Communication Error, likely trying to talk to a closed backend")]
+    ChannelDroppedSend(#[from] futures::channel::mpsc::SendError),
     #[error("Unknown Error")]
     Unknown(String),
 }

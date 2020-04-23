@@ -43,6 +43,8 @@ lazy_static! {
         assert!(items.len() == 3);
         let mut wrt: &mut[u8] = &mut output;
         for i in items {
+            // This unwrap can not fail, since we are writing to an array, and we have know we have
+            // enough space, due to the static nature
             wrt.write_u16::<BigEndian>(*i).unwrap();
         }
 
@@ -52,5 +54,7 @@ lazy_static! {
 
 
     /// The UUID of this asuran implementation
-    pub static ref IMPLEMENTATION_UUID: Uuid = Uuid::parse_str("bfd30b79-4687-404e-a84d-112383994b26").unwrap();
+    pub static ref IMPLEMENTATION_UUID: Uuid =
+        Uuid::parse_str("bfd30b79-4687-404e-a84d-112383994b26").unwrap();
+    // This unwrap can not fail, since we know the string in there is a valid UUID
 }

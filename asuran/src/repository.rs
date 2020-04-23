@@ -240,7 +240,10 @@ impl<T: BackendClone + 'static> Repository<T> {
         // First, check if the chunk exists
         if self.has_chunk(id).await {
             let mut index = self.backend.get_index();
-            let location = index.lookup_chunk(id).await.unwrap();
+            let location = index.lookup_chunk(id).await.expect(&format!(
+                "Index lied to us about having the chunk with ID {:?}",
+                id
+            ));
             let chunk = self.backend.read_chunk(location).await?;
 
             let data = chunk.unpack(&self.key)?;
