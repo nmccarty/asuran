@@ -326,7 +326,7 @@ mod tests {
         let key = Key::random(32);
         let packed = Chunk::pack(data_bytes, compression, encryption, hmac, &key);
 
-        let output_bytes = packed.unpack(&key).unwrap();
+        let output_bytes = packed.unpack(&key).expect("Failed to unpack output bytes");
 
         assert_eq!(data_string.as_bytes().to_vec(), output_bytes);
     }

@@ -44,6 +44,10 @@ impl Compression {
                 cfg_if! {
                     if #[cfg(feature = "zstd")] {
                         let mut output = Vec::<u8>::with_capacity(data.len());
+                        // This unwrap should be infallible.
+                        // This method can only return an I/O error, and the only error that
+                        // can result from writing to a Vec<u8> would be OOM, which would be an
+                        // Unrecoverable error (within the scope of this library)
                         zstd::stream::copy_encode(data.as_slice(), &mut output, level).unwrap();
                         output
                     } else {
@@ -56,11 +60,16 @@ impl Compression {
                     if #[cfg(feature = "lz4")] {
                         let ouput = Vec::<u8>::with_capacity(data.len());
                         let cursor = Cursor::new(ouput);
-                        let mut encoder = EncoderBuilder::new().level(level).build(cursor).unwrap();
+                        let mut encoder = EncoderBuilder::new()
+                            .level(level)
+                            .build(cursor)
+                            .expect("Failed to build an LZ4 encoder. Check for OOM or invalid compression level.");
                         let mut data = Cursor::new(data);
+                        // This unwrap should be infallible, since we are performing IO operations
+                        // on a vector
                         copy(&mut data, &mut encoder).unwrap();
                         let (cursor, result) = encoder.finish();
-                        result.unwrap();
+                        result.expect("Failed to compress data with LZ4. Check for OOM or invalid compression level.");
                         cursor.into_inner()
                     } else {
                         unimplemented!("Asuran was not compiled with lz4 support.")
@@ -73,7 +82,8 @@ impl Compression {
                         let input = Cursor::new(data);
                         let mut output = Cursor::new(Vec::new());
                         let mut compressor = XzEncoder::new(input, level);
-                        copy(&mut compressor, &mut output).unwrap();
+                        copy(&mut compressor, &mut output)
+                            .expect("Failed to compress data with LZMA. Check for invalid compression level or OOM");
                         output.into_inner()
                     } else {
                         unimplemented!("Asuran was not compiled with lzma support")
@@ -153,7 +163,9 @@ mod tests {
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
         let data_bytes = data_string.as_bytes();
         let compressed_bytes = compression.compress(data_bytes.to_vec());
-        let decompressed_bytes = compression.decompress(compressed_bytes.clone()).unwrap();
+        let decompressed_bytes = compression
+            .decompress(compressed_bytes.clone())
+            .expect("Failed to decompress data");
         let decompressed_string = str::from_utf8(&decompressed_bytes).unwrap();
 
         println!("Input string: {}", data_string);

@@ -151,6 +151,8 @@ impl EncryptedKey {
         let encryption = encryption.new_iv();
         // Serialize the key
         let mut key_buffer = Vec::<u8>::new();
+        // Since were are serializing to a Vec::<u8>, and Key does not contain any types that
+        // can fail to serialize, this call to unwrap should be infallible
         key.serialize(&mut Serializer::new(&mut key_buffer))
             .unwrap();
         // Generate a salt
@@ -172,7 +174,8 @@ impl EncryptedKey {
                 .expect("Key length was too large (larger than usize)"),
         };
 
-        let generated_key_bytes = argon2::hash_raw(&user_key, &salt, &config).unwrap();
+        let generated_key_bytes = argon2::hash_raw(&user_key, &salt, &config)
+            .expect("Unable to hash password with argon2, most likely due to invalid settings.");
         let encrypted_bytes = encryption.encrypt_bytes(&key_buffer, &generated_key_bytes);
         trace!("Encrypted key");
         EncryptedKey {

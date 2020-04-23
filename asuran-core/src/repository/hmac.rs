@@ -63,7 +63,8 @@ impl HMAC {
             HMAC::SHA256 => {
                 cfg_if! {
                     if #[cfg(feature = "sha2")] {
-                        let mut mac = HmacSha256::new_varkey(key).unwrap();
+                        let mut mac = HmacSha256::new_varkey(key)
+                            .expect("HmacSHA256 was provided with a key of invalid length.");
                         mac.input(data);
                         mac.result().code().to_vec()
                     } else {
@@ -114,7 +115,8 @@ impl HMAC {
             HMAC::SHA3 => {
                 cfg_if! {
                     if #[cfg(feature = "sha3")] {
-                        let mut mac = HmacSHA3::new_varkey(key).unwrap();
+                        let mut mac = HmacSHA3::new_varkey(key)
+                            .expect("HmacSHA3 was provided with a key of invalid length.");
                         mac.input(data);
                         mac.result().code().to_vec()
                     } else {
@@ -165,7 +167,8 @@ impl HMAC {
             HMAC::SHA256 => {
                 cfg_if! {
                     if #[cfg(feature = "sha2")] {
-                        let mut mac = HmacSha256::new_varkey(key).unwrap();
+                        let mut mac = HmacSha256::new_varkey(key)
+                            .expect("HmacSHA256 was provided with a key of invalid length.");
                         mac.input(data);
                         let result = mac.verify(input_mac);
                         result.is_ok()
@@ -212,7 +215,8 @@ impl HMAC {
             HMAC::SHA3 => {
                 cfg_if! {
                     if #[cfg(feature = "sha3")] {
-                        let mut mac = HmacSHA3::new_varkey(key).unwrap();
+                        let mut mac = HmacSHA3::new_varkey(key)
+                            .expect("HmacSHA3 was provided with a key of invalid length");
                         mac.input(data);
                         let result = mac.verify(input_mac);
                         result.is_ok()

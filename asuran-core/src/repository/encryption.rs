@@ -124,7 +124,9 @@ impl Encryption {
                         proper_key[..cmp::min(key.len(), 32)]
                             .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
 
-                        let encryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&proper_key, &iv[..]).unwrap();
+                        let encryptor: Cbc<Aes256, Pkcs7> =
+                            Cbc::new_var(&proper_key, &iv[..])
+                            .expect("Unable to encrypt data. Something is *seriously* wrong. Please contact a maintainer.");
                         let final_result = encryptor.encrypt_vec(data);
                         // Zeroize key
                         proper_key.zeroize();
