@@ -2,7 +2,7 @@
 name = "asuran-cli"
 description = "Deduplicating, secure, tamper resistant archiver"
 license = "BSD-2-Clause-Patent"
-version = "0.0.12-alpha.1"
+version = "0.1.0"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran-cli"
 homepage = "https://asuran.rs"
@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.28"
-asuran = { version = "^0.0.12-alpha.1", path = "../asuran" }
+asuran = { version = "^0.1.0", path = "../asuran" }
 async-trait = "0.1.30"
 chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
