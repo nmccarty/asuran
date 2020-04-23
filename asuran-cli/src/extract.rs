@@ -82,7 +82,9 @@ pub async fn extract(
             .filter(|x| includes.as_ref().map_or(true, |y| y.is_match(&x.path)))
             .filter(|x| excludes.as_ref().map_or(true, |y| !y.is_match(&x.path)));
         for node in paths {
-            println!("Restoring file: {}", node.path);
+            if !options.quiet {
+                println!("Restoring file: {}", node.path);
+            }
             // TODO (#36): properly utilize tasks here
             if !preview {
                 f_target.retrieve_object(&mut repo, &archive, node).await?;

@@ -74,7 +74,9 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
             let (result, _, new_queue) = select_all(task_queue).await;
             let (node, x) = result?;
             x?;
-            println!("Stored File: {}", node.path);
+            if !options.quiet {
+                println!("Stored File: {}", node.path);
+            }
             task_queue = new_queue;
         }
     }

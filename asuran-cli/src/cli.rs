@@ -233,6 +233,9 @@ pub struct Opt {
     /// Operation to perform
     #[structopt(subcommand)]
     pub command: Command,
+    /// Squelch non-logging operations
+    #[structopt(short, long)]
+    pub quiet: bool,
 }
 
 impl Opt {
