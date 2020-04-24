@@ -56,6 +56,11 @@ Asuran development works on two major branches, `master` and `dev`. `master` is 
 
 `dev` is a much looser experience, it is our "move fast and break things" branch. Code commuted to dev may require further cleanup, like minor refactoring or addition of tests, before hitting master, but it is still expected to eventually hit master.
 
+Coding Conventions
+------------------
+
+Please take a look at our [Coding Conventions](CONVENTIONS.md) for guidelines and coding conventions used in this repository.
+
 Pull request check list
 -----------------------
 
