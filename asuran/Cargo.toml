@@ -11,9 +11,24 @@ edition = "2018"
 keywords = ["encryption", "compression","deduplication","backup","archive"]
 readme = "README.md"
 
+[features]
+default = ["all-chunk", "all-backend"]
+
+# Rexports of asuran-core features
+blake2b = ["asuran-core/blake2b"]
+lzma = ["asuran-core/lzma"]
+aes-family = ["asuran-core/aes-family"]
+chacha-family = ["asuran-core/chacha-family"]
+all-encryption = ["asuran-core/all-encryption"]
+all-compression = ["asuran-core/all-compression"]
+all-hmac = ["asuran-core/all-hmac"]
+all-chunk = ["asuran-core/all-chunk"]
+# Groups of all of a type
+all-backend = [] # Placeholder for when we have features for backends
+
 [dependencies]
 asuran-chunker = { version = "^0.1.0", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "^0.1.0", path = "../asuran-core/" }
+asuran-core = { version = "^0.1.0", path = "../asuran-core/", default-features = false }
 async-trait = "0.1.30"
 base64 = "0.12.0"
 bincode = "1.2.1"
