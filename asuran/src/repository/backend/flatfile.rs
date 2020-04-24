@@ -1,15 +1,22 @@
 #![allow(unused_variables)]
 use super::Result;
-use crate::repository::backend::common::sync_backend::*;
-use crate::repository::backend::*;
+use crate::repository::backend::common::sync_backend::{
+    BackendHandle, SyncBackend, SyncIndex, SyncManifest,
+};
+use crate::repository::backend::{
+    BackendError, Chunk, ChunkID, ChunkSettings, DateTime, EncryptedKey, FixedOffset,
+    SegmentDescriptor, StoredArchive,
+};
 
-use asuran_core::repository::backend::flatfile::*;
+use asuran_core::repository::backend::flatfile::{Configuration, FlatFileTransaction, Header};
 
 use rmp_serde as rmps;
-use std::collections::HashMap;
+
+use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+
 const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_F";
 
 #[derive(Debug)]
@@ -274,6 +281,7 @@ impl SyncBackend for FlatFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repository::backend::Backend;
     use crate::repository::{Encryption, Key};
     use tempfile::tempdir;
 

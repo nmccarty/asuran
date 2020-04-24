@@ -10,13 +10,14 @@ use futures::future::join_all;
 use futures::stream::StreamExt;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use tokio::sync::RwLock;
+use tokio::task;
+
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::sync::Arc;
-use thiserror::Error;
-use tokio::sync::RwLock;
-use tokio::task;
 
 /// Error for all the things that can go wrong with handling Archives
 #[derive(Error, Debug)]

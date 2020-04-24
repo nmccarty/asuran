@@ -40,16 +40,16 @@
 //!
 //! Asuran will not write a chunk whose key already exists in the repository,
 //! effectivly preventing the storage of duplicate chunks.
-use thiserror::Error;
-
 pub use crate::repository::backend::{Backend, BackendClone, Index, SegmentDescriptor};
 use crate::repository::pipeline::Pipeline;
+
 pub use asuran_core::repository::chunk::{Chunk, ChunkID, ChunkSettings};
 pub use asuran_core::repository::compression::Compression;
 pub use asuran_core::repository::encryption::Encryption;
 pub use asuran_core::repository::hmac::HMAC;
 pub use asuran_core::repository::key::{EncryptedKey, Key};
 
+use thiserror::Error;
 use tracing::{debug, info, instrument, span, trace, Level};
 
 pub mod backend;

@@ -9,9 +9,10 @@ use chrono::prelude::*;
 use rmp_serde as rmps;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
 use thiserror::Error;
 use uuid::Uuid;
+
+use std::io::{Read, Write};
 
 /// An error for things that go wrong with interacting with flatfile transactions and headers
 #[derive(Error, Debug)]

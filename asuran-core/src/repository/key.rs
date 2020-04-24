@@ -3,14 +3,16 @@ This module contains chunks for describing and interacting with cryptographic
 key material
 */
 use crate::repository::Encryption;
+
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use thiserror::Error;
 use tracing::{error, trace};
 use zeroize::Zeroize;
+
+use std::convert::TryInto;
 
 /// Error describing things that can go wrong with key handling
 #[derive(Error, Debug)]

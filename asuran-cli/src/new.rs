@@ -6,6 +6,7 @@ use asuran::repository::backend::Backend;
 use asuran::repository::{EncryptedKey, Key};
 
 use anyhow::{anyhow, Context, Result};
+
 use std::fs::create_dir_all;
 
 /// Creates a new repository with the user specified settings ad the user

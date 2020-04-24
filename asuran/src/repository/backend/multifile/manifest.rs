@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 use crate::manifest::StoredArchive;
-use crate::repository::backend::common::*;
-use crate::repository::backend::{self, BackendError, Result};
+use crate::repository::backend::{
+    self,
+    common::{LockedFile, ManifestID, ManifestTransaction},
+    BackendError, Result,
+};
 use crate::repository::{ChunkSettings, Key};
 
 use async_trait::async_trait;
@@ -12,11 +15,12 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use petgraph::Graph;
 use rmp_serde as rmps;
+use tokio::task;
+
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use tokio::task;
 
 #[derive(Debug)]
 struct InternalManifest {

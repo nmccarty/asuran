@@ -1,14 +1,17 @@
+use super::Result;
 use crate::repository::backend::common;
-use crate::repository::backend::common::sync_backend::*;
-use crate::repository::backend::*;
+use crate::repository::backend::common::sync_backend::{
+    BackendHandle, SyncBackend, SyncIndex, SyncManifest,
+};
+use crate::repository::backend::{
+    BackendError, ChunkID, ChunkSettings, DateTime, FixedOffset, HashSet, SegmentDescriptor,
+    StoredArchive,
+};
 use crate::repository::{Chunk, EncryptedKey, Key};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
-extern crate rmp_serde as rmps;
-
-use super::Result;
 
 #[derive(Debug)]
 pub struct Mem {

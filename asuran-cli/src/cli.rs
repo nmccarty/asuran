@@ -3,15 +3,17 @@ The `cli` module provides the data types used for parsing the command line
 arguements, as well as some utility functions for converting those types to
 their equivlants in `asuran` proper.
 */
-
 use crate::util::DynamicBackend;
-use anyhow::{anyhow, Context, Result};
+
 use asuran::repository::{self, Backend, Key};
+
+use anyhow::{anyhow, Context, Result};
 use clap::{arg_enum, AppSettings};
 use repository::backend::{flatfile, multifile};
+use structopt::StructOpt;
+
 use std::fs::metadata;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// The version + git commit + build date string the program idenitifes itself
 /// with

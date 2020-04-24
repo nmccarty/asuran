@@ -1,5 +1,5 @@
 use super::{Chunker, ChunkerError};
-use fastcdc;
+
 use std::io::Read;
 
 /// Settings for a fastcdc `Chunker`

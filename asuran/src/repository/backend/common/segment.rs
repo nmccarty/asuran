@@ -1,13 +1,14 @@
 use crate::repository::backend::{BackendError, Result};
 use crate::repository::{Chunk, ChunkSettings, Key};
+
 use asuran_core::repository::chunk::{ChunkBody, ChunkHeader};
+
 use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
-use std::{
-    convert::TryInto,
-    io::{Read, Seek, SeekFrom, Write},
-};
 use uuid::Uuid;
+
+use std::convert::TryInto;
+use std::io::{Read, Seek, SeekFrom, Write};
 
 /// Magic number used for asuran segment files
 ///

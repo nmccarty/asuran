@@ -5,6 +5,7 @@
 use crate::manifest::archive::Extent;
 
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 
 /// The type of node in the listing

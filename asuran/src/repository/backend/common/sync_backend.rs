@@ -23,8 +23,9 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use std::collections::HashSet;
 use tokio::task;
+
+use std::collections::HashSet;
 
 pub trait SyncManifest: Send + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive> + std::fmt::Debug + Send + 'static;

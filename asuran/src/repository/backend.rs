@@ -2,11 +2,13 @@
 //! the repository.
 use crate::manifest::StoredArchive;
 use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
+
 use async_trait::async_trait;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use thiserror::Error;
+
+use std::collections::HashSet;
 
 pub mod common;
 pub mod flatfile;

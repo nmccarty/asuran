@@ -1,15 +1,17 @@
 #![allow(unused_variables)]
-use super::*;
+use super::{BackupObject, BackupTarget, Listing, Node, NodeType, RestoreObject, RestoreTarget};
 use crate::manifest::archive::Extent;
-use crate::manifest::driver::*;
+use crate::manifest::driver::{BackupDriver, RestoreDriver};
 
 use async_trait::async_trait;
-use std::fs::{create_dir_all, File};
-use std::path::Path;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task;
 use walkdir::WalkDir;
+
+use std::collections::HashMap;
+use std::fs::{create_dir_all, File};
+use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Clone)]
 /// A type that handles the complexities of dealing with a file system for you.

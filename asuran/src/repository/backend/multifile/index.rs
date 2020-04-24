@@ -1,4 +1,4 @@
-use crate::repository::backend::common::*;
+use crate::repository::backend::common::{IndexTransaction, LockedFile};
 use crate::repository::backend::{self, BackendError, Result, SegmentDescriptor};
 use crate::repository::ChunkID;
 
@@ -8,11 +8,12 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rmps;
+use tokio::task;
+
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{BufWriter, Seek, SeekFrom};
 use std::path::Path;
-use tokio::task;
 
 #[derive(Debug)]
 struct InternalIndex {

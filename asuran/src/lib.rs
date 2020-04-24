@@ -13,8 +13,9 @@
 use byteorder::{BigEndian, WriteBytesExt};
 use lazy_static::lazy_static;
 use semver::Version;
-use std::convert::TryInto;
 use uuid::Uuid;
+
+use std::convert::TryInto;
 
 pub mod chunker;
 pub mod manifest;

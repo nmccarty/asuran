@@ -1,9 +1,7 @@
-use futures_intrusive::channel::shared::*;
-use num_cpus;
-use tokio::task;
-
 use crate::repository::{Chunk, ChunkID, Compression, Encryption, Key, HMAC};
 
+use futures_intrusive::channel::shared::{channel, oneshot_channel, OneshotSender, Sender};
+use tokio::task;
 use tracing::instrument;
 
 #[derive(Debug)]

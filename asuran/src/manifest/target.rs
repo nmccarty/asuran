@@ -2,11 +2,12 @@ pub mod filesystem;
 
 pub use filesystem::FileSystemTarget;
 
+pub use asuran_core::manifest::listing::*;
+
 use async_trait::async_trait;
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
-
-pub use asuran_core::manifest::listing::*;
 
 /// Representation of a `Read`/`Write` for an object, and the range of bytes within
 /// that object it is responsible for

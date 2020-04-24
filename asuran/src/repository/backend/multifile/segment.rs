@@ -1,5 +1,5 @@
-use crate::repository::backend::common::files::*;
-use crate::repository::backend::common::segment::*;
+use crate::repository::backend::common::files::LockedFile;
+use crate::repository::backend::common::segment::Segment;
 use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
 use crate::repository::{Chunk, ChunkSettings, Key};
 
@@ -8,12 +8,12 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use lru::LruCache;
-use std::fs::{create_dir, File};
-use std::path::{Path, PathBuf};
 use tokio::task;
 use walkdir::WalkDir;
 
+use std::fs::{create_dir, File};
 use std::io::{Read, Seek, Write};
+use std::path::{Path, PathBuf};
 
 struct SegmentPair<R: Read + Write + Seek>(u64, Segment<R>);
 /// An internal struct for handling the state of the segments

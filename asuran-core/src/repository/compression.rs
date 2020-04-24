@@ -2,13 +2,14 @@ use cfg_if::cfg_if;
 #[cfg(feature = "lz4")]
 use lz4::{Decoder, EncoderBuilder};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+#[cfg(feature = "xz2")]
+use xz2::read::{XzDecoder, XzEncoder};
+
 #[allow(unused_imports)]
 use std::io::copy;
 #[allow(unused_imports)]
 use std::io::Cursor;
-use thiserror::Error;
-#[cfg(feature = "xz2")]
-use xz2::read::{XzDecoder, XzEncoder};
 
 /// Error describing things that can go wrong with compression/decompression
 #[derive(Error, Debug)]

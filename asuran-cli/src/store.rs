@@ -9,8 +9,9 @@ use asuran::repository::*;
 use anyhow::Result;
 use chrono::prelude::*;
 use futures::future::select_all;
-use std::path::PathBuf;
 use tokio::task;
+
+use std::path::PathBuf;
 
 /// Creates a new archive in a repository and inserts the files from the user
 /// provided location

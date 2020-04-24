@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use std::io::{self, Write};
-use std::time::{Duration, Instant};
-
 use asuran::prelude::*;
 
 use anyhow::Result;
 use prettytable::{cell, row, Table};
+
+use std::collections::HashMap;
+use std::io::{self, Write};
+use std::time::{Duration, Instant};
 
 const ONE_MIB: usize = 1_048_576;
 const REPETITIONS: usize = 100;

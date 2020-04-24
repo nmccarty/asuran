@@ -10,14 +10,13 @@ pub mod archive;
 pub mod driver;
 pub mod target;
 
+pub use self::archive::{ActiveArchive, StoredArchive};
 use crate::repository::backend::Manifest as BackendManifest;
 use crate::repository::backend::Result;
 use crate::repository::{Backend, BackendClone, ChunkSettings, Repository};
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-
-pub use self::archive::{ActiveArchive, StoredArchive};
 
 /// Repository manifest
 ///

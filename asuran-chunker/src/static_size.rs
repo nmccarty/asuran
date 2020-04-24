@@ -1,4 +1,5 @@
 use super::{Chunker, ChunkerError};
+
 use std::io::{BufReader, Bytes, Read};
 
 /// Settings for a static chunk length `Chunker`

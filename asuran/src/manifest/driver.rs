@@ -2,12 +2,14 @@ use crate::chunker::AsyncChunker;
 use crate::manifest::archive::{ActiveArchive, Extent};
 use crate::manifest::target::{BackupObject, BackupTarget, RestoreObject, RestoreTarget};
 use crate::repository::{BackendClone, Repository};
+
+use asuran_core::manifest::listing::Node;
+
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::io::{Read, Write};
 use thiserror::Error;
 
-use asuran_core::manifest::listing::*;
+use std::collections::HashMap;
+use std::io::{Read, Write};
 
 /// An error for things that can go wrong with drivers
 #[derive(Error, Debug)]

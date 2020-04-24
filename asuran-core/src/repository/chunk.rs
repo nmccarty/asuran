@@ -8,9 +8,11 @@ contents (different keys are used for both HMACs).
 They can contain any arbitrary sequence of bytes.
 */
 use super::{Compression, Encryption, Key, HMAC};
+
 use serde::{Deserialize, Serialize};
-use std::cmp;
 use thiserror::Error;
+
+use std::cmp;
 
 /// Error for all the various things that can go wrong with handling chunks
 #[derive(Error, Debug)]
