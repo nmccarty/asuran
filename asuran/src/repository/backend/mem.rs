@@ -48,7 +48,7 @@ impl Mem {
     }
 
     pub fn new(chunk_settings: ChunkSettings, key: Key) -> BackendHandle<Mem> {
-        BackendHandle::new(Self::new_raw(chunk_settings, key))
+        BackendHandle::new(move || Self::new_raw(chunk_settings, key))
     }
 }
 

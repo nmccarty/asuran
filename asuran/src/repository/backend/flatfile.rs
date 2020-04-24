@@ -161,7 +161,7 @@ impl FlatFile {
         enc_key: Option<EncryptedKey>,
     ) -> Result<BackendHandle<FlatFile>> {
         let flatfile = FlatFile::new_raw(repository_path, settings, enc_key)?;
-        Ok(BackendHandle::new(flatfile))
+        Ok(BackendHandle::new(move || flatfile))
     }
 
     /// Attempts to read the key from the flatfile repo at a given path

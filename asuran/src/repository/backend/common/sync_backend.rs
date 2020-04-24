@@ -21,11 +21,12 @@ use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
+use futures::executor::block_on;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use tokio::task;
 
 use std::collections::HashSet;
+use std::thread;
 
 pub trait SyncManifest: Send + std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive> + std::fmt::Debug + Send + 'static;
@@ -51,7 +52,7 @@ pub trait SyncIndex: Send + std::fmt::Debug {
 /// never leak outside of their container task.
 ///
 /// Also note, that we do not have the close method, as the wrapper type will handle that for us.
-pub trait SyncBackend: 'static + Send + std::fmt::Debug {
+pub trait SyncBackend: 'static + std::fmt::Debug {
     type SyncManifest: SyncManifest + 'static;
     type SyncIndex: SyncIndex + 'static;
     fn get_index(&mut self) -> &mut Self::SyncIndex;
@@ -104,84 +105,93 @@ pub struct BackendHandle<B: SyncBackend> {
 
 impl<B> BackendHandle<B>
 where
-    B: SyncBackend + Send + 'static,
+    B: SyncBackend + 'static,
 {
-    pub fn new(mut backend: B) -> Self {
+    /// Constructs a new `BackendHandle`
+    ///
+    /// Spawns a new runner thread to handle commands on.
+    ///
+    /// Takes a closure that produces the required `SyncBackend`, in order to allow
+    /// injecting non-`Send` backends into the spawned threads.
+    pub fn new(backend: impl FnOnce() -> B + Send + 'static) -> Self {
         let (input, mut output) = mpsc::channel(100);
-        task::spawn(async move {
-            let mut final_ret: Option<oneshot::Sender<()>> = None;
-            while let Some(command) = output.next().await {
-                task::block_in_place(|| match command {
-                    SyncCommand::Index(index_command) => {
-                        let index = backend.get_index();
-                        match index_command {
-                            SyncIndexCommand::Lookup(id, ret) => {
-                                ret.send(index.lookup_chunk(id)).unwrap();
+        thread::spawn(move || {
+            let mut backend = backend();
+            block_on(async move {
+                let mut final_ret: Option<oneshot::Sender<()>> = None;
+                while let Some(command) = output.next().await {
+                    match command {
+                        SyncCommand::Index(index_command) => {
+                            let index = backend.get_index();
+                            match index_command {
+                                SyncIndexCommand::Lookup(id, ret) => {
+                                    ret.send(index.lookup_chunk(id)).unwrap();
+                                }
+                                SyncIndexCommand::Set(id, location, ret) => {
+                                    ret.send(index.set_chunk(id, location)).unwrap();
+                                }
+                                SyncIndexCommand::KnownChunks(ret) => {
+                                    ret.send(index.known_chunks()).unwrap();
+                                }
+                                SyncIndexCommand::Commit(ret) => {
+                                    ret.send(index.commit_index()).unwrap();
+                                }
+                                SyncIndexCommand::Count(ret) => {
+                                    ret.send(index.chunk_count()).unwrap();
+                                }
+                            };
+                        }
+                        SyncCommand::Manifest(manifest_command) => {
+                            let manifest = backend.get_manifest();
+                            match manifest_command {
+                                SyncManifestCommand::LastMod(ret) => {
+                                    ret.send(manifest.last_modification()).unwrap();
+                                }
+                                SyncManifestCommand::ChunkSettings(ret) => {
+                                    ret.send(manifest.chunk_settings()).unwrap();
+                                }
+                                SyncManifestCommand::ArchiveIterator(ret) => {
+                                    ret.send(manifest.archive_iterator()).unwrap();
+                                }
+                                SyncManifestCommand::WriteChunkSettings(settings, ret) => {
+                                    ret.send(manifest.write_chunk_settings(settings)).unwrap();
+                                }
+                                SyncManifestCommand::WriteArchive(archive, ret) => {
+                                    ret.send(manifest.write_archive(archive)).unwrap();
+                                }
+                                SyncManifestCommand::Touch(ret) => {
+                                    ret.send(manifest.touch()).unwrap();
+                                }
                             }
-                            SyncIndexCommand::Set(id, location, ret) => {
-                                ret.send(index.set_chunk(id, location)).unwrap();
+                        }
+                        SyncCommand::Backend(backend_command) => match backend_command {
+                            SyncBackendCommand::ReadChunk(location, ret) => {
+                                ret.send(backend.read_chunk(location)).unwrap();
                             }
-                            SyncIndexCommand::KnownChunks(ret) => {
-                                ret.send(index.known_chunks()).unwrap();
+                            SyncBackendCommand::WriteChunk(chunk, ret) => {
+                                ret.send(backend.write_chunk(chunk)).unwrap();
                             }
-                            SyncIndexCommand::Commit(ret) => {
-                                ret.send(index.commit_index()).unwrap();
+                            SyncBackendCommand::WriteKey(key, ret) => {
+                                ret.send(backend.write_key(key)).unwrap();
                             }
-                            SyncIndexCommand::Count(ret) => {
-                                ret.send(index.chunk_count()).unwrap();
+                            SyncBackendCommand::ReadKey(ret) => {
+                                ret.send(backend.read_key()).unwrap();
                             }
-                        };
+                            SyncBackendCommand::Close(ret) => {
+                                final_ret = Some(ret);
+                            }
+                        },
+                    };
+                    if final_ret.is_some() {
+                        break;
                     }
-                    SyncCommand::Manifest(manifest_command) => {
-                        let manifest = backend.get_manifest();
-                        match manifest_command {
-                            SyncManifestCommand::LastMod(ret) => {
-                                ret.send(manifest.last_modification()).unwrap();
-                            }
-                            SyncManifestCommand::ChunkSettings(ret) => {
-                                ret.send(manifest.chunk_settings()).unwrap();
-                            }
-                            SyncManifestCommand::ArchiveIterator(ret) => {
-                                ret.send(manifest.archive_iterator()).unwrap();
-                            }
-                            SyncManifestCommand::WriteChunkSettings(settings, ret) => {
-                                ret.send(manifest.write_chunk_settings(settings)).unwrap();
-                            }
-                            SyncManifestCommand::WriteArchive(archive, ret) => {
-                                ret.send(manifest.write_archive(archive)).unwrap();
-                            }
-                            SyncManifestCommand::Touch(ret) => {
-                                ret.send(manifest.touch()).unwrap();
-                            }
-                        }
-                    }
-                    SyncCommand::Backend(backend_command) => match backend_command {
-                        SyncBackendCommand::ReadChunk(location, ret) => {
-                            ret.send(backend.read_chunk(location)).unwrap();
-                        }
-                        SyncBackendCommand::WriteChunk(chunk, ret) => {
-                            ret.send(backend.write_chunk(chunk)).unwrap();
-                        }
-                        SyncBackendCommand::WriteKey(key, ret) => {
-                            ret.send(backend.write_key(key)).unwrap();
-                        }
-                        SyncBackendCommand::ReadKey(ret) => {
-                            ret.send(backend.read_key()).unwrap();
-                        }
-                        SyncBackendCommand::Close(ret) => {
-                            final_ret = Some(ret);
-                        }
-                    },
-                });
-                if final_ret.is_some() {
-                    break;
                 }
-            }
-            std::mem::drop(backend);
-            std::mem::drop(output);
-            if let Some(ret) = final_ret {
-                ret.send(()).unwrap();
-            }
+                std::mem::drop(backend);
+                std::mem::drop(output);
+                if let Some(ret) = final_ret {
+                    ret.send(()).unwrap();
+                }
+            })
         });
 
         BackendHandle { channel: input }
