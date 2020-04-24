@@ -10,10 +10,25 @@ authors = ["Nathan McCarty <nathan@mccarty.io>"]
 edition = "2018"
 build = "build.rs"
 readme = "README.md"
+[features]
+default = ["all-chunk", "all-backend"]
+# Rexports of asuran features
+blake2b = ["asuran/blake2b"]
+lzma = ["asuran/lzma"]
+aes-family = ["asuran/aes-family"]
+chacha-family = ["asuran/chacha-family"]
+all-encryption = ["asuran/all-encryption"]
+all-compression = ["asuran/all-compression"]
+all-hmac = ["asuran/all-hmac"]
+all-chunk = ["asuran/all-chunk"]
+all-backend = ["asuran/all-backend"]
+
+
+
 
 [dependencies]
 anyhow = "1.0.28"
-asuran = { version = "^0.1.0", path = "../asuran" }
+asuran = { version = "^0.1.0", path = "../asuran", default-features = false }
 async-trait = "0.1.30"
 chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
