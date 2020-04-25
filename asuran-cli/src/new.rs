@@ -38,9 +38,14 @@ pub async fn new(options: Opt) -> Result<()> {
             // Create the directory
             create_dir_all(&options.repo_opts().repo)?;
             // Open the repository and set the key
-            let mut mf = MultiFile::open_defaults(&options.repo_opts().repo, Some(settings), &key)
-                .await
-                .with_context(|| "Unable to create MultiFile directory.")?;
+            let mut mf = MultiFile::open_defaults(
+                &options.repo_opts().repo,
+                Some(settings),
+                &key,
+                options.pipeline_tasks() * 2,
+            )
+            .await
+            .with_context(|| "Unable to create MultiFile directory.")?;
             mf.write_key(&encrypted_key)
                 .await
                 .with_context(|| "Failed to write key to new repository.")?;
@@ -53,6 +58,7 @@ pub async fn new(options: Opt) -> Result<()> {
                 &options.repo_opts().repo,
                 Some(settings),
                 Some(encrypted_key),
+                options.pipeline_tasks() * 2,
             )
             .with_context(|| "Unable to create flatfile.")?;
             ff.close().await;

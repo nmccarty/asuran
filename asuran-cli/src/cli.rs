@@ -252,7 +252,10 @@ impl Opt {
         self.command.repo_opts().get_chunk_settings()
     }
     pub async fn open_repo_backend(&self) -> Result<(DynamicBackend, Key)> {
-        self.command.repo_opts().open_repo_backend().await
+        self.command
+            .repo_opts()
+            .open_repo_backend(self.pipeline_tasks() * 8)
+            .await
     }
     pub fn repo_opts(&self) -> &RepoOpt {
         self.command.repo_opts()
@@ -318,7 +321,7 @@ impl RepoOpt {
     /// 1. The give repository path is of the wrong type (i.e a folder when a FlatFile
     ///    was requested)
     /// 2. Some other error defined in the repostiory implementation occurs trying to open it
-    pub async fn open_repo_backend(&self) -> Result<(DynamicBackend, Key)> {
+    pub async fn open_repo_backend(&self, queue_depth: usize) -> Result<(DynamicBackend, Key)> {
         match self.repository_type {
             RepositoryType::MultiFile => {
                 // Ensure that the repository path exsits and is a folder
@@ -350,10 +353,14 @@ impl RepoOpt {
 
                 // Actually open the repository, and wrap it in a dynamic backend
                 let chunk_settings = self.get_chunk_settings();
-                let multifile =
-                    multifile::MultiFile::open_defaults(&self.repo, Some(chunk_settings), &key)
-                        .await
-                        .with_context(|| "Exeprienced an internal backend error.")?;
+                let multifile = multifile::MultiFile::open_defaults(
+                    &self.repo,
+                    Some(chunk_settings),
+                    &key,
+                    queue_depth,
+                )
+                .await
+                .with_context(|| "Exeprienced an internal backend error.")?;
                 Ok((DynamicBackend::from(multifile), key))
             }
             RepositoryType::FlatFile => {
@@ -375,8 +382,9 @@ impl RepoOpt {
 
                 // Attempt to open up the flatfile backend
                 let chunk_settings = self.get_chunk_settings();
-                let flatfile = flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None)
-                    .with_context(|| "Internal backend error opening flatfile.")?;
+                let flatfile =
+                    flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None, queue_depth)
+                        .with_context(|| "Internal backend error opening flatfile.")?;
                 let flatfile = DynamicBackend::from(flatfile);
 
                 // Attempt to read and decrypt the key
