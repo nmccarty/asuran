@@ -23,9 +23,6 @@ all-hmac = ["asuran/all-hmac"]
 all-chunk = ["asuran/all-chunk"]
 all-backend = ["asuran/all-backend"]
 
-
-
-
 [dependencies]
 anyhow = "1.0.28"
 asuran = { version = "^0.1.0", path = "../asuran", default-features = false }
@@ -34,6 +31,7 @@ chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
 futures = "0.3.4"
 globset = "0.4.5"
+num_cpus = "1.13.0"
 prettytable-rs = "0.8.0"
 read_input = "0.8.4"
 rpassword = "4.0.5"

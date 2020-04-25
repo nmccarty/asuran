@@ -19,7 +19,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
     let chunk_settings = options.get_chunk_settings();
-    let mut repo = Repository::with(backend, chunk_settings, key);
+    let mut repo = Repository::with(backend, chunk_settings, key, options.pipeline_tasks());
     // Make sure we have a name for the archive, defaulting to the current
     // date/time if the user did not provide us one
     let name = name.unwrap_or_else(|| {

@@ -238,6 +238,11 @@ pub struct Opt {
     /// Squelch non-logging operations
     #[structopt(short, long)]
     pub quiet: bool,
+    /// Number of tasks to spawn for the chunk processing pipeline.
+    ///
+    /// Defaults to 0, which corresponds to the number of CPUs on the system.
+    #[structopt(short, long, default_value = "0")]
+    pub pipeline_tasks: usize,
 }
 
 impl Opt {
@@ -249,6 +254,13 @@ impl Opt {
     }
     pub fn repo_opts(&self) -> &RepoOpt {
         self.command.repo_opts()
+    }
+    pub fn pipeline_tasks(&self) -> usize {
+        if self.pipeline_tasks == 0 {
+            num_cpus::get()
+        } else {
+            self.pipeline_tasks
+        }
     }
 }
 

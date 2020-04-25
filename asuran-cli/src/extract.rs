@@ -22,7 +22,7 @@ pub async fn extract(
     // Open the repository
     let (backend, key) = options.open_repo_backend().await?;
     let chunk_settings = options.get_chunk_settings();
-    let mut repo = Repository::with(backend, chunk_settings, key);
+    let mut repo = Repository::with(backend, chunk_settings, key, options.pipeline_tasks());
     // load the manifest
     let mut manifest = Manifest::load(&repo);
     // Load the list of archives

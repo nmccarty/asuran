@@ -11,7 +11,7 @@ pub async fn contents(options: Opt, archive_name: String, glob_opts: GlobOpt) ->
     // First, open a connection to the repository
     let (backend, key) = options.open_repo_backend().await?;
     let chunk_settings = options.get_chunk_settings();
-    let mut repo = Repository::with(backend, chunk_settings, key);
+    let mut repo = Repository::with(backend, chunk_settings, key, options.pipeline_tasks());
     // Load the manifest
     let mut manifest = Manifest::load(&repo);
     // Attempt to find a matching archive from the repository
