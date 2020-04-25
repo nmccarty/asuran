@@ -266,6 +266,11 @@ impl Chunk {
         self.id
     }
 
+    /// Returns the `mac` value of this chunk
+    pub fn mac(&self) -> Vec<u8> {
+        self.mac.clone()
+    }
+
     /// Splits a `Chunk` into its header and body components
     pub fn split(self) -> (ChunkHeader, ChunkBody) {
         let header = ChunkHeader {

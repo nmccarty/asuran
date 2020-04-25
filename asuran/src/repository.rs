@@ -212,17 +212,20 @@ impl<T: BackendClone + 'static> Repository<T> {
         data: Vec<u8>,
         id: ChunkID,
     ) -> Result<(ChunkID, bool)> {
-        let chunk = self
+        let mut chunk = self
             .pipeline
-            .process_with_id(
+            .process(
                 data,
-                id,
                 self.compression,
                 self.encryption,
                 self.hmac,
                 self.key.clone(),
             )
-            .await;
+            .await
+            .1;
+        let mac = chunk.mac();
+        let data = (chunk.split().1).0;
+        chunk = Chunk::from_parts(data, self.compression, self.encryption, self.hmac, mac, id);
         self.write_raw(chunk).await
     }
 

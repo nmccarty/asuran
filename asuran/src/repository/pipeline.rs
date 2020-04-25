@@ -17,7 +17,6 @@ struct Message {
 #[derive(Clone)]
 pub struct Pipeline {
     input: Sender<(Vec<u8>, Message)>,
-    input_id: Sender<(ChunkID, Vec<u8>, Message)>,
 }
 
 impl Pipeline {
@@ -26,7 +25,6 @@ impl Pipeline {
         let base_threads = num_cpus::get();
 
         let (input, rx) = channel(50);
-        let (input_id, id_rx) = channel(50);
 
         for _ in 0..base_threads {
             let rx = rx.clone();
@@ -53,35 +51,7 @@ impl Pipeline {
                 }
             });
         }
-
-        for _ in 0..base_threads {
-            let id_rx = id_rx.clone();
-            task::spawn(async move {
-                while let Some(input) = id_rx.receive().await {
-                    let (id, chunk, message): (ChunkID, Vec<u8>, Message) = input;
-                    task::block_in_place(|| {
-                        let c = Chunk::pack_with_id(
-                            chunk,
-                            message.compression,
-                            message.encryption,
-                            message.hmac,
-                            &message.key,
-                            id,
-                        );
-                        if let Some(ret_id) = message.ret_id {
-                            // If sending to this channel fails, we have no way to communicate to
-                            // the outside anymore. Just let this task die.
-                            ret_id.send(c.get_id()).unwrap();
-                        }
-                        // If sending to this channel fails, we have no way to communicate to
-                        // the outside anymore. Just let this task die.
-                        message.ret_chunk.send(c).unwrap();
-                    });
-                }
-            });
-        }
-
-        Pipeline { input, input_id }
+        Pipeline { input }
     }
 
     #[instrument(skip(self, data))]
@@ -117,35 +87,6 @@ impl Pipeline {
                 .await
                 .expect("Not able to communicate with processing tasks. Unable to recover."),
         )
-    }
-
-    #[instrument(skip(self, data))]
-    pub async fn process_with_id(
-        &self,
-        data: Vec<u8>,
-        id: ChunkID,
-        compression: Compression,
-        encryption: Encryption,
-        hmac: HMAC,
-        key: Key,
-    ) -> Chunk {
-        let (c_tx, c_rx) = oneshot_channel();
-        let message = Message {
-            compression,
-            encryption,
-            hmac,
-            key,
-            ret_chunk: c_tx,
-            ret_id: None,
-        };
-        let input = self.input_id.clone();
-        input
-            .send((id, data, message))
-            .await
-            .expect("Not able to communicate with processing tasks. Unable to recover.");
-        c_rx.receive()
-            .await
-            .expect("Not able to communicate with processing tasks. Unable to recover.")
     }
 }
 
