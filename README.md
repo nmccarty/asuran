@@ -1,16 +1,16 @@
 Asuran
 ======
 
-We believe that backups should be easy, fast and last forever.
+We believe that backups should be easy, fast, and last forever.
 
-Asuran is a new archive format and rust implementation. It aims to be the archiver for the 2020's, and has been written from the ground up to use the insights from cutting edge research and extract every last bit of performance out of modren hardware, while still providing features users have come to rely on in archivers, like encryption, compression, and global deduplication.
+Asuran is a new archive format and rust implementation. It aims to be the archiver for the 2020's, and has been written from the ground up to use the insights from cutting edge research and extract every last bit of performance out of modern hardware, while still providing features users have come to rely on in archivers, like encryption, compression, and global deduplication.
 
 ![Codecov](https://img.shields.io/codecov/c/gl/asuran-rs/asuran?style=flat-square) ![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/asuran-rs/asuran/master?style=flat-square) ![Crates.io](https://img.shields.io/crates/v/asuran?style=flat-square) ![Crates.io](https://img.shields.io/crates/l/asuran?style=flat-square)
 
 Mission Statement
 -----------------
 
-Asuran should be sutible for the long term archival of data, should be operating system and hardware independent, secure, flexible, fast, and easily embeddable.
+Asuran should be suitable for the long term archival of data, should be operating system and hardware independent, secure, flexible, fast, and easily embeddable.
 
 It should strive to make backups a fast and easy process, and to allow the user to preserve as much of their file history as possible in the space they have avaible. After all, what good is a backup that never ran because it would have taken too long, or the backup that got deleted because it was using too much space?
 
@@ -21,13 +21,13 @@ How Does it Work?
 
 Asuran works by splitting your files up into a number of chunks. It splits files up using a selectable Content Defined Chunking algorithim, currently FastCDC by default, so that even if one part of a file changes, it is very likely the other chunks will not..
 
-Those chunks are then (optionally, but on by default) compressed and encrypted, before being comitted to a Content Addressable Storage backend, for later retrievial. Asuran will try its best to only store each chunk it encounters once (and in the most common usecases, it can do this 100% of the time), preventing an archive from storing the same information in the repository more than once if it can avoid it.
+Those chunks are then optionally (but on by default) compressed and encrypted before being committed to a Content Addressable Storage backend for later retrievial. Asuran tries its best to store each chunk it encounters only once in the repository, and in the most common usecases, it can do this 100% of the time.
 
-The entire archive structure is verified with a Merkele Tree process, so you can be sure that if your restore is successful, then your data is intact and has not been tampered with.
+The entire archive structure is verified with a Merkle Tree process, so you can be sure that if your restore succeeds, your data is intact and has not been tampered with.
 
 You can store as many archives as you want in a single repository, and write to the same repository with as many computers as you want.
 
-The entire data pipeline is built on top of a modren, async stack, allowing performance that previous contentors in this space could only have dreamed of.
+The entire data pipeline is built on top of a modern, async stack, allowing performance that previous contenders in this space could only have dreamed of.
 
 Installing and using
 --------------------
@@ -72,17 +72,17 @@ Comparisons
 Comparison with Borg
 --------------------
 
--	Asuran Has better use of multithreading
+-	Asuran has better use of multithreading
 
-	Asuran has a pipeline that is much better suited to good use of CPU cores, and since archiving speed is typically bound by compression, rather than read/write or encryption/hmac on modren CPUs with an SSD (or just fast spinning rust storage), this leads to a significant speed boost.
+	Asuran has a pipeline that is much better suited to good use of CPU cores, and since archiving speed is typically bound by compression, rather than read/write or encryption/hmac on modern CPUs with an SSD (or just fast spinning rust storage), this leads to a significant speed boost.
 
 -	Switchable storage backends
 
-	Asuran has a framework for describing new storage backends and switching between them at runtime, so you aren't tied to only storing files on a local filesystem or linux machines running ssh
+	Asuran has a framework for describing new storage backends and switching between them at runtime, so you aren't tied to only storing files on a local filesystem or linux machines running SSH.
 
 -	Selectable slicer
 
-	Asuran allows you to chose your content defined chunking algorithm, including the use of FastCDC or a static chunk size slicer, allowing you to decide on your performance/deduplication ratio trade off
+	Asuran allows you to chose your content defined chunking algorithm, including the use of FastCDC or a static chunk size slicer, allowing you to decide on your performance/deduplication ratio trade off.
 
 -	Repository format hides chunk length
 
@@ -93,7 +93,7 @@ Comparison with Restic
 
 -	Asuran is much faster
 
-	Asuran is generally faster than borg, and borg is generally faster than Restic, so this one just follows
+	Asuran is generally faster than borg, and borg is generally faster than Restic, so this one just follows.
 
 -	Optional/Switchable Encryption
 
@@ -101,14 +101,14 @@ Comparison with Restic
 
 -	Support for compression
 
-	Asuran lets you chose between no compression, ZStd, LZMA, or LZ4 compression for your repository, allowing you to choose your time/space trade off
+	Asuran lets you chose between no compression, ZStd, LZMA, or LZ4 compression for your repository, allowing you to choose your time/space trade off.
 
 Comparison with Rdedup
 ----------------------
 
 -	Built in directory traversal
 
-	Asuran will traverse a directory and store its structure automatically. No need to perform an extra step and decrease deduplication by creating a tarball beforehand
+	Asuran will traverse a directory and store its structure automatically. No need to perform an extra step and decrease deduplication by creating a tarball beforehand.
 
 -	Multiple backend support
 
@@ -119,7 +119,7 @@ Improvements To All
 
 -	High level api suitable for embedding
 
-	Asuran presents a high level api that is consumed by `asuran-cli`, making it easy to embed support for asuran archives into other applications
+	Asuran presents a high-level api that is consumed by `asuran-cli`, making it easy to embed support for asuran archives into other applications.
 
 -	Multiple input format support
 
