@@ -99,16 +99,19 @@ pub trait AsyncChunker: Chunker + Send + Sync {
     fn async_chunk_boxed(
         &self,
         read: Box<dyn Read + Send + 'static>,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
     /// Async version of `Chunker::chunk`
     fn async_chunk<R: Read + Send + 'static>(
         &self,
         read: R,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
     /// Async version of `Chunker::chunk_slice`
     fn async_chunk_slice<R: AsRef<[u8]> + Send + 'static>(
         &self,
         slice: R,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>>;
 }
 
@@ -121,8 +124,9 @@ where
     fn async_chunk_boxed(
         &self,
         read: Box<dyn Read + Send + 'static>,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
-        let (mut input, output) = mpsc::channel(100);
+        let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk_boxed(read);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
@@ -136,8 +140,9 @@ where
     fn async_chunk<R: Read + Send + 'static>(
         &self,
         read: R,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
-        let (mut input, output) = mpsc::channel(100);
+        let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk(read);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
@@ -151,8 +156,9 @@ where
     fn async_chunk_slice<R: AsRef<[u8]> + Send + 'static>(
         &self,
         slice: R,
+        queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
-        let (mut input, output) = mpsc::channel(100);
+        let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk_slice(slice);
         task::spawn(async move {
             while let Some(chunk) = task::block_in_place(|| iter.next()) {
