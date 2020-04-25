@@ -97,7 +97,7 @@ mod tests {
 
         let key = Key::random(32);
         let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
-        let repo = Repository::with(backend, settings, key);
+        let repo = Repository::with(backend, settings, key, 2);
         let mut manifest = Manifest::load(&repo);
 
         manifest.set_chunk_settings(settings).await.unwrap();
@@ -111,7 +111,7 @@ mod tests {
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
         let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
-        let repo = Repository::with(backend.clone(), settings, key);
+        let repo = Repository::with(backend.clone(), settings, key, 2);
 
         let mut manifest = Manifest::load(&repo);
 

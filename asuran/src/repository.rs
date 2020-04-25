@@ -97,9 +97,10 @@ impl<T: BackendClone + 'static> Repository<T> {
         hmac: HMAC,
         encryption: Encryption,
         key: Key,
+        pipeline_tasks: usize,
     ) -> Repository<T> {
         info!("Creating a repository with backend {:?}", backend);
-        let pipeline = Pipeline::new();
+        let pipeline = Pipeline::new(pipeline_tasks);
         Repository {
             backend,
             compression,
@@ -112,12 +113,17 @@ impl<T: BackendClone + 'static> Repository<T> {
 
     /// Creates a new repository, accepting a ChunkSettings and a ThreadPool
     #[instrument(skip(key))]
-    pub fn with(backend: T, settings: ChunkSettings, key: Key) -> Repository<T> {
+    pub fn with(
+        backend: T,
+        settings: ChunkSettings,
+        key: Key,
+        pipeline_tasks: usize,
+    ) -> Repository<T> {
         info!(
             "Creating a repository with backend {:?} and chunk settings {:?}",
             backend, settings
         );
-        let pipeline = Pipeline::new();
+        let pipeline = Pipeline::new(pipeline_tasks);
         Repository {
             backend,
             key,
@@ -308,7 +314,7 @@ mod tests {
             encryption: Encryption::new_aes256ctr(),
         };
         let backend = Mem::new(settings, key.clone());
-        Repository::with(backend, settings, key)
+        Repository::with(backend, settings, key, 2)
     }
 
     #[tokio::test(threaded_scheduler)]

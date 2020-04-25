@@ -40,7 +40,7 @@ fn get_repo(key: Key) -> Repository<impl BackendClone> {
         hmac: HMAC::Blake2bp,
     };
     let backend = Mem::new(settings, key.clone());
-    Repository::with(backend, settings, key)
+    Repository::with(backend, settings, key, num_cpus::get())
 }
 
 fn bench(c: &mut Criterion) {

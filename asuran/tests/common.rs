@@ -19,7 +19,7 @@ pub fn get_repo_mem(key: Key) -> Repository<impl BackendClone> {
         encryption: Encryption::new_aes256ctr(),
     };
     let backend = asuran::repository::backend::mem::Mem::new(settings, key.clone());
-    Repository::with(backend, settings, key)
+    Repository::with(backend, settings, key, 2)
 }
 
 #[allow(dead_code)]
@@ -36,7 +36,7 @@ pub async fn get_repo_bare(path: &str, key: Key) -> Repository<impl BackendClone
     )
     .await
     .unwrap();
-    Repository::with(backend, settings, key)
+    Repository::with(backend, settings, key, 2)
 }
 
 #[allow(dead_code)]
@@ -49,5 +49,5 @@ pub fn get_repo_flat(
     let backend =
         asuran::repository::backend::flatfile::FlatFile::new(path, Some(settings), enc_key)
             .unwrap();
-    Repository::with(backend, settings, key)
+    Repository::with(backend, settings, key, 2)
 }

@@ -425,7 +425,7 @@ mod tests {
     fn get_repo_mem(key: Key) -> Repository<impl BackendClone> {
         let settings = ChunkSettings::lightweight();
         let backend = Mem::new(settings, key.clone());
-        Repository::with(backend, settings, key)
+        Repository::with(backend, settings, key, 2)
     }
 
     #[tokio::test(threaded_scheduler)]

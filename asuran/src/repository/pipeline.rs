@@ -21,12 +21,13 @@ pub struct Pipeline {
 
 impl Pipeline {
     /// Spawns a new pipeline and populates it with a number of tasks
-    pub fn new() -> Pipeline {
-        let base_threads = num_cpus::get();
+    pub fn new(task_count: usize) -> Pipeline {
+        // A hacky approximation for the depth of the queue used
+        // roughly 1.5 times the number of tasks used, plus one extra to make sure its not zero
+        let queue_depth = (task_count * 3) / 2 + 1;
+        let (input, rx) = channel(queue_depth);
 
-        let (input, rx) = channel(50);
-
-        for _ in 0..base_threads {
+        for _ in 0..task_count {
             let rx = rx.clone();
             task::spawn(async move {
                 while let Some(input) = rx.receive().await {
@@ -92,6 +93,6 @@ impl Pipeline {
 
 impl Default for Pipeline {
     fn default() -> Self {
-        Self::new()
+        Self::new(num_cpus::get_physical())
     }
 }
