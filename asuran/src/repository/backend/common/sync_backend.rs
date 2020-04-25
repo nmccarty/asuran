@@ -113,8 +113,11 @@ where
     ///
     /// Takes a closure that produces the required `SyncBackend`, in order to allow
     /// injecting non-`Send` backends into the spawned threads.
-    pub fn new(backend: impl FnOnce() -> B + Send + 'static) -> Self {
-        let (input, mut output) = mpsc::channel(100);
+    ///
+    /// `queue_depth` should be a positive (greater than 0) integer, that represents the
+    /// number of requests to hold in the processing queue at any given time.
+    pub fn new(queue_depth: usize, backend: impl FnOnce() -> B + Send + 'static) -> Self {
+        let (input, mut output) = mpsc::channel(queue_depth);
         thread::spawn(move || {
             let mut backend = backend();
             block_on(async move {

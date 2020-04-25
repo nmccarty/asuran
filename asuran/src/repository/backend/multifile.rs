@@ -44,6 +44,7 @@ impl MultiFile {
         path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
+        queue_depth: usize,
     ) -> Result<MultiFile> {
         // First, check to see if the global lock exists, and return an error early if it does
         let global_lock_path = path.as_ref().join("lock");
@@ -58,9 +59,10 @@ impl MultiFile {
         let size_limit = 2_000_000_000;
         let segments_per_directory = 100;
         // Open up an index connection
-        let index_handle = index::Index::open(&path)?;
+        let index_handle = index::Index::open(&path, queue_depth)?;
         // Open up a manifest connection
-        let mut manifest_handle = manifest::Manifest::open(&path, chunk_settings, key)?;
+        let mut manifest_handle =
+            manifest::Manifest::open(&path, chunk_settings, key, queue_depth)?;
         let chunk_settings = if let Some(chunk_settings) = chunk_settings {
             chunk_settings
         } else {
@@ -73,6 +75,7 @@ impl MultiFile {
             segments_per_directory,
             chunk_settings,
             key.clone(),
+            queue_depth,
         )?;
         // Make sure the readlocks directory exists
         create_dir_all(path.as_ref().join("readlocks"))?;
@@ -184,7 +187,7 @@ mod tests {
     async fn setup(key: &Key) -> (TempDir, MultiFile) {
         let tempdir = tempdir().unwrap();
         let path = tempdir.path().to_path_buf();
-        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), key)
+        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), key, 4)
             .await
             .unwrap();
         (tempdir, mf)
@@ -229,7 +232,7 @@ mod tests {
             .open(path.join("lock"))
             .unwrap();
         // Attempt to open the backend
-        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), &key).await;
+        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), &key, 4).await;
         // This should error
         assert!(mf.is_err());
         // It should also, specifically, be a RepositoryGloballyLocked

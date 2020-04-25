@@ -166,11 +166,11 @@ impl Index {
     /// 2. This function can currently panic if we have to create a new index file, but someone else
     ///    that while we were parsing the transaction. Resolution for this conflict needs to be
     ///    implemented.
-    pub fn open(repository_path: impl AsRef<Path>) -> Result<Index> {
+    pub fn open(repository_path: impl AsRef<Path>, queue_depth: usize) -> Result<Index> {
         // Open the index
         let mut index = InternalIndex::open(&repository_path)?;
         // Create the communication channel and open the event processing loop in it own task
-        let (input, mut output) = mpsc::channel(100);
+        let (input, mut output) = mpsc::channel(queue_depth);
         task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
@@ -313,7 +313,7 @@ mod tests {
     async fn creation_works() {
         let (tempdir, path) = setup();
         // Create the index
-        let index = Index::open(&path).expect("Index creation failed");
+        let index = Index::open(&path, 4).expect("Index creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -340,8 +340,8 @@ mod tests {
     async fn double_creation_works() {
         let (tempdir, path) = setup();
         // Create the first index
-        let index1 = Index::open(&path).expect("Index 1 creation failed");
-        let index2 = Index::open(&path).expect("Index 2 creation failed");
+        let index1 = Index::open(&path, 4).expect("Index 1 creation failed");
+        let index2 = Index::open(&path, 4).expect("Index 2 creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -366,7 +366,7 @@ mod tests {
     async fn unlock_on_drop() {
         let (tempdir, path) = setup();
         // Open an index and drop it
-        let mut index = Index::open(&path).expect("Index creation failed");
+        let mut index = Index::open(&path, 4).expect("Index creation failed");
         index.close().await;
         // check for the index file and the absense of the lock file
         let index_dir = path.join("index");
@@ -396,7 +396,7 @@ mod tests {
             txs.insert(chunk_id, descriptor);
         }
         // Open the index
-        let mut index = Index::open(&path).expect("Index creation failed");
+        let mut index = Index::open(&path, 4).expect("Index creation failed");
         // Insert the transactions
         for (id, desc) in &txs {
             index
@@ -412,7 +412,7 @@ mod tests {
         // Drop the index and let it complete
         index.close().await;
         // Load the index back up
-        let mut index = Index::open(&path).expect("Index recreation failed");
+        let mut index = Index::open(&path, 4).expect("Index recreation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();

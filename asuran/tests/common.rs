@@ -18,7 +18,7 @@ pub fn get_repo_mem(key: Key) -> Repository<impl BackendClone> {
         hmac: HMAC::Blake2b,
         encryption: Encryption::new_aes256ctr(),
     };
-    let backend = asuran::repository::backend::mem::Mem::new(settings, key.clone());
+    let backend = asuran::repository::backend::mem::Mem::new(settings, key.clone(), 4);
     Repository::with(backend, settings, key, 2)
 }
 
@@ -33,6 +33,7 @@ pub async fn get_repo_bare(path: &str, key: Key) -> Repository<impl BackendClone
         path,
         Some(settings),
         &key,
+        4,
     )
     .await
     .unwrap();
@@ -47,7 +48,7 @@ pub fn get_repo_flat(
 ) -> Repository<impl BackendClone> {
     let settings = ChunkSettings::lightweight();
     let backend =
-        asuran::repository::backend::flatfile::FlatFile::new(path, Some(settings), enc_key)
+        asuran::repository::backend::flatfile::FlatFile::new(path, Some(settings), enc_key, 4)
             .unwrap();
     Repository::with(backend, settings, key, 2)
 }

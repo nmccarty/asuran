@@ -96,7 +96,7 @@ mod tests {
         };
 
         let key = Key::random(32);
-        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
+        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone(), 4);
         let repo = Repository::with(backend, settings, key, 2);
         let mut manifest = Manifest::load(&repo);
 
@@ -110,7 +110,7 @@ mod tests {
     async fn new_archive_updates_time() {
         let settings = ChunkSettings::lightweight();
         let key = Key::random(32);
-        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone());
+        let backend = crate::repository::backend::mem::Mem::new(settings, key.clone(), 4);
         let repo = Repository::with(backend.clone(), settings, key, 2);
 
         let mut manifest = Manifest::load(&repo);

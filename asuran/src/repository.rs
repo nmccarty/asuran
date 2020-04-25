@@ -86,6 +86,8 @@ pub struct Repository<T> {
     key: Key,
     /// Pipeline used for chunking
     pipeline: Pipeline,
+    /// Depth of queues to build
+    pub queue_depth: usize,
 }
 
 impl<T: BackendClone + 'static> Repository<T> {
@@ -108,6 +110,7 @@ impl<T: BackendClone + 'static> Repository<T> {
             encryption,
             key,
             pipeline,
+            queue_depth: pipeline_tasks,
         }
     }
 
@@ -131,6 +134,7 @@ impl<T: BackendClone + 'static> Repository<T> {
             compression: settings.compression,
             hmac: settings.hmac,
             encryption: settings.encryption,
+            queue_depth: pipeline_tasks,
         }
     }
 
@@ -313,7 +317,7 @@ mod tests {
             hmac: HMAC::Blake2b,
             encryption: Encryption::new_aes256ctr(),
         };
-        let backend = Mem::new(settings, key.clone());
+        let backend = Mem::new(settings, key.clone(), 4);
         Repository::with(backend, settings, key, 2)
     }
 

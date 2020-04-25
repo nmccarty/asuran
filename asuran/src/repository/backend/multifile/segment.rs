@@ -393,6 +393,7 @@ impl SegmentHandler {
         segments_per_directory: u64,
         chunk_settings: ChunkSettings,
         key: Key,
+        queue_depth: usize,
     ) -> Result<SegmentHandler> {
         // Create the internal handler
         let mut handler = InternalSegmentHandler::open(
@@ -405,7 +406,7 @@ impl SegmentHandler {
         // get the path from it
         let path = String::from(handler.path.to_string_lossy());
         // Create the communication channel and open the event processing loop in its own task
-        let (input, mut output) = mpsc::channel(500);
+        let (input, mut output) = mpsc::channel(queue_depth);
         task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {

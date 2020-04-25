@@ -178,7 +178,7 @@ impl ActiveArchive {
         for (extent, read) in from_readers {
             let max_futs = 100;
             let mut futs = VecDeque::new();
-            let mut slices = chunker.async_chunk(read);
+            let mut slices = chunker.async_chunk(read, repository.queue_depth);
             let mut start = extent.start;
             while let Some(result) = slices.next().await {
                 let data = result?;
@@ -424,7 +424,7 @@ mod tests {
 
     fn get_repo_mem(key: Key) -> Repository<impl BackendClone> {
         let settings = ChunkSettings::lightweight();
-        let backend = Mem::new(settings, key.clone());
+        let backend = Mem::new(settings, key.clone(), 4);
         Repository::with(backend, settings, key, 2)
     }
 

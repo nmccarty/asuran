@@ -350,9 +350,10 @@ impl Manifest {
         repository_path: impl AsRef<Path>,
         chunk_settings: Option<ChunkSettings>,
         key: &Key,
+        queue_depth: usize,
     ) -> Result<Manifest> {
         let mut manifest = InternalManifest::open(repository_path.as_ref(), key, chunk_settings)?;
-        let (input, mut output) = mpsc::channel(100);
+        let (input, mut output) = mpsc::channel(queue_depth);
         task::spawn(async move {
             let mut final_ret = None;
             while let Some(command) = output.next().await {
@@ -489,7 +490,7 @@ mod tests {
         let key = Key::random(32);
         // Create the manifest
         let mut manifest =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest creation failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -526,9 +527,9 @@ mod tests {
         let key = Key::random(32);
         // Create the manifest
         let mut manifest1 =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest 1 creation failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
         let mut manifest2 =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest 2 creation failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 2 creation failed");
         // Walk the directory and print some debugging info
         for entry in WalkDir::new(&path) {
             let entry = entry.unwrap();
@@ -559,7 +560,7 @@ mod tests {
         let key = Key::random(32);
         // Create the manifest
         let mut manifest =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest 1 creation failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
         manifest.close().await;
         // check for the manifest file and the absense of the lock file
         let manifest_dir = path.join("manifest");
@@ -582,7 +583,7 @@ mod tests {
         let key = Key::random(32);
         // Create the manifest
         let mut manifest =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest creation failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
 
         // Create some dummy archives
         let len = 10;
@@ -605,7 +606,7 @@ mod tests {
 
         // Reopen the manifest
         let mut manifest =
-            Manifest::open(&path, Some(settings), &key).expect("Manifest reopen failed");
+            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest reopen failed");
         // Pull the archives out of it
         let archives: Vec<StoredArchive> = manifest.archive_iterator().await.collect();
         // Make sure we have the correct number of archives
@@ -629,12 +630,12 @@ mod tests {
         let _test_file = File::create(&file_path).expect("Unable to create test file");
 
         // Attempt to open a manifest at that location
-        let mf = Manifest::open(&file_path, Some(settings), &key);
+        let mf = Manifest::open(&file_path, Some(settings), &key, 4);
         // This should error
         assert!(mf.is_err());
 
         // Attempt to open a manifest without setting chunk settings
-        let mf = Manifest::open(&file_path, None, &key);
+        let mf = Manifest::open(&file_path, None, &key, 4);
         assert!(mf.is_err());
     }
 }

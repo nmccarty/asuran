@@ -54,12 +54,12 @@ fn get_repo(key: Key) -> Repository<impl BackendClone> {
         encryption: Encryption::new_aes256ctr(),
         hmac: HMAC::Blake3,
     };
-    let backend = Mem::new(settings, key.clone());
+    let backend = Mem::new(settings, key.clone(), num_cpus::get() * 2);
     Repository::with(backend, settings, key, num_cpus::get())
 }
 
 fn bench(c: &mut Criterion) {
-    let size = 64_000_000;
+    let size = 16_000_000;
     let data = compressable_random(thread_rng(), size);
     let data = Box::new(data);
     let data: &'static [u8] = Box::leak(data);

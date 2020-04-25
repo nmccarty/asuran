@@ -47,8 +47,8 @@ impl Mem {
         }
     }
 
-    pub fn new(chunk_settings: ChunkSettings, key: Key) -> BackendHandle<Mem> {
-        BackendHandle::new(move || Self::new_raw(chunk_settings, key))
+    pub fn new(chunk_settings: ChunkSettings, key: Key, queue_depth: usize) -> BackendHandle<Mem> {
+        BackendHandle::new(queue_depth, move || Self::new_raw(chunk_settings, key))
     }
 }
 
@@ -148,7 +148,7 @@ mod tests {
     #[should_panic]
     async fn bad_key_access() {
         let key = Key::random(32);
-        let backend = Mem::new(ChunkSettings::lightweight(), key);
+        let backend = Mem::new(ChunkSettings::lightweight(), key, 8);
         backend.read_key().await.unwrap();
     }
 
@@ -156,7 +156,7 @@ mod tests {
     #[tokio::test(threaded_scheduler)]
     async fn key_sanity() {
         let key = Key::random(32);
-        let backend = Mem::new(ChunkSettings::lightweight(), key.clone());
+        let backend = Mem::new(ChunkSettings::lightweight(), key.clone(), 8);
         let key_key = [0_u8; 128];
         let encrypted_key =
             EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);

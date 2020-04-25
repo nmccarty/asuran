@@ -159,9 +159,10 @@ impl FlatFile {
         repository_path: impl AsRef<Path>,
         settings: Option<ChunkSettings>,
         enc_key: Option<EncryptedKey>,
+        queue_depth: usize,
     ) -> Result<BackendHandle<FlatFile>> {
         let flatfile = FlatFile::new_raw(repository_path, settings, enc_key)?;
-        Ok(BackendHandle::new(move || flatfile))
+        Ok(BackendHandle::new(queue_depth, move || flatfile))
     }
 
     /// Attempts to read the key from the flatfile repo at a given path
@@ -300,10 +301,10 @@ mod tests {
         let directory = tempdir().unwrap();
         let file = directory.path().join("temp.asuran");
         // Generate the flatfile, close it, and drop it
-        let mut flatfile = FlatFile::new(&file, Some(settings), Some(enc_key)).unwrap();
+        let mut flatfile = FlatFile::new(&file, Some(settings), Some(enc_key), 4).unwrap();
         flatfile.close().await;
         // Load it back up
-        let flatfile = FlatFile::new(&file, None, None).unwrap();
+        let flatfile = FlatFile::new(&file, None, None, 4).unwrap();
         // get the key
         let new_key = flatfile
             .read_key()

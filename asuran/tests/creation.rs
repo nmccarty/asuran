@@ -19,7 +19,7 @@ async fn create_multifile_repository(encryption: Encryption, compression: Compre
         hmac,
     };
 
-    let mut mf = MultiFile::open_defaults(repo_dir, Some(settings), &key)
+    let mut mf = MultiFile::open_defaults(repo_dir, Some(settings), &key, 4)
         .await
         .expect("Unable to create the multifile repository");
     mf.write_key(&encrypted_key)
