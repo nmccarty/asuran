@@ -81,7 +81,7 @@ arg_enum! {
     }
 }
 
-/// Indicates which subcommand the user has chosen.
+/// A high performance, de-duplicating archiver, with no-compromises security.
 #[derive(StructOpt, Debug, Clone)]
 pub enum Command {
     /// Provides a listing of the archives in a repository
@@ -231,6 +231,8 @@ pub struct RepoOpt {
     version = VERSION,
     global_setting(AppSettings::ColoredHelp),
 )]
+
+/// A high performance, de-duplicating archiver, with no-compromises security.
 pub struct Opt {
     /// Operation to perform
     #[structopt(subcommand)]
