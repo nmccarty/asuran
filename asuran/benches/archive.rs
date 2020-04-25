@@ -58,6 +58,16 @@ fn get_repo(key: Key) -> Repository<impl BackendClone> {
     Repository::with(backend, settings, key, num_cpus::get())
 }
 
+fn get_repo_bare(key: Key) -> Repository<impl BackendClone> {
+    let settings = ChunkSettings {
+        compression: Compression::NoCompression,
+        encryption: Encryption::NoEncryption,
+        hmac: HMAC::Blake3,
+    };
+    let backend = Mem::new(settings, key.clone(), num_cpus::get() * 2);
+    Repository::with(backend, settings, key, num_cpus::get())
+}
+
 fn bench(c: &mut Criterion) {
     let size = 16_000_000;
     let data = compressable_random(thread_rng(), size);
@@ -74,6 +84,19 @@ fn bench(c: &mut Criterion) {
         b.iter(|| {
             rt.block_on(async {
                 let repo = get_repo(Key::random(32));
+                let slicer = FastCDC::default();
+                store(data, repo, slicer).await;
+            });
+        })
+    });
+
+    group.throughput(Throughput::Bytes(size as u64));
+    group.measurement_time(Duration::new(30, 0));
+    group.sample_size(20);
+    group.bench_function("fastcdc NoEncryption NoCompression", |b| {
+        b.iter(|| {
+            rt.block_on(async {
+                let repo = get_repo_bare(Key::random(32));
                 let slicer = FastCDC::default();
                 store(data, repo, slicer).await;
             });
