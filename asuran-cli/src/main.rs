@@ -23,11 +23,19 @@ mod store;
 
 use anyhow::Result;
 use cli::{Command, Opt};
+use std::thread;
 use structopt::StructOpt;
 
 #[cfg_attr(tarpaulin, skip)]
 fn main() -> Result<()> {
-    smol::run(async {
+    let num_threads = num_cpus::get_physical();
+    let (s, r) = piper::chan::<()>(0);
+    let mut threads = Vec::new();
+    for _ in 0..num_threads {
+        let r = r.clone();
+        threads.push(thread::spawn(move || smol::run(r.recv())));
+    }
+    let result = smol::block_on(async {
         // Our task in main is dead simple, we only need to parse the options and
         // match on the subcommand
         let options = Opt::from_args();
@@ -48,5 +56,12 @@ fn main() -> Result<()> {
                 archive, glob_opts, ..
             } => contents::contents(options, archive, glob_opts).await,
         }
-    })
+    });
+    drop(s);
+
+    for t in threads {
+        t.join().unwrap();
+    }
+
+    result
 }

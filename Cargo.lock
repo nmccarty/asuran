@@ -154,6 +154,7 @@ dependencies = [
  "futures",
  "globset",
  "num_cpus",
+ "piper",
  "prettytable-rs",
  "read_input",
  "rpassword",
