@@ -3,6 +3,5 @@
 **/*.rs.bk
 .vscode/launch.json
 kcov*
-Cargo.lock
 **/*~
 **/.#*
