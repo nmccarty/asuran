@@ -8,12 +8,13 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use lru::LruCache;
-use tokio::task;
+use smol::block_on;
 use walkdir::WalkDir;
 
 use std::fs::{create_dir, File};
 use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
+use std::thread;
 
 struct SegmentPair<R: Read + Write + Seek>(u64, Segment<R>);
 /// An internal struct for handling the state of the segments
@@ -407,15 +408,15 @@ impl SegmentHandler {
         let path = String::from(handler.path.to_string_lossy());
         // Create the communication channel and open the event processing loop in its own task
         let (input, mut output) = mpsc::channel(queue_depth);
-        task::spawn(async move {
+        thread::spawn(move || {
             let mut final_ret = None;
-            while let Some(command) = output.next().await {
+            while let Some(command) = block_on(output.next()) {
                 match command {
                     SegmentHandlerCommand::ReadChunk(location, ret) => {
-                        task::block_in_place(|| ret.send(handler.read_chunk(location)).unwrap());
+                        ret.send(handler.read_chunk(location)).unwrap();
                     }
                     SegmentHandlerCommand::WriteChunk(chunk, ret) => {
-                        task::block_in_place(|| ret.send(handler.write_chunk(chunk)).unwrap());
+                        ret.send(handler.write_chunk(chunk)).unwrap();
                     }
                     SegmentHandlerCommand::Close(ret) => {
                         handler.flush().unwrap();

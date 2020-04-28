@@ -8,12 +8,13 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use rmp_serde as rmps;
-use tokio::task;
+use smol::block_on;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{BufWriter, Seek, SeekFrom};
 use std::path::Path;
+use std::thread;
 
 #[derive(Debug)]
 struct InternalIndex {
@@ -171,9 +172,9 @@ impl Index {
         let mut index = InternalIndex::open(&repository_path)?;
         // Create the communication channel and open the event processing loop in it own task
         let (input, mut output) = mpsc::channel(queue_depth);
-        task::spawn(async move {
+        thread::spawn(move || {
             let mut final_ret = None;
-            while let Some(command) = output.next().await {
+            while let Some(command) = block_on(output.next()) {
                 match command {
                     IndexCommand::Lookup(id, ret) => {
                         ret.send(index.state.get(&id).copied()).unwrap();
@@ -196,12 +197,7 @@ impl Index {
                         ret.send(index.state.len()).unwrap();
                     }
                     IndexCommand::Commit(ret) => {
-                        index = task::spawn_blocking(move || {
-                            ret.send({ index.drain_changes() }).unwrap();
-                            index
-                        })
-                        .await
-                        .unwrap();
+                        ret.send({ index.drain_changes() }).unwrap();
                     }
                     IndexCommand::Close(ret) => {
                         final_ret = Some(ret);

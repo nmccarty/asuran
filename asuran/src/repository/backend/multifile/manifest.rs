@@ -15,12 +15,13 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use petgraph::Graph;
 use rmp_serde as rmps;
-use tokio::task;
+use smol::block_on;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, read_dir, File};
 use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::thread;
 
 #[derive(Debug)]
 struct InternalManifest {
@@ -354,9 +355,9 @@ impl Manifest {
     ) -> Result<Manifest> {
         let mut manifest = InternalManifest::open(repository_path.as_ref(), key, chunk_settings)?;
         let (input, mut output) = mpsc::channel(queue_depth);
-        task::spawn(async move {
+        thread::spawn(move || {
             let mut final_ret = None;
-            while let Some(command) = output.next().await {
+            while let Some(command) = block_on(output.next()) {
                 match command {
                     ManifestCommand::LastMod(ret) => {
                         ret.send(manifest.last_modification()).unwrap();

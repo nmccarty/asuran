@@ -21,10 +21,10 @@ use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
-use futures::executor::block_on;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 
+use smol::block_on;
 use std::collections::HashSet;
 use std::thread;
 
@@ -120,81 +120,79 @@ where
         let (input, mut output) = mpsc::channel(queue_depth);
         thread::spawn(move || {
             let mut backend = backend();
-            block_on(async move {
-                let mut final_ret: Option<oneshot::Sender<()>> = None;
-                while let Some(command) = output.next().await {
-                    match command {
-                        SyncCommand::Index(index_command) => {
-                            let index = backend.get_index();
-                            match index_command {
-                                SyncIndexCommand::Lookup(id, ret) => {
-                                    ret.send(index.lookup_chunk(id)).unwrap();
-                                }
-                                SyncIndexCommand::Set(id, location, ret) => {
-                                    ret.send(index.set_chunk(id, location)).unwrap();
-                                }
-                                SyncIndexCommand::KnownChunks(ret) => {
-                                    ret.send(index.known_chunks()).unwrap();
-                                }
-                                SyncIndexCommand::Commit(ret) => {
-                                    ret.send(index.commit_index()).unwrap();
-                                }
-                                SyncIndexCommand::Count(ret) => {
-                                    ret.send(index.chunk_count()).unwrap();
-                                }
-                            };
-                        }
-                        SyncCommand::Manifest(manifest_command) => {
-                            let manifest = backend.get_manifest();
-                            match manifest_command {
-                                SyncManifestCommand::LastMod(ret) => {
-                                    ret.send(manifest.last_modification()).unwrap();
-                                }
-                                SyncManifestCommand::ChunkSettings(ret) => {
-                                    ret.send(manifest.chunk_settings()).unwrap();
-                                }
-                                SyncManifestCommand::ArchiveIterator(ret) => {
-                                    ret.send(manifest.archive_iterator()).unwrap();
-                                }
-                                SyncManifestCommand::WriteChunkSettings(settings, ret) => {
-                                    ret.send(manifest.write_chunk_settings(settings)).unwrap();
-                                }
-                                SyncManifestCommand::WriteArchive(archive, ret) => {
-                                    ret.send(manifest.write_archive(archive)).unwrap();
-                                }
-                                SyncManifestCommand::Touch(ret) => {
-                                    ret.send(manifest.touch()).unwrap();
-                                }
+            let mut final_ret: Option<oneshot::Sender<()>> = None;
+            while let Some(command) = block_on(output.next()) {
+                match command {
+                    SyncCommand::Index(index_command) => {
+                        let index = backend.get_index();
+                        match index_command {
+                            SyncIndexCommand::Lookup(id, ret) => {
+                                ret.send(index.lookup_chunk(id)).unwrap();
                             }
-                        }
-                        SyncCommand::Backend(backend_command) => match backend_command {
-                            SyncBackendCommand::ReadChunk(location, ret) => {
-                                ret.send(backend.read_chunk(location)).unwrap();
+                            SyncIndexCommand::Set(id, location, ret) => {
+                                ret.send(index.set_chunk(id, location)).unwrap();
                             }
-                            SyncBackendCommand::WriteChunk(chunk, ret) => {
-                                ret.send(backend.write_chunk(chunk)).unwrap();
+                            SyncIndexCommand::KnownChunks(ret) => {
+                                ret.send(index.known_chunks()).unwrap();
                             }
-                            SyncBackendCommand::WriteKey(key, ret) => {
-                                ret.send(backend.write_key(key)).unwrap();
+                            SyncIndexCommand::Commit(ret) => {
+                                ret.send(index.commit_index()).unwrap();
                             }
-                            SyncBackendCommand::ReadKey(ret) => {
-                                ret.send(backend.read_key()).unwrap();
+                            SyncIndexCommand::Count(ret) => {
+                                ret.send(index.chunk_count()).unwrap();
                             }
-                            SyncBackendCommand::Close(ret) => {
-                                final_ret = Some(ret);
-                            }
-                        },
-                    };
-                    if final_ret.is_some() {
-                        break;
+                        };
                     }
+                    SyncCommand::Manifest(manifest_command) => {
+                        let manifest = backend.get_manifest();
+                        match manifest_command {
+                            SyncManifestCommand::LastMod(ret) => {
+                                ret.send(manifest.last_modification()).unwrap();
+                            }
+                            SyncManifestCommand::ChunkSettings(ret) => {
+                                ret.send(manifest.chunk_settings()).unwrap();
+                            }
+                            SyncManifestCommand::ArchiveIterator(ret) => {
+                                ret.send(manifest.archive_iterator()).unwrap();
+                            }
+                            SyncManifestCommand::WriteChunkSettings(settings, ret) => {
+                                ret.send(manifest.write_chunk_settings(settings)).unwrap();
+                            }
+                            SyncManifestCommand::WriteArchive(archive, ret) => {
+                                ret.send(manifest.write_archive(archive)).unwrap();
+                            }
+                            SyncManifestCommand::Touch(ret) => {
+                                ret.send(manifest.touch()).unwrap();
+                            }
+                        }
+                    }
+                    SyncCommand::Backend(backend_command) => match backend_command {
+                        SyncBackendCommand::ReadChunk(location, ret) => {
+                            ret.send(backend.read_chunk(location)).unwrap();
+                        }
+                        SyncBackendCommand::WriteChunk(chunk, ret) => {
+                            ret.send(backend.write_chunk(chunk)).unwrap();
+                        }
+                        SyncBackendCommand::WriteKey(key, ret) => {
+                            ret.send(backend.write_key(key)).unwrap();
+                        }
+                        SyncBackendCommand::ReadKey(ret) => {
+                            ret.send(backend.read_key()).unwrap();
+                        }
+                        SyncBackendCommand::Close(ret) => {
+                            final_ret = Some(ret);
+                        }
+                    },
+                };
+                if final_ret.is_some() {
+                    break;
                 }
-                std::mem::drop(backend);
-                std::mem::drop(output);
-                if let Some(ret) = final_ret {
-                    ret.send(()).unwrap();
-                }
-            })
+            }
+            std::mem::drop(backend);
+            std::mem::drop(output);
+            if let Some(ret) = final_ret {
+                ret.send(()).unwrap();
+            }
         });
 
         BackendHandle { channel: input }

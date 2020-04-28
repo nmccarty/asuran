@@ -2,7 +2,8 @@ use crate::repository::{Chunk, Compression, Encryption, Key, HMAC};
 
 use futures::channel::oneshot;
 use piper;
-use tokio::task;
+use smol::block_on;
+use std::thread;
 use tracing::instrument;
 
 #[derive(Debug)]
@@ -29,21 +30,19 @@ impl Pipeline {
 
         for _ in 0..task_count {
             let rx = rx.clone();
-            task::spawn(async move {
-                while let Some(input) = rx.recv().await {
+            thread::spawn(move || {
+                while let Some(input) = block_on(rx.recv()) {
                     let (chunk, message): (Vec<u8>, Message) = input;
-                    task::block_in_place(|| {
-                        let c = Chunk::pack(
-                            chunk,
-                            message.compression,
-                            message.encryption,
-                            message.hmac,
-                            &message.key,
-                        );
-                        // If sending to this channel fails, we have no way to communicate to
-                        // the outside anymore. Just let this task die.
-                        message.ret_chunk.send(c).unwrap();
-                    });
+                    let c = Chunk::pack(
+                        chunk,
+                        message.compression,
+                        message.encryption,
+                        message.hmac,
+                        &message.key,
+                    );
+                    // If sending to this channel fails, we have no way to communicate to
+                    // the outside anymore. Just let this task die.
+                    message.ret_chunk.send(c).unwrap();
                 }
             });
         }
