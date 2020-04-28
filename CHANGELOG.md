@@ -1,3 +1,55 @@
+<a name="0.1.1"></a>
+## 0.1.1 (2020-04-28)
+
+
+#### Breaking Changes
+
+* **asuran:**
+  *  Replace tokio with smol ([29fbfd63](29fbfd63), closes [#59](59))
+  *  Make all queue depths configurable ([9209e0d3](9209e0d3))
+  *  Make pipeline API take number of tasks to spawn ([9d566e24](9d566e24))
+  *  Remove mostly unused process_id pipeline ([1b123555](1b123555))
+  *  Change sync_backend to use dedicated worker thread ([f3fca5b6](f3fca5b6), closes [#62](62))
+* **asuran-chunker:**  Make queue depth configurable ([d1e62bb1](d1e62bb1))
+
+#### Performance
+
+* **asuran:**
+  *  Replace Archive HashMap with DashMap ([c9a24c70](c9a24c70))
+  *  Replace blocking tasks with threads ([64c196f9](64c196f9))
+* **asuran-chunker:**  Move chunker work from tasks to dedicated worker threads ([c32ea56f](c32ea56f))
+
+#### Features
+
+* **asuran:**
+  *  Make all queue depths configurable ([9209e0d3](9209e0d3))
+  *  Make pipeline API take number of tasks to spawn ([9d566e24](9d566e24))
+  *  Change sync_backend to use dedicated worker thread ([f3fca5b6](f3fca5b6), closes [#62](62))
+  *  Re-export asuran-core features in asuran ([ddf1c734](ddf1c734))
+* **asuran-chunker:**  Make queue depth configurable ([d1e62bb1](d1e62bb1))
+* **asuran-cli:**
+  *  Switch executor over to smol ([56dbdd2d](56dbdd2d))
+  *  Configure queue_depths based on pipeline_tasks ([d2790aa1](d2790aa1))
+  *  Add pipeline-tasks argument ([745e1538](745e1538))
+  *  Reexport asuran features to asuran-cli ([c22f1e0f](c22f1e0f))
+
+#### Other Changes
+
+* **asuran:**
+  *  Replace tokio with smol ([29fbfd63](29fbfd63), closes [#59](59))
+  *  Replace futures_intrusive with piper ([634cf0f8](634cf0f8))
+  *  Add archive NoEncryption / NoCompression Bench ([adf8e286](adf8e286))
+  *  Remove mostly unused process_id pipeline ([1b123555](1b123555))
+* **asuran-cli:**  Switch cli executor to smol ([7c835e46](7c835e46))
+
+#### Bug Fixes
+
+*   Function call in expect ([79b87773](79b87773))
+* **asuran:**  Missing executor feature on futures ([302c73cb](302c73cb))
+* **asuran-cli:**  Fix incorrect doc comment on struct opt ([530a0c65](530a0c65))
+
+
+
 <a name="0.1.0"></a>
 ## 0.1.0 (2020-04-23)
 
