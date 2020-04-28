@@ -5,6 +5,8 @@ We believe that backups should be easy, fast, and last forever.
 
 Asuran is a new archive format and rust implementation. It aims to be the archiver for the 2020's, and has been written from the ground up to use the insights from cutting edge research and extract every last bit of performance out of modern hardware, while still providing features users have come to rely on in archivers, like encryption, compression, and global deduplication.
 
+Asuran is also blazing fast, [check out some benchmarks!](https://gitlab.com/asuran-rs/archiver-benchmarks/-/blob/master/RESULTS.md)
+
 ![Codecov](https://img.shields.io/codecov/c/gl/asuran-rs/asuran?style=flat-square) ![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/asuran-rs/asuran/master?style=flat-square) ![Crates.io](https://img.shields.io/crates/v/asuran?style=flat-square) ![Crates.io](https://img.shields.io/crates/l/asuran?style=flat-square)
 
 Mission Statement

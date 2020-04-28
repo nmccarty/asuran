@@ -1,11 +1,9 @@
 Asuran CLI
 ==========
 
-This is a thin CLI wrapper around [asuran](https://gitlab.com/asuran-rs/asuran) ([crates.io](https://crates.io/crates/asuran)\)
+This is the main cli interface for [asuran](https://gitlab.com/asuran-rs/asuran) ([crates.io](https://crates.io/crates/asuran)), a new, [blazing fast](https://gitlab.com/asuran-rs/archiver-benchmarks/-/blob/master/RESULTS.md) deduplicating archive format, with a zero-compromises security model.
 
-At the moment this is mostly used for testing and directly tracks the upstream library version.
-
-Please see the website at [asuran.rs](https://asuran.rs) for more information, as most of the cool stuff is implemented in the libasuran library proper.
+Please see the website at [asuran.rs](https://asuran.rs) for more information, as most of the cool stuff is implemented in the asuran library proper.
 
 Getting Started
 ---------------
@@ -30,6 +28,6 @@ This project is licensed under the BSD 2 Clause + Patent license
 Contacting
 ----------
 
-Join our [matrix chat](https://matrix.to/#/!gfTQMJBreSJoPEkEeI:matrix.org?via=matrix.org&via=t2bot.io) or our [Gitter chat](https://gitter.im/Asuran-rs/community?utm_source=share-link&utm_medium=link&utm_campaign=share-link) to ask questions, report bugs, or suggest improvements.
+Join our [matrix chat](https://matrix.to/#/!gfTQMJBreSJoPEkEeI:matrix.org?via=matrix.org&via=t2bot.io) to ask questions, report bugs, or suggest improvements.
 
 Additionally, feel free to open an issue on the gitlab with any bugs you find.
