@@ -11,15 +11,15 @@ edition = "2018"
 readme = "README.md"
 
 [features]
-streams = ["tokio", "futures"]
+streams = ["smol", "futures"]
 
 [dependencies]
 fastcdc = "1.0.3"
 futures = { version = "0.3.4", default-features = false, features = ["std"], optional = true }
 rand = "0.7.3"
 rand_chacha = "0.2.2"
+smol = { version = "0.1.2", optional = true }
 thiserror = "1.0.15"
-tokio = { version = "0.2.18", features = ["rt-core","rt-threaded", "macros", "sync", "blocking"], optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"

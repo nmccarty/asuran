@@ -24,7 +24,9 @@ use futures::channel::mpsc;
 #[cfg(feature = "streams")]
 use futures::sink::SinkExt;
 #[cfg(feature = "streams")]
-use tokio::task;
+use smol::block_on;
+#[cfg(feature = "streams")]
+use std::thread;
 
 #[derive(Error, Debug)]
 pub enum ChunkerError {
@@ -128,11 +130,11 @@ where
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk_boxed(read);
-        task::spawn(async move {
-            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+        thread::spawn(move || {
+            while let Some(chunk) = iter.next() {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
-                input.send(chunk).await.unwrap();
+                block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
             }
         });
         output
@@ -144,11 +146,11 @@ where
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk(read);
-        task::spawn(async move {
-            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+        thread::spawn(move || {
+            while let Some(chunk) = iter.next() {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
-                input.send(chunk).await.unwrap();
+                block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
             }
         });
         output
@@ -160,11 +162,11 @@ where
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
         let mut iter = self.chunk_slice(slice);
-        task::spawn(async move {
-            while let Some(chunk) = task::block_in_place(|| iter.next()) {
+        thread::spawn(move || {
+            while let Some(chunk) = iter.next() {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
-                input.send(chunk).await.unwrap();
+                block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
             }
         });
         output
