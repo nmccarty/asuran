@@ -1,7 +1,7 @@
 [package]
 name = "asuran-core"
 license = "BSD-2-Clause-Patent"
-version = "0.1.1-alpha.1"
+version = "0.1.1"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
