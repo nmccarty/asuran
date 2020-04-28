@@ -9,7 +9,7 @@ use asuran::repository::*;
 use anyhow::Result;
 use chrono::prelude::*;
 use futures::future::select_all;
-use tokio::task;
+use smol::Task;
 
 use std::path::PathBuf;
 
@@ -62,7 +62,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
         let archive = archive.clone();
         let backup_target = backup_target.clone();
         // Spawn a task and ask the target to store an object
-        task_queue.push(task::spawn(async move {
+        task_queue.push(Task::spawn(async move {
             (
                 node.clone(),
                 backup_target
@@ -73,7 +73,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
         // Perform queue draining if we are over full.
         if task_queue.len() > max_queue_len {
             let (result, _, new_queue) = select_all(task_queue).await;
-            let (node, x) = result?;
+            let (node, x) = result;
             x?;
             if !options.quiet {
                 println!("Stored File: {}", node.path);
@@ -83,7 +83,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     }
     // Drain any remaining futures in the queue
     for future in task_queue {
-        let (node, x) = future.await.unwrap();
+        let (node, x) = future.await;
         x?;
         println!("Stored File: {}", node.path);
     }
