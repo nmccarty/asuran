@@ -193,64 +193,72 @@ mod tests {
         (tempdir, mf)
     }
 
-    #[tokio::test]
-    async fn key_store_load() {
-        let key = Key::random(32);
-        let (tempdir, mut mf) = setup(&key).await;
-        // Encrypt the key and store it
-        let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), b"");
-        mf.write_key(&enc_key).await.expect("Unable to write key");
-        // Load the key back out without unloading
-        let enc_key = mf
-            .read_key()
-            .await
-            .expect("Unable to read key (before drop)");
-        // Decrypt it and verify equality
-        let new_key = enc_key
-            .decrypt(b"")
-            .expect("Unable to decrypt key (before drop)");
-        assert_eq!(key, new_key);
-        // Drop the backend and try reading it from scratch
-        mf.close().await;
-        let enc_key = MultiFile::read_key(tempdir.path()).expect("Unable to read key (after drop)");
-        let new_key = enc_key
-            .decrypt(b"")
-            .expect("Unable to decrypt key (after drop)");
-        assert_eq!(key, new_key);
+    #[test]
+    fn key_store_load() {
+        smol::run(async {
+            let key = Key::random(32);
+            let (tempdir, mut mf) = setup(&key).await;
+            // Encrypt the key and store it
+            let enc_key = EncryptedKey::encrypt(&key, 512, 1, Encryption::new_aes256ctr(), b"");
+            mf.write_key(&enc_key).await.expect("Unable to write key");
+            // Load the key back out without unloading
+            let enc_key = mf
+                .read_key()
+                .await
+                .expect("Unable to read key (before drop)");
+            // Decrypt it and verify equality
+            let new_key = enc_key
+                .decrypt(b"")
+                .expect("Unable to decrypt key (before drop)");
+            assert_eq!(key, new_key);
+            // Drop the backend and try reading it from scratch
+            mf.close().await;
+            let enc_key =
+                MultiFile::read_key(tempdir.path()).expect("Unable to read key (after drop)");
+            let new_key = enc_key
+                .decrypt(b"")
+                .expect("Unable to decrypt key (after drop)");
+            assert_eq!(key, new_key);
+        });
     }
 
     // Test to make sure that attempting to open a repository respects an existing global lock
-    #[tokio::test]
-    async fn repository_global_lock() {
-        let tempdir = tempdir().unwrap();
-        let path = tempdir.path().to_path_buf();
-        let key = Key::random(32);
-        // Create the lock
-        OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(path.join("lock"))
-            .unwrap();
-        // Attempt to open the backend
-        let mf = MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), &key, 4).await;
-        // This should error
-        assert!(mf.is_err());
-        // It should also, specifically, be a RepositoryGloballyLocked
-        assert!(matches!(mf, Err(BackendError::RepositoryGloballyLocked(_))));
+    #[test]
+    fn repository_global_lock() {
+        smol::run(async {
+            let tempdir = tempdir().unwrap();
+            let path = tempdir.path().to_path_buf();
+            let key = Key::random(32);
+            // Create the lock
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(path.join("lock"))
+                .unwrap();
+            // Attempt to open the backend
+            let mf =
+                MultiFile::open_defaults(path, Some(ChunkSettings::lightweight()), &key, 4).await;
+            // This should error
+            assert!(mf.is_err());
+            // It should also, specifically, be a RepositoryGloballyLocked
+            assert!(matches!(mf, Err(BackendError::RepositoryGloballyLocked(_))));
+        });
     }
 
     // Tests to make sure that readlocks are created and destroyed properly
-    #[tokio::test]
-    async fn read_lock_create_destroy() {
-        let key = Key::random(32);
-        let (tempdir, mut mf) = setup(&key).await;
-        let lock_path: Arc<PathBuf> = mf.read_lock_path.clone();
-        // the connection is open, assert that the lock exists
-        assert!(lock_path.exists());
-        // Close the connection
-        mf.close().await;
-        std::mem::drop(mf);
-        // The connection is now closed, assert that the lock does not exist
-        assert!(!lock_path.exists());
+    #[test]
+    fn read_lock_create_destroy() {
+        smol::run(async {
+            let key = Key::random(32);
+            let (tempdir, mut mf) = setup(&key).await;
+            let lock_path: Arc<PathBuf> = mf.read_lock_path.clone();
+            // the connection is open, assert that the lock exists
+            assert!(lock_path.exists());
+            // Close the connection
+            mf.close().await;
+            std::mem::drop(mf);
+            // The connection is now closed, assert that the lock does not exist
+            assert!(!lock_path.exists());
+        });
     }
 }

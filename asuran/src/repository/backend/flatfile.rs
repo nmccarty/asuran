@@ -295,24 +295,26 @@ mod tests {
 
     // Create a new flatfile with a key and some settings, drop it, reload it, and check to see if
     // the key we read back is the same
-    #[tokio::test(threaded_scheduler)]
-    async fn key_store_load() {
-        let (key, enc_key, settings) = setup();
-        let directory = tempdir().unwrap();
-        let file = directory.path().join("temp.asuran");
-        // Generate the flatfile, close it, and drop it
-        let mut flatfile = FlatFile::new(&file, Some(settings), Some(enc_key), 4).unwrap();
-        flatfile.close().await;
-        // Load it back up
-        let flatfile = FlatFile::new(&file, None, None, 4).unwrap();
-        // get the key
-        let new_key = flatfile
-            .read_key()
-            .await
-            .expect("Could not read key")
-            .decrypt(b"A Very strong password")
-            .expect("Could not decrypt key");
+    #[test]
+    fn key_store_load() {
+        smol::run(async {
+            let (key, enc_key, settings) = setup();
+            let directory = tempdir().unwrap();
+            let file = directory.path().join("temp.asuran");
+            // Generate the flatfile, close it, and drop it
+            let mut flatfile = FlatFile::new(&file, Some(settings), Some(enc_key), 4).unwrap();
+            flatfile.close().await;
+            // Load it back up
+            let flatfile = FlatFile::new(&file, None, None, 4).unwrap();
+            // get the key
+            let new_key = flatfile
+                .read_key()
+                .await
+                .expect("Could not read key")
+                .decrypt(b"A Very strong password")
+                .expect("Could not decrypt key");
 
-        assert_eq!(key, new_key);
+            assert_eq!(key, new_key);
+        });
     }
 }

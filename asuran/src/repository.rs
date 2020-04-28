@@ -320,70 +320,76 @@ mod tests {
         Repository::with(backend, settings, key, 2)
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn repository_add_read() {
-        let key = Key::random(32);
+    #[test]
+    fn repository_add_read() {
+        smol::run(async {
+            let key = Key::random(32);
 
-        let size = 7 * 10_u64.pow(3);
-        let mut data1 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data1);
-        let mut data2 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data2);
-        let mut data3 = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data3);
+            let size = 7 * 10_u64.pow(3);
+            let mut data1 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data1);
+            let mut data2 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data2);
+            let mut data3 = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data3);
 
-        let mut repo = get_repo_mem(key);
-        println!("Adding Chunks");
-        let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
-        let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
-        let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
+            let mut repo = get_repo_mem(key);
+            println!("Adding Chunks");
+            let key1 = repo.write_chunk(data1.clone()).await.unwrap().0;
+            let key2 = repo.write_chunk(data2.clone()).await.unwrap().0;
+            let key3 = repo.write_chunk(data3.clone()).await.unwrap().0;
 
-        println!("Reading Chunks");
-        let out1 = repo.read_chunk(key1).await.unwrap();
-        let out2 = repo.read_chunk(key2).await.unwrap();
-        let out3 = repo.read_chunk(key3).await.unwrap();
+            println!("Reading Chunks");
+            let out1 = repo.read_chunk(key1).await.unwrap();
+            let out2 = repo.read_chunk(key2).await.unwrap();
+            let out3 = repo.read_chunk(key3).await.unwrap();
 
-        assert_eq!(data1, out1);
-        assert_eq!(data2, out2);
-        assert_eq!(data3, out3);
+            assert_eq!(data1, out1);
+            assert_eq!(data2, out2);
+            assert_eq!(data3, out3);
+        });
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn double_add() {
-        // Adding the same chunk to the repository twice shouldn't result in
-        // two chunks in the repository
-        let mut repo = get_repo_mem(Key::random(32));
-        assert_eq!(repo.count_chunk().await, 0);
-        let data = [1_u8; 8192];
+    #[test]
+    fn double_add() {
+        smol::run(async {
+            // Adding the same chunk to the repository twice shouldn't result in
+            // two chunks in the repository
+            let mut repo = get_repo_mem(Key::random(32));
+            assert_eq!(repo.count_chunk().await, 0);
+            let data = [1_u8; 8192];
 
-        let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
-        assert_eq!(unique_1, false);
-        assert_eq!(repo.count_chunk().await, 1);
-        let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
-        assert_eq!(repo.count_chunk().await, 1);
-        assert_eq!(unique_2, true);
-        assert_eq!(key_1, key_2);
-        std::mem::drop(repo);
+            let (key_1, unique_1) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(unique_1, false);
+            assert_eq!(repo.count_chunk().await, 1);
+            let (key_2, unique_2) = repo.write_chunk(data.to_vec()).await.unwrap();
+            assert_eq!(repo.count_chunk().await, 1);
+            assert_eq!(unique_2, true);
+            assert_eq!(key_1, key_2);
+            std::mem::drop(repo);
+        });
     }
 
     // Ensure writing a chunk with an ID works
-    #[tokio::test(threaded_scheduler)]
-    async fn chunk_with_id() {
-        let mut repo = get_repo_mem(Key::random(32));
-        // generate our chunk
-        let size = 7 * 10_u64.pow(3);
-        let mut data = vec![0_u8; size as usize];
-        thread_rng().fill_bytes(&mut data);
-        let id = ChunkID::manifest_id();
-        // write it
-        repo.write_chunk_with_id(data.clone(), id)
-            .await
-            .expect("Unable to write with id");
-        // Read it
-        let data_restore = repo
-            .read_chunk(id)
-            .await
-            .expect("Unable to read chunk back out");
-        assert_eq!(data, data_restore);
+    #[test]
+    fn chunk_with_id() {
+        smol::run(async {
+            let mut repo = get_repo_mem(Key::random(32));
+            // generate our chunk
+            let size = 7 * 10_u64.pow(3);
+            let mut data = vec![0_u8; size as usize];
+            thread_rng().fill_bytes(&mut data);
+            let id = ChunkID::manifest_id();
+            // write it
+            repo.write_chunk_with_id(data.clone(), id)
+                .await
+                .expect("Unable to write with id");
+            // Read it
+            let data_restore = repo
+                .read_chunk(id)
+                .await
+                .expect("Unable to read chunk back out");
+            assert_eq!(data, data_restore);
+        });
     }
 }

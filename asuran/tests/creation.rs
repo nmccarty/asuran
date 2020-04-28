@@ -30,23 +30,27 @@ async fn create_multifile_repository(encryption: Encryption, compression: Compre
 
 // Attempts to create a multifile repository with no encryption.
 // Specifically addresses gitlab issue #56
-#[tokio::test(threaded_scheduler)]
-async fn create_multifile_noencryption() {
-    create_multifile_repository(
-        Encryption::NoEncryption,
-        Compression::NoCompression,
-        HMAC::Blake3,
-    )
-    .await
+#[test]
+fn create_multifile_noencryption() {
+    smol::run(async {
+        create_multifile_repository(
+            Encryption::NoEncryption,
+            Compression::NoCompression,
+            HMAC::Blake3,
+        )
+        .await
+    });
 }
 
 // Attempts to reproduce gitlab issue #58
-#[tokio::test(threaded_scheduler)]
-async fn create_lzma_9() {
-    create_multifile_repository(
-        Encryption::new_aes256ctr(),
-        Compression::LZMA { level: 9 },
-        HMAC::Blake3,
-    )
-    .await
+#[test]
+fn create_lzma_9() {
+    smol::run(async {
+        create_multifile_repository(
+            Encryption::new_aes256ctr(),
+            Compression::LZMA { level: 9 },
+            HMAC::Blake3,
+        )
+        .await
+    });
 }

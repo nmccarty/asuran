@@ -305,71 +305,77 @@ mod tests {
     // 2. Creates the index directory
     // 3. Creates the initial index file (index/0)
     // 4. Locks the initial index file (index/0.lock)
-    #[tokio::test]
-    async fn creation_works() {
-        let (tempdir, path) = setup();
-        // Create the index
-        let index = Index::open(&path, 4).expect("Index creation failed");
-        // Walk the directory and print some debugging info
-        for entry in WalkDir::new(&path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-        // Check for the index directory
-        let index_dir = path.join("index");
-        assert!(index_dir.exists());
-        assert!(index_dir.is_dir());
-        // Check for the initial index file
-        let index_file = index_dir.join("0");
-        assert!(index_file.exists());
-        assert!(index_file.is_file());
-        // Check for the initial index lock file
-        let index_lock = index_dir.join("0.lock");
-        assert!(index_lock.exists());
-        assert!(index_lock.is_file());
+    #[test]
+    fn creation_works() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Create the index
+            let index = Index::open(&path, 4).expect("Index creation failed");
+            // Walk the directory and print some debugging info
+            for entry in WalkDir::new(&path) {
+                let entry = entry.unwrap();
+                println!("{}", entry.path().display());
+            }
+            // Check for the index directory
+            let index_dir = path.join("index");
+            assert!(index_dir.exists());
+            assert!(index_dir.is_dir());
+            // Check for the initial index file
+            let index_file = index_dir.join("0");
+            assert!(index_file.exists());
+            assert!(index_file.is_file());
+            // Check for the initial index lock file
+            let index_lock = index_dir.join("0.lock");
+            assert!(index_lock.exists());
+            assert!(index_lock.is_file());
+        });
     }
 
     // Test to make sure creating a second index while the first is open
     // 1. Doesn't panic or error
     // 2. Creates and locks a second index file
-    #[tokio::test]
-    async fn double_creation_works() {
-        let (tempdir, path) = setup();
-        // Create the first index
-        let index1 = Index::open(&path, 4).expect("Index 1 creation failed");
-        let index2 = Index::open(&path, 4).expect("Index 2 creation failed");
-        // Walk the directory and print some debugging info
-        for entry in WalkDir::new(&path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-        // Get index dir and check for index files
-        let index_dir = path.join("index");
-        let if1 = index_dir.join("0");
-        let if2 = index_dir.join("1");
-        let il1 = index_dir.join("0.lock");
-        let il2 = index_dir.join("1.lock");
-        assert!(if1.exists() && if1.is_file());
-        assert!(if2.exists() && if2.is_file());
-        assert!(il1.exists() && il1.is_file());
-        assert!(il2.exists() && il2.is_file());
+    #[test]
+    fn double_creation_works() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Create the first index
+            let index1 = Index::open(&path, 4).expect("Index 1 creation failed");
+            let index2 = Index::open(&path, 4).expect("Index 2 creation failed");
+            // Walk the directory and print some debugging info
+            for entry in WalkDir::new(&path) {
+                let entry = entry.unwrap();
+                println!("{}", entry.path().display());
+            }
+            // Get index dir and check for index files
+            let index_dir = path.join("index");
+            let if1 = index_dir.join("0");
+            let if2 = index_dir.join("1");
+            let il1 = index_dir.join("0.lock");
+            let il2 = index_dir.join("1.lock");
+            assert!(if1.exists() && if1.is_file());
+            assert!(if2.exists() && if2.is_file());
+            assert!(il1.exists() && il1.is_file());
+            assert!(il2.exists() && il2.is_file());
+        });
     }
 
     // Test to make sure that dropping an Index unlocks the index file
     // Note: since we are using a single threaded executor, we must manually run all tasks to
     // completion.
-    #[tokio::test]
-    async fn unlock_on_drop() {
-        let (tempdir, path) = setup();
-        // Open an index and drop it
-        let mut index = Index::open(&path, 4).expect("Index creation failed");
-        index.close().await;
-        // check for the index file and the absense of the lock file
-        let index_dir = path.join("index");
-        let index_file = index_dir.join("0");
-        let index_lock = index_dir.join("0.lock");
-        assert!(index_file.exists() && index_file.is_file());
-        assert!(!index_lock.exists());
+    #[test]
+    fn unlock_on_drop() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Open an index and drop it
+            let mut index = Index::open(&path, 4).expect("Index creation failed");
+            index.close().await;
+            // check for the index file and the absense of the lock file
+            let index_dir = path.join("index");
+            let index_file = index_dir.join("0");
+            let index_lock = index_dir.join("0.lock");
+            assert!(index_file.exists() && index_file.is_file());
+            assert!(!index_lock.exists());
+        });
     }
 
     // Test to verify that:
@@ -377,50 +383,52 @@ mod tests {
     // 2. Reading keys we have inserted into a properly setup index does not Err or Panic
     // 3. Keys are still present in the index after dropping and reloading from the same directory
     // 4. Chunk count increments properly
-    #[tokio::test]
-    async fn write_drop_read() {
-        let (tempdir, path) = setup();
-        // Get some transactions to write to the repository
-        let mut txs = HashMap::new();
-        for _ in 0..10 {
-            let mut raw_id = [0_u8; 32];
-            rand::thread_rng().fill_bytes(&mut raw_id);
-            let segment_id: u64 = rand::thread_rng().gen();
-            let start: u64 = rand::thread_rng().gen();
-            let chunk_id = ChunkID::new(&raw_id);
-            let descriptor = SegmentDescriptor { segment_id, start };
-            txs.insert(chunk_id, descriptor);
-        }
-        // Open the index
-        let mut index = Index::open(&path, 4).expect("Index creation failed");
-        // Insert the transactions
-        for (id, desc) in &txs {
-            index
-                .set_chunk(*id, *desc)
-                .await
-                .expect("Adding transaction failed");
-        }
-        // Commit the index
-        index.commit_index().await.expect("commiting index failed");
-        // Get the chunk count and check it
-        let count = index.count_chunk().await;
-        assert_eq!(count, txs.len());
-        // Drop the index and let it complete
-        index.close().await;
-        // Load the index back up
-        let mut index = Index::open(&path, 4).expect("Index recreation failed");
-        // Walk the directory and print some debugging info
-        for entry in WalkDir::new(&path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-        // Verify we still have the same number of chunks
-        let count = index.count_chunk().await;
-        assert_eq!(count, txs.len());
-        // Confirm that each tx is in the index and has the correct value
-        for (id, desc) in txs {
-            let location = index.lookup_chunk(id).await.expect("Tx retrieve failed");
-            assert_eq!(desc, location);
-        }
+    #[test]
+    fn write_drop_read() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Get some transactions to write to the repository
+            let mut txs = HashMap::new();
+            for _ in 0..10 {
+                let mut raw_id = [0_u8; 32];
+                rand::thread_rng().fill_bytes(&mut raw_id);
+                let segment_id: u64 = rand::thread_rng().gen();
+                let start: u64 = rand::thread_rng().gen();
+                let chunk_id = ChunkID::new(&raw_id);
+                let descriptor = SegmentDescriptor { segment_id, start };
+                txs.insert(chunk_id, descriptor);
+            }
+            // Open the index
+            let mut index = Index::open(&path, 4).expect("Index creation failed");
+            // Insert the transactions
+            for (id, desc) in &txs {
+                index
+                    .set_chunk(*id, *desc)
+                    .await
+                    .expect("Adding transaction failed");
+            }
+            // Commit the index
+            index.commit_index().await.expect("commiting index failed");
+            // Get the chunk count and check it
+            let count = index.count_chunk().await;
+            assert_eq!(count, txs.len());
+            // Drop the index and let it complete
+            index.close().await;
+            // Load the index back up
+            let mut index = Index::open(&path, 4).expect("Index recreation failed");
+            // Walk the directory and print some debugging info
+            for entry in WalkDir::new(&path) {
+                let entry = entry.unwrap();
+                println!("{}", entry.path().display());
+            }
+            // Verify we still have the same number of chunks
+            let count = index.count_chunk().await;
+            assert_eq!(count, txs.len());
+            // Confirm that each tx is in the index and has the correct value
+            for (id, desc) in txs {
+                let location = index.lookup_chunk(id).await.expect("Tx retrieve failed");
+                assert_eq!(desc, location);
+            }
+        });
     }
 }

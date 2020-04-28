@@ -4,9 +4,8 @@ use asuran::repository::*;
 use criterion::*;
 use futures::future::join_all;
 use rand::prelude::*;
+use smol::Task;
 use std::time::Duration;
-use tokio::runtime::Runtime;
-use tokio::task;
 
 // Returns (zeros, random)
 fn get_test_data(size: usize) -> (Vec<u8>, Vec<u8>) {
@@ -25,7 +24,7 @@ async fn slice_and_store(
     let mut futs = Vec::new();
     for slice in slicer {
         let mut repo = repo.clone();
-        futs.push(task::spawn(async move {
+        futs.push(Task::spawn(async move {
             repo.write_chunk(slice.unwrap()).await
         }));
     }
@@ -50,14 +49,13 @@ fn bench(c: &mut Criterion) {
     let zeros: &'static [u8] = Box::leak(Box::new(zeros));
     let rand: &'static [u8] = Box::leak(Box::new(rand));
 
-    let mut rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("Fastcdc chunk and store");
     group.throughput(Throughput::Bytes(size as u64));
     group.measurement_time(Duration::new(30, 0));
     group.sample_size(20);
     group.bench_function("fastcdc 32M zero", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo(Key::random(32));
                 slice_and_store(zeros, repo, FastCDC::default()).await
             });
@@ -65,7 +63,7 @@ fn bench(c: &mut Criterion) {
     });
     group.bench_function("fastcdc 32M rand", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo(Key::random(32));
                 slice_and_store(rand, repo, FastCDC::default()).await
             });
@@ -79,7 +77,7 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("buzhash 32M zero", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo(Key::random(32));
                 slice_and_store(zeros, repo, BuzHash::new(0, 4095, 14)).await
             });
@@ -87,7 +85,7 @@ fn bench(c: &mut Criterion) {
     });
     group.bench_function("buzhash 32M rand", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo(Key::random(32));
                 slice_and_store(rand, repo, BuzHash::new(0, 4095, 14)).await
             });

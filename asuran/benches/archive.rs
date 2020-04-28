@@ -6,7 +6,6 @@ use asuran::repository::*;
 use criterion::*;
 use rand::prelude::*;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 
 // Quick and dirty compressible random data generation
 // Uses a counter with chance of getting reset to a random value with each byte
@@ -74,7 +73,6 @@ fn bench(c: &mut Criterion) {
     let data = Box::new(data);
     let data: &'static [u8] = Box::leak(data);
 
-    let mut rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("Blake3 archive");
 
     group.throughput(Throughput::Bytes(size as u64));
@@ -82,7 +80,7 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("fastcdc AES256 ZSTD-1", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo(Key::random(32));
                 let slicer = FastCDC::default();
                 store(data, repo, slicer).await;
@@ -95,7 +93,7 @@ fn bench(c: &mut Criterion) {
     group.sample_size(20);
     group.bench_function("fastcdc NoEncryption NoCompression", |b| {
         b.iter(|| {
-            rt.block_on(async {
+            smol::run(async {
                 let repo = get_repo_bare(Key::random(32));
                 let slicer = FastCDC::default();
                 store(data, repo, slicer).await;

@@ -484,91 +484,97 @@ mod tests {
     // 3. Creates the initial manifest file (manifest/0)
     // 4. Locks the initial manifest file (manifest/0.lock)
     // 5. last_modification works on a new manifest
-    #[tokio::test]
-    async fn creation_works() {
-        let (tempdir, path) = setup();
-        let settings = ChunkSettings::lightweight();
-        let key = Key::random(32);
-        // Create the manifest
-        let mut manifest =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
-        // Walk the directory and print some debugging info
-        for entry in WalkDir::new(&path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-        // Check for the manifest directory
-        let manifest_dir = path.join("manifest");
-        assert!(manifest_dir.exists());
-        assert!(manifest_dir.is_dir());
-        // Check for the initial manifest file
-        let manifest_file = manifest_dir.join("0");
-        assert!(manifest_file.exists());
-        assert!(manifest_file.is_file());
-        // Check for the initial manifest lock file
-        let manifest_lock = manifest_dir.join("0.lock");
-        assert!(manifest_lock.exists());
-        assert!(manifest_lock.is_file());
-        // Make sure last_modification works
-        let _last_mod = manifest
-            .last_modification()
-            .await
-            .expect("Last modification failed");
-        manifest.close().await;
+    #[test]
+    fn creation_works() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            let settings = ChunkSettings::lightweight();
+            let key = Key::random(32);
+            // Create the manifest
+            let mut manifest =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
+            // Walk the directory and print some debugging info
+            for entry in WalkDir::new(&path) {
+                let entry = entry.unwrap();
+                println!("{}", entry.path().display());
+            }
+            // Check for the manifest directory
+            let manifest_dir = path.join("manifest");
+            assert!(manifest_dir.exists());
+            assert!(manifest_dir.is_dir());
+            // Check for the initial manifest file
+            let manifest_file = manifest_dir.join("0");
+            assert!(manifest_file.exists());
+            assert!(manifest_file.is_file());
+            // Check for the initial manifest lock file
+            let manifest_lock = manifest_dir.join("0.lock");
+            assert!(manifest_lock.exists());
+            assert!(manifest_lock.is_file());
+            // Make sure last_modification works
+            let _last_mod = manifest
+                .last_modification()
+                .await
+                .expect("Last modification failed");
+            manifest.close().await;
+        });
     }
 
     // Test to make sure creating a second manifest while the first is open
     // 1. Doesn't panic or error
     // 2. Creates and locks a second manifest file
-    #[tokio::test]
-    async fn double_creation_works() {
-        let (tempdir, path) = setup();
-        // Create the first manifest
-        let settings = ChunkSettings::lightweight();
-        let key = Key::random(32);
-        // Create the manifest
-        let mut manifest1 =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
-        let mut manifest2 =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 2 creation failed");
-        // Walk the directory and print some debugging info
-        for entry in WalkDir::new(&path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-        // Get manifest dir and check for manifest files
-        let manifest_dir = path.join("manifest");
-        let mf1 = manifest_dir.join("0");
-        let mf2 = manifest_dir.join("1");
-        let ml1 = manifest_dir.join("0.lock");
-        let ml2 = manifest_dir.join("1.lock");
-        assert!(mf1.exists() && mf1.is_file());
-        assert!(mf2.exists() && mf2.is_file());
-        assert!(ml1.exists() && ml1.is_file());
-        assert!(ml2.exists() && ml2.is_file());
-        manifest1.close().await;
-        manifest2.close().await;
+    #[test]
+    fn double_creation_works() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Create the first manifest
+            let settings = ChunkSettings::lightweight();
+            let key = Key::random(32);
+            // Create the manifest
+            let mut manifest1 =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
+            let mut manifest2 =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 2 creation failed");
+            // Walk the directory and print some debugging info
+            for entry in WalkDir::new(&path) {
+                let entry = entry.unwrap();
+                println!("{}", entry.path().display());
+            }
+            // Get manifest dir and check for manifest files
+            let manifest_dir = path.join("manifest");
+            let mf1 = manifest_dir.join("0");
+            let mf2 = manifest_dir.join("1");
+            let ml1 = manifest_dir.join("0.lock");
+            let ml2 = manifest_dir.join("1.lock");
+            assert!(mf1.exists() && mf1.is_file());
+            assert!(mf2.exists() && mf2.is_file());
+            assert!(ml1.exists() && ml1.is_file());
+            assert!(ml2.exists() && ml2.is_file());
+            manifest1.close().await;
+            manifest2.close().await;
+        });
     }
 
     // Test to make sure that dropping an Manifest unlocks the manifest file
     // Note: since we are using a single threaded executor, we must manually run all tasks to
     // completion.
-    #[tokio::test]
-    async fn unlock_on_drop() {
-        let (tempdir, path) = setup();
-        // Open an manifest and drop it
-        let settings = ChunkSettings::lightweight();
-        let key = Key::random(32);
-        // Create the manifest
-        let mut manifest =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
-        manifest.close().await;
-        // check for the manifest file and the absense of the lock file
-        let manifest_dir = path.join("manifest");
-        let manifest_file = manifest_dir.join("0");
-        let manifest_lock = manifest_dir.join("0.lock");
-        assert!(manifest_file.exists() && manifest_file.is_file());
-        assert!(!manifest_lock.exists());
+    #[test]
+    fn unlock_on_drop() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            // Open an manifest and drop it
+            let settings = ChunkSettings::lightweight();
+            let key = Key::random(32);
+            // Create the manifest
+            let mut manifest =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest 1 creation failed");
+            manifest.close().await;
+            // check for the manifest file and the absense of the lock file
+            let manifest_dir = path.join("manifest");
+            let manifest_file = manifest_dir.join("0");
+            let manifest_lock = manifest_dir.join("0.lock");
+            assert!(manifest_file.exists() && manifest_file.is_file());
+            assert!(!manifest_lock.exists());
+        });
     }
 
     // Test to verify that:
@@ -577,66 +583,70 @@ mod tests {
     // 3. Writing transactions to the manifest, dropping it, and reopening it passes verification
     // 4. Transactions are still present in the manifest after dropping and reloading from the same
     //    directory
-    #[tokio::test]
-    async fn write_drop_read() {
-        let (tempdir, path) = setup();
-        let settings = ChunkSettings::lightweight();
-        let key = Key::random(32);
-        // Create the manifest
-        let mut manifest =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
+    #[test]
+    fn write_drop_read() {
+        smol::run(async {
+            let (tempdir, path) = setup();
+            let settings = ChunkSettings::lightweight();
+            let key = Key::random(32);
+            // Create the manifest
+            let mut manifest =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest creation failed");
 
-        // Create some dummy archives
-        let len = 10;
-        let mut archives = Vec::new();
-        let mut archive_set = HashSet::new();
-        for _ in 0..len {
-            let archive = StoredArchive::dummy_archive();
-            archives.push(archive.clone());
-            archive_set.insert(archive);
-            // Pause for a bit to make sure the next one has a sufficently differnt timestamp
-            thread::sleep(time::Duration::from_millis(5));
-        }
+            // Create some dummy archives
+            let len = 10;
+            let mut archives = Vec::new();
+            let mut archive_set = HashSet::new();
+            for _ in 0..len {
+                let archive = StoredArchive::dummy_archive();
+                archives.push(archive.clone());
+                archive_set.insert(archive);
+                // Pause for a bit to make sure the next one has a sufficently differnt timestamp
+                thread::sleep(time::Duration::from_millis(5));
+            }
 
-        // write them into the manifest
-        for archive in archives {
-            manifest.write_archive(archive).await.unwrap();
-        }
+            // write them into the manifest
+            for archive in archives {
+                manifest.write_archive(archive).await.unwrap();
+            }
 
-        manifest.close().await;
+            manifest.close().await;
 
-        // Reopen the manifest
-        let mut manifest =
-            Manifest::open(&path, Some(settings), &key, 4).expect("Manifest reopen failed");
-        // Pull the archives out of it
-        let archives: Vec<StoredArchive> = manifest.archive_iterator().await.collect();
-        // Make sure we have the correct number of archives
-        assert_eq!(archives.len(), len);
-        // Make sure we have all the correct archives
-        for archive in archives {
-            assert!(archive_set.contains(&archive));
-        }
+            // Reopen the manifest
+            let mut manifest =
+                Manifest::open(&path, Some(settings), &key, 4).expect("Manifest reopen failed");
+            // Pull the archives out of it
+            let archives: Vec<StoredArchive> = manifest.archive_iterator().await.collect();
+            // Make sure we have the correct number of archives
+            assert_eq!(archives.len(), len);
+            // Make sure we have all the correct archives
+            for archive in archives {
+                assert!(archive_set.contains(&archive));
+            }
+        });
     }
 
     // Test to verify that:
     // 1. Attempting to open a manifest with a path that points to an existing file Errs
     // 2. Attempting to create a manifest without chunk settings errors
-    #[tokio::test]
-    async fn manifest_errors() {
-        let settings = ChunkSettings::lightweight();
-        let key = Key::random(32);
-        // First open a tempdir and create a file in
-        let tempdir = tempdir().expect("unable to create tempdir");
-        let file_path = tempdir.path().join("test.file");
-        let _test_file = File::create(&file_path).expect("Unable to create test file");
+    #[test]
+    fn manifest_errors() {
+        smol::run(async {
+            let settings = ChunkSettings::lightweight();
+            let key = Key::random(32);
+            // First open a tempdir and create a file in
+            let tempdir = tempdir().expect("unable to create tempdir");
+            let file_path = tempdir.path().join("test.file");
+            let _test_file = File::create(&file_path).expect("Unable to create test file");
 
-        // Attempt to open a manifest at that location
-        let mf = Manifest::open(&file_path, Some(settings), &key, 4);
-        // This should error
-        assert!(mf.is_err());
+            // Attempt to open a manifest at that location
+            let mf = Manifest::open(&file_path, Some(settings), &key, 4);
+            // This should error
+            assert!(mf.is_err());
 
-        // Attempt to open a manifest without setting chunk settings
-        let mf = Manifest::open(&file_path, None, &key, 4);
-        assert!(mf.is_err());
+            // Attempt to open a manifest without setting chunk settings
+            let mf = Manifest::open(&file_path, None, &key, 4);
+            assert!(mf.is_err());
+        });
     }
 }

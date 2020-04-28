@@ -144,24 +144,28 @@ mod tests {
     use crate::repository::*;
 
     /// Makes sure accessing an unset key panics
-    #[tokio::test(threaded_scheduler)]
+    #[test]
     #[should_panic]
-    async fn bad_key_access() {
-        let key = Key::random(32);
-        let backend = Mem::new(ChunkSettings::lightweight(), key, 8);
-        backend.read_key().await.unwrap();
+    fn bad_key_access() {
+        smol::run(async {
+            let key = Key::random(32);
+            let backend = Mem::new(ChunkSettings::lightweight(), key, 8);
+            backend.read_key().await.unwrap();
+        });
     }
 
     /// Checks to make sure setting and retriving a key works
-    #[tokio::test(threaded_scheduler)]
-    async fn key_sanity() {
-        let key = Key::random(32);
-        let backend = Mem::new(ChunkSettings::lightweight(), key.clone(), 8);
-        let key_key = [0_u8; 128];
-        let encrypted_key =
-            EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
-        backend.write_key(&encrypted_key).await.unwrap();
-        let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
-        assert_eq!(key, output);
+    #[test]
+    fn key_sanity() {
+        smol::run(async {
+            let key = Key::random(32);
+            let backend = Mem::new(ChunkSettings::lightweight(), key.clone(), 8);
+            let key_key = [0_u8; 128];
+            let encrypted_key =
+                EncryptedKey::encrypt(&key, 1024, 1, Encryption::new_aes256ctr(), &key_key);
+            backend.write_key(&encrypted_key).await.unwrap();
+            let output = backend.read_key().await.unwrap().decrypt(&key_key).unwrap();
+            assert_eq!(key, output);
+        });
     }
 }

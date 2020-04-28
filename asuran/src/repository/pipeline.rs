@@ -1,7 +1,6 @@
 use crate::repository::{Chunk, Compression, Encryption, Key, HMAC};
 
 use futures::channel::oneshot;
-use piper;
 use smol::block_on;
 use std::thread;
 use tracing::instrument;

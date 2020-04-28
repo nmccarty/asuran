@@ -4,8 +4,8 @@ use crate::manifest::archive::Extent;
 use crate::manifest::driver::{BackupDriver, RestoreDriver};
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
-use tokio::task;
+use piper::Lock;
+use smol::{blocking, Task};
 use walkdir::WalkDir;
 
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ use std::sync::Arc;
 /// A type that handles the complexities of dealing with a file system for you.
 pub struct FileSystemTarget {
     root_directory: String,
-    listing: Arc<RwLock<Listing>>,
+    listing: Arc<Lock<Listing>>,
 }
 
 impl FileSystemTarget {
@@ -27,7 +27,7 @@ impl FileSystemTarget {
     pub fn new(root_directory: &str) -> FileSystemTarget {
         FileSystemTarget {
             root_directory: root_directory.to_string(),
-            listing: Arc::new(RwLock::new(Listing::default())),
+            listing: Arc::new(Lock::new(Listing::default())),
         }
     }
 
@@ -55,11 +55,8 @@ impl BackupTarget<File> for FileSystemTarget {
                 .expect("Failed getting parent path in filesystem target");
             let metadata = {
                 let path = entry.path().to_owned();
-                task::spawn_blocking(move || {
-                    path.metadata().expect("Failed getting file metatdata")
-                })
-                .await
-                .expect("Failed to join blocking task")
+
+                blocking!(path.metadata().expect("Failed getting file metatdata"))
             };
             // FIXME: Making an assuming that the object is either a file or a directory
             let node_type = if metadata.is_file() {
@@ -110,11 +107,8 @@ impl BackupTarget<File> for FileSystemTarget {
                 for extent in extents {
                     let file = {
                         let path = path.clone();
-                        task::spawn_blocking(move || {
-                            File::open(&path).expect("Unable to open file")
-                        })
-                        .await
-                        .expect("unable to join spawned task")
+
+                        blocking!(File::open(&path).expect("Unable to open file"))
                     };
                     file_object.direct_add_range(extent.start, extent.end, file);
                 }
@@ -127,11 +121,11 @@ impl BackupTarget<File> for FileSystemTarget {
             .expect("Unable to get parent path")
             .to_str()
             .expect("Invalid utf-8 in path");
-        self.listing.write().await.add_child(parent_path, node);
+        self.listing.lock().await.add_child(parent_path, node);
         output
     }
     async fn backup_listing(&self) -> Listing {
-        self.listing.read().await.clone()
+        self.listing.lock().await.clone()
     }
 }
 
@@ -140,7 +134,7 @@ impl RestoreTarget<File> for FileSystemTarget {
     async fn load_listing(root_path: &str, listing: Listing) -> Self {
         FileSystemTarget {
             root_directory: root_path.to_string(),
-            listing: Arc::new(RwLock::new(listing)),
+            listing: Arc::new(Lock::new(listing)),
         }
     }
     async fn restore_object(&self, node: Node) -> HashMap<String, RestoreObject<File>> {
@@ -153,11 +147,10 @@ impl RestoreTarget<File> for FileSystemTarget {
         if node.is_directory() {
             // If the node is a directory, just create it
             let path = path.to_owned();
-            task::spawn_blocking(move || {
+            Task::blocking(async move {
                 create_dir_all(path).expect("Unable to create directory (restore_object)")
             })
-            .await
-            .expect("Unable to join blocking task");
+            .await;
             output
         } else {
             // Get the parent directory, and create it if it does not exist
@@ -165,19 +158,16 @@ impl RestoreTarget<File> for FileSystemTarget {
                 .parent()
                 .expect("Unable to get parent(restore_object)")
                 .to_owned();
-            task::spawn_blocking(move || {
+            Task::blocking(async move {
                 create_dir_all(parent_path).expect("Unable to create parent (restore_object)")
             })
-            .await
-            .expect("Unable to join blocking task");
+            .await;
             // Check to see if we have any extents
             if let Some(extents) = node.extents.as_ref() {
                 // if the extents are empty, just touch the file and leave it
                 if extents.is_empty() {
                     let path = path.to_owned();
-                    task::spawn_blocking(move || File::create(path).expect("Unable to open file"))
-                        .await
-                        .expect("Unable to join blocking task");
+                    blocking!(File::create(path).expect("Unable to open file"));
                     output
                 } else {
                     let mut file_object = RestoreObject::new(node.total_length);
@@ -193,15 +183,14 @@ impl RestoreTarget<File> for FileSystemTarget {
                 }
             } else {
                 let path = path.to_owned();
-                task::spawn_blocking(move || File::create(path).expect("Unable to open file"))
-                    .await
-                    .expect("Unable to join blocking task");
+                blocking!(File::create(path).expect("Unable to open file"));
+
                 output
             }
         }
     }
     async fn restore_listing(&self) -> Listing {
-        self.listing.read().await.clone()
+        self.listing.lock().await.clone()
     }
 }
 
@@ -233,37 +222,40 @@ mod tests {
         root
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn backup_restore_structure() {
-        let input_dir = make_test_directory();
-        let root_path = input_dir.path().to_owned();
+    #[test]
+    fn backup_restore_structure() {
+        smol::run(async {
+            let input_dir = make_test_directory();
+            let root_path = input_dir.path().to_owned();
 
-        let input_target = FileSystemTarget::new(&root_path.display().to_string());
+            let input_target = FileSystemTarget::new(&root_path.display().to_string());
 
-        let listing = input_target.backup_paths().await;
-        for node in listing {
-            println!("Backing up: {}", node.path);
-            input_target.backup_object(node).await;
-        }
+            let listing = input_target.backup_paths().await;
+            for node in listing {
+                println!("Backing up: {}", node.path);
+                input_target.backup_object(node).await;
+            }
 
-        let listing = input_target.backup_listing().await;
-        println!("{:?}", listing);
+            let listing = input_target.backup_listing().await;
+            println!("{:?}", listing);
 
-        let output_dir = tempdir().unwrap();
+            let output_dir = tempdir().unwrap();
 
-        let output_target =
-            FileSystemTarget::load_listing(&output_dir.path().display().to_string(), listing).await;
+            let output_target =
+                FileSystemTarget::load_listing(&output_dir.path().display().to_string(), listing)
+                    .await;
 
-        let output_listing = output_target.restore_listing().await;
-        for entry in output_listing {
-            println!("Restore listing:");
-            println!(" - {}", entry.path);
-            output_target.restore_object(entry).await;
-        }
+            let output_listing = output_target.restore_listing().await;
+            for entry in output_listing {
+                println!("Restore listing:");
+                println!(" - {}", entry.path);
+                output_target.restore_object(entry).await;
+            }
 
-        let _input_path = input_dir.path().display().to_string();
-        let _output_path = output_dir.path().display().to_string();
+            let _input_path = input_dir.path().display().to_string();
+            let _output_path = output_dir.path().display().to_string();
 
-        assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
+            assert!(!dir_diff::is_different(&input_dir.path(), &output_dir.path()).unwrap());
+        });
     }
 }

@@ -9,11 +9,11 @@ use chrono::prelude::*;
 use dashmap::DashMap;
 use futures::future::join_all;
 use futures::stream::StreamExt;
+use piper::Lock;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use smol::Task;
 use thiserror::Error;
-use tokio::sync::RwLock;
-use tokio::task;
 
 use std::collections::VecDeque;
 use std::io::{Read, Write};
@@ -26,8 +26,6 @@ pub enum ArchiveError {
     Chunker(#[from] crate::chunker::ChunkerError),
     #[error("I/O Error")]
     IO(#[from] std::io::Error),
-    #[error("Async Task Join Error")]
-    AsyncJoin(#[from] task::JoinError),
     #[error("")]
     Repository(#[from] crate::repository::RepositoryError),
 }
@@ -127,7 +125,7 @@ pub struct ActiveArchive {
     /// set in stored archive
     timestamp: DateTime<FixedOffset>,
     /// The object listing of the archive
-    listing: Arc<RwLock<Listing>>,
+    listing: Arc<Lock<Listing>>,
 }
 
 impl ActiveArchive {
@@ -138,7 +136,7 @@ impl ActiveArchive {
             objects: Arc::new(DashMap::new()),
             namespace: Vec::new(),
             timestamp: Local::now().with_timezone(Local::now().offset()),
-            listing: Arc::new(RwLock::new(Listing::default())),
+            listing: Arc::new(Lock::new(Listing::default())),
         }
     }
 
@@ -185,7 +183,7 @@ impl ActiveArchive {
                 let end = start + (data.len() as u64);
 
                 let mut repository = repository.clone();
-                futs.push_back(task::spawn(async move {
+                futs.push_back(Task::spawn(async move {
                     let id = repository.write_chunk(data).await?.0;
                     let result: Result<ChunkLocation> = Ok(ChunkLocation {
                         id,
@@ -196,7 +194,7 @@ impl ActiveArchive {
                 }));
                 while futs.len() >= max_futs {
                     // This unwrap is sound, since we can only be here if futs has elements in it
-                    let loc = futs.pop_front().unwrap().await??;
+                    let loc = futs.pop_front().unwrap().await?;
                     locations.push(loc);
                 }
                 start = end + 1;
@@ -204,7 +202,7 @@ impl ActiveArchive {
             let locs = join_all(futs).await;
             for loc in locs {
                 let loc = loc?;
-                locations.push(loc?);
+                locations.push(loc);
             }
         }
 
@@ -230,6 +228,7 @@ impl ActiveArchive {
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
+        #[allow(clippy::map_clone)]
         let locations = self.objects.get(&path.to_string()).map(|x| x.clone());
         let mut locations = if let Some(locations) = locations {
             locations
@@ -269,6 +268,7 @@ impl ActiveArchive {
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
 
+        #[allow(clippy::map_clone)]
         let locations = self.objects.get(&path.to_string()).map(|x| x.clone());
         let mut locations = if let Some(locations) = locations {
             locations
@@ -378,7 +378,7 @@ impl ActiveArchive {
             objects: Arc::new(archive.objects.into_iter().collect()),
             namespace: archive.namespace,
             timestamp: archive.timestamp,
-            listing: Arc::new(RwLock::new(archive.listing)),
+            listing: Arc::new(Lock::new(archive.listing)),
         }
     }
 
@@ -389,18 +389,18 @@ impl ActiveArchive {
             objects: DashMap::clone(&self.objects).into_iter().collect(),
             namespace: self.namespace,
             timestamp: self.timestamp,
-            listing: self.listing.read().await.clone(),
+            listing: self.listing.lock().await.clone(),
         }
     }
 
     /// Gets a copy of the listing from the archive
     pub async fn listing(&self) -> Listing {
-        self.listing.read().await.clone()
+        self.listing.lock().await.clone()
     }
 
     /// Replaces the listing with the provided value
     pub async fn set_listing(&self, listing: Listing) {
-        *self.listing.write().await = listing;
+        *self.listing.lock().await = listing;
     }
 }
 
@@ -424,142 +424,146 @@ mod tests {
         Repository::with(backend, settings, key, 2)
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn single_add_get() {
-        let seed = 0;
-        println!("Seed: {}", seed);
-        let chunker = FastCDC::default();
+    #[test]
+    fn single_add_get() {
+        smol::run(async {
+            let seed = 0;
+            println!("Seed: {}", seed);
+            let chunker = FastCDC::default();
 
-        let key = Key::random(32);
-        let size = 2 * 2_usize.pow(14);
-        let mut data = vec![0_u8; size];
-        let mut rand = SmallRng::seed_from_u64(seed);
-        rand.fill_bytes(&mut data);
-        let mut repo = get_repo_mem(key);
+            let key = Key::random(32);
+            let size = 2 * 2_usize.pow(14);
+            let mut data = vec![0_u8; size];
+            let mut rand = SmallRng::seed_from_u64(seed);
+            rand.fill_bytes(&mut data);
+            let mut repo = get_repo_mem(key);
 
-        let mut archive = ActiveArchive::new("test");
+            let mut archive = ActiveArchive::new("test");
 
-        let testdir = tempdir().unwrap();
-        let input_file_path = testdir.path().join(Path::new("file1"));
-        {
-            let mut input_file = fs::File::create(input_file_path.clone()).unwrap();
-            input_file.write_all(&data).unwrap();
-        }
-        let input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
-
-        archive
-            .put_object(&chunker, &mut repo, "FileOne", input_file)
-            .await
-            .unwrap();
-
-        let mut buf = Cursor::new(Vec::<u8>::new());
-        archive
-            .get_object(&mut repo, "FileOne", &mut buf)
-            .await
-            .unwrap();
-
-        let output = buf.into_inner();
-        println!("Input length: {}", data.len());
-        println!("Output length: {}", output.len());
-
-        let mut mismatch = false;
-        for i in 0..data.len() {
-            if data[i] != output[i] {
-                println!(
-                    "Byte {} was different in output. Input val: {:X?} Output val {:X?}",
-                    i, data[i], output[i]
-                );
-
-                mismatch = true;
+            let testdir = tempdir().unwrap();
+            let input_file_path = testdir.path().join(Path::new("file1"));
+            {
+                let mut input_file = fs::File::create(input_file_path.clone()).unwrap();
+                input_file.write_all(&data).unwrap();
             }
-        }
+            let input_file = BufReader::new(fs::File::open(input_file_path).unwrap());
 
-        assert!(!mismatch);
+            archive
+                .put_object(&chunker, &mut repo, "FileOne", input_file)
+                .await
+                .unwrap();
+
+            let mut buf = Cursor::new(Vec::<u8>::new());
+            archive
+                .get_object(&mut repo, "FileOne", &mut buf)
+                .await
+                .unwrap();
+
+            let output = buf.into_inner();
+            println!("Input length: {}", data.len());
+            println!("Output length: {}", output.len());
+
+            let mut mismatch = false;
+            for i in 0..data.len() {
+                if data[i] != output[i] {
+                    println!(
+                        "Byte {} was different in output. Input val: {:X?} Output val {:X?}",
+                        i, data[i], output[i]
+                    );
+
+                    mismatch = true;
+                }
+            }
+
+            assert!(!mismatch);
+        });
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn sparse_add_get() {
-        let seed = 0;
-        let chunker: FastCDC = FastCDC::default();
-        let key = Key::random(32);
-        let mut repo = get_repo_mem(key);
+    #[test]
+    fn sparse_add_get() {
+        smol::run(async {
+            let seed = 0;
+            let chunker: FastCDC = FastCDC::default();
+            let key = Key::random(32);
+            let mut repo = get_repo_mem(key);
 
-        let mut archive = ActiveArchive::new("test");
+            let mut archive = ActiveArchive::new("test");
 
-        let mut rng = SmallRng::seed_from_u64(seed);
-        // Generate a random number of extents from one to ten
-        let mut extents: Vec<Extent> = Vec::new();
-        let extent_count: usize = rng.gen_range(1, 10);
-        let mut next_start: u64 = 0;
-        let mut final_size: usize = 0;
-        for _ in 0..extent_count {
-            // Each extent can be between 256 bytes and 16384 bytes long
-            let extent_length = rng.gen_range(256, 16384);
-            let extent = Extent {
-                start: next_start,
-                end: next_start + extent_length,
-            };
-            // Keep track of final size as we grow
-            final_size = (next_start + extent_length) as usize;
-            extents.push(extent);
-            // Each extent can be between 256 and 16384 bytes appart
-            let jump = rng.gen_range(256, 16384);
-            next_start = next_start + extent_length + jump;
-        }
-
-        // Create the test data
-        let mut test_input = vec![0_u8; final_size];
-        // Fill the test vector with random data
-        for Extent { start, end } in extents.clone() {
-            for i in start..end {
-                test_input[i as usize] = rng.gen();
+            let mut rng = SmallRng::seed_from_u64(seed);
+            // Generate a random number of extents from one to ten
+            let mut extents: Vec<Extent> = Vec::new();
+            let extent_count: usize = rng.gen_range(1, 10);
+            let mut next_start: u64 = 0;
+            let mut final_size: usize = 0;
+            for _ in 0..extent_count {
+                // Each extent can be between 256 bytes and 16384 bytes long
+                let extent_length = rng.gen_range(256, 16384);
+                let extent = Extent {
+                    start: next_start,
+                    end: next_start + extent_length,
+                };
+                // Keep track of final size as we grow
+                final_size = (next_start + extent_length) as usize;
+                extents.push(extent);
+                // Each extent can be between 256 and 16384 bytes appart
+                let jump = rng.gen_range(256, 16384);
+                next_start = next_start + extent_length + jump;
             }
-        }
 
-        // Make the extent list
-        let mut extent_list = Vec::new();
-        for extent in extents.clone() {
-            let data = test_input[extent.start as usize..extent.end as usize].to_vec();
-            extent_list.push((extent, Cursor::new(data)));
-        }
+            // Create the test data
+            let mut test_input = vec![0_u8; final_size];
+            // Fill the test vector with random data
+            for Extent { start, end } in extents.clone() {
+                for i in start..end {
+                    test_input[i as usize] = rng.gen();
+                }
+            }
 
-        // println!("Extent list: {:?}", extent_list);
-        // Load data into archive
-        archive
-            .put_sparse_object(&chunker, &mut repo, "test", extent_list)
-            .await
-            .expect("Archive Put Failed");
+            // Make the extent list
+            let mut extent_list = Vec::new();
+            for extent in extents.clone() {
+                let data = test_input[extent.start as usize..extent.end as usize].to_vec();
+                extent_list.push((extent, Cursor::new(data)));
+            }
 
-        // Create output vec
-        let test_output = Vec::new();
-        println!("Output is a buffer of {} bytes.", final_size);
-        let mut cursor = Cursor::new(test_output);
-        for (i, extent) in extents.clone().iter().enumerate() {
-            println!("Getting extent #{} : {:?}", i, extent);
-            cursor
-                .seek(SeekFrom::Start(extent.start))
-                .expect("Out of bounds");
+            // println!("Extent list: {:?}", extent_list);
+            // Load data into archive
             archive
-                .get_extent(&mut repo, "test", *extent, &mut cursor)
+                .put_sparse_object(&chunker, &mut repo, "test", extent_list)
                 .await
-                .expect("Archive Get Failed");
-        }
-        let test_output = cursor.into_inner();
-        println!("Input is now a buffer of {} bytes.", test_input.len());
-        println!("Output is now a buffer of {} bytes.", test_output.len());
+                .expect("Archive Put Failed");
 
-        for i in 0..test_input.len() {
-            if test_output[i] != test_input[i] {
-                println!("Difference at {}", i);
-                println!("Orig: {:?}", &test_input[i - 2..i + 3]);
-                println!("New: {:?}", &test_output[i - 2..i + 3]);
-                break;
+            // Create output vec
+            let test_output = Vec::new();
+            println!("Output is a buffer of {} bytes.", final_size);
+            let mut cursor = Cursor::new(test_output);
+            for (i, extent) in extents.clone().iter().enumerate() {
+                println!("Getting extent #{} : {:?}", i, extent);
+                cursor
+                    .seek(SeekFrom::Start(extent.start))
+                    .expect("Out of bounds");
+                archive
+                    .get_extent(&mut repo, "test", *extent, &mut cursor)
+                    .await
+                    .expect("Archive Get Failed");
             }
-        }
+            let test_output = cursor.into_inner();
+            println!("Input is now a buffer of {} bytes.", test_input.len());
+            println!("Output is now a buffer of {} bytes.", test_output.len());
 
-        std::mem::drop(repo);
+            for i in 0..test_input.len() {
+                if test_output[i] != test_input[i] {
+                    println!("Difference at {}", i);
+                    println!("Orig: {:?}", &test_input[i - 2..i + 3]);
+                    println!("New: {:?}", &test_output[i - 2..i + 3]);
+                    break;
+                }
+            }
 
-        assert_eq!(test_input, test_output);
+            std::mem::drop(repo);
+
+            assert_eq!(test_input, test_output);
+        });
     }
 
     #[test]
@@ -579,82 +583,86 @@ mod tests {
         assert_eq!(namespace, "1:2:");
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn namespaced_insertions() {
-        let chunker = FastCDC::default();
-        let key = Key::random(32);
+    #[test]
+    fn namespaced_insertions() {
+        smol::run(async {
+            let chunker = FastCDC::default();
+            let key = Key::random(32);
 
-        let mut repo = get_repo_mem(key);
+            let mut repo = get_repo_mem(key);
 
-        let obj1 = Cursor::new([1_u8; 32]);
-        let obj2 = Cursor::new([2_u8; 32]);
+            let obj1 = Cursor::new([1_u8; 32]);
+            let obj2 = Cursor::new([2_u8; 32]);
 
-        let mut archive_1 = ActiveArchive::new("test");
-        let mut archive_2 = archive_1.clone();
+            let mut archive_1 = ActiveArchive::new("test");
+            let mut archive_2 = archive_1.clone();
 
-        archive_1
-            .put_object(&chunker, &mut repo, "1", obj1.clone())
-            .await
-            .unwrap();
-        archive_2
-            .put_object(&chunker, &mut repo, "2", obj2.clone())
-            .await
-            .unwrap();
+            archive_1
+                .put_object(&chunker, &mut repo, "1", obj1.clone())
+                .await
+                .unwrap();
+            archive_2
+                .put_object(&chunker, &mut repo, "2", obj2.clone())
+                .await
+                .unwrap();
 
-        let mut restore_1 = Cursor::new(Vec::<u8>::new());
-        archive_2
-            .get_object(&mut repo, "1", &mut restore_1)
-            .await
-            .unwrap();
+            let mut restore_1 = Cursor::new(Vec::<u8>::new());
+            archive_2
+                .get_object(&mut repo, "1", &mut restore_1)
+                .await
+                .unwrap();
 
-        let mut restore_2 = Cursor::new(Vec::<u8>::new());
-        archive_1
-            .get_object(&mut repo, "2", &mut restore_2)
-            .await
-            .unwrap();
+            let mut restore_2 = Cursor::new(Vec::<u8>::new());
+            archive_1
+                .get_object(&mut repo, "2", &mut restore_2)
+                .await
+                .unwrap();
 
-        let obj1 = obj1.into_inner();
-        let obj2 = obj2.into_inner();
+            let obj1 = obj1.into_inner();
+            let obj2 = obj2.into_inner();
 
-        let restore1 = restore_1.into_inner();
-        let restore2 = restore_2.into_inner();
+            let restore1 = restore_1.into_inner();
+            let restore2 = restore_2.into_inner();
 
-        assert_eq!(&obj1[..], &restore1[..]);
-        assert_eq!(&obj2[..], &restore2[..]);
+            assert_eq!(&obj1[..], &restore1[..]);
+            assert_eq!(&obj2[..], &restore2[..]);
+        });
     }
 
-    #[tokio::test(threaded_scheduler)]
-    async fn commit_and_load() {
-        let chunker = FastCDC::default();
-        let key = Key::random(32);
+    #[test]
+    fn commit_and_load() {
+        smol::run(async {
+            let chunker = FastCDC::default();
+            let key = Key::random(32);
 
-        let mut repo = get_repo_mem(key);
-        let mut obj1 = [0_u8; 32];
-        for i in 0..obj1.len() {
-            obj1[i] = i as u8;
-        }
+            let mut repo = get_repo_mem(key);
+            let mut obj1 = [0_u8; 32];
+            for i in 0..obj1.len() {
+                obj1[i] = i as u8;
+            }
 
-        let obj1 = Cursor::new(obj1);
+            let obj1 = Cursor::new(obj1);
 
-        let mut archive = ActiveArchive::new("test");
-        archive
-            .put_object(&chunker, &mut repo, "1", obj1.clone())
-            .await
-            .expect("Unable to put object in archive");
+            let mut archive = ActiveArchive::new("test");
+            archive
+                .put_object(&chunker, &mut repo, "1", obj1.clone())
+                .await
+                .expect("Unable to put object in archive");
 
-        let stored_archive = archive.store(&mut repo).await;
+            let stored_archive = archive.store(&mut repo).await;
 
-        let archive = stored_archive
-            .load(&mut repo)
-            .await
-            .expect("Unable to load archive from repository");
+            let archive = stored_archive
+                .load(&mut repo)
+                .await
+                .expect("Unable to load archive from repository");
 
-        let mut obj_restore = Cursor::new(Vec::new());
-        archive
-            .get_object(&mut repo, "1", &mut obj_restore)
-            .await
-            .expect("Unable to restore object from archive");
+            let mut obj_restore = Cursor::new(Vec::new());
+            archive
+                .get_object(&mut repo, "1", &mut obj_restore)
+                .await
+                .expect("Unable to restore object from archive");
 
-        assert_eq!(&obj1.into_inner()[..], &obj_restore.into_inner()[..]);
+            assert_eq!(&obj1.into_inner()[..], &obj_restore.into_inner()[..]);
+        });
     }
 }
