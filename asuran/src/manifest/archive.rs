@@ -6,6 +6,7 @@ pub use asuran_core::manifest::archive::{Archive, ChunkLocation, Extent};
 pub use asuran_core::manifest::listing::{Listing, Node, NodeType};
 
 use chrono::prelude::*;
+use dashmap::DashMap;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use rmp_serde::{Deserializer, Serializer};
@@ -14,7 +15,6 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::task;
 
-use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -114,7 +114,7 @@ pub struct ActiveArchive {
     /// Can be any arbitray string
     name: String,
     /// Locations of all the chunks of the objects in this archive
-    objects: Arc<RwLock<HashMap<String, Vec<ChunkLocation>>>>,
+    objects: Arc<DashMap<String, Vec<ChunkLocation>>>,
     /// The namespace this archive puts and gets objects in
     ///
     /// A namespace is a colon seperated lists of strings.
@@ -135,7 +135,7 @@ impl ActiveArchive {
     pub fn new(name: &str) -> Self {
         ActiveArchive {
             name: name.to_string(),
-            objects: Arc::new(RwLock::new(HashMap::new())),
+            objects: Arc::new(DashMap::new()),
             namespace: Vec::new(),
             timestamp: Local::now().with_timezone(Local::now().offset()),
             listing: Arc::new(RwLock::new(Listing::default())),
@@ -208,8 +208,7 @@ impl ActiveArchive {
             }
         }
 
-        let mut objects = self.objects.write().await;
-        objects.insert(path.to_string(), locations);
+        self.objects.insert(path.to_string(), locations);
 
         Ok(())
     }
@@ -217,8 +216,7 @@ impl ActiveArchive {
     /// Inserts an object into the archive without writing any bytes
     pub async fn put_empty(&mut self, path: &str) {
         let locations: Vec<ChunkLocation> = Vec::new();
-        let mut objects = self.objects.write().await;
-        objects.insert(path.to_string(), locations);
+        self.objects.insert(path.to_string(), locations);
     }
 
     /// Retreives an object from the archive, without regard to sparsity.
@@ -232,8 +230,7 @@ impl ActiveArchive {
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
         // Get chunk locations
-        let objects = self.objects.read().await;
-        let locations = objects.get(&path.to_string()).cloned();
+        let locations = self.objects.get(&path.to_string()).map(|x| x.clone());
         let mut locations = if let Some(locations) = locations {
             locations
         } else {
@@ -271,9 +268,8 @@ impl ActiveArchive {
         mut restore_to: impl Write,
     ) -> Result<()> {
         let path = self.canonical_namespace() + path.trim();
-        let objects = self.objects.read().await;
 
-        let locations = objects.get(&path.to_string()).cloned();
+        let locations = self.objects.get(&path.to_string()).map(|x| x.clone());
         let mut locations = if let Some(locations) = locations {
             locations
         } else {
@@ -379,7 +375,7 @@ impl ActiveArchive {
     pub fn from_archive(archive: Archive) -> ActiveArchive {
         ActiveArchive {
             name: archive.name,
-            objects: Arc::new(RwLock::new(archive.objects)),
+            objects: Arc::new(archive.objects.into_iter().collect()),
             namespace: archive.namespace,
             timestamp: archive.timestamp,
             listing: Arc::new(RwLock::new(archive.listing)),
@@ -390,7 +386,7 @@ impl ActiveArchive {
     pub async fn into_archive(self) -> Archive {
         Archive {
             name: self.name,
-            objects: self.objects.read().await.clone(),
+            objects: DashMap::clone(&self.objects).into_iter().collect(),
             namespace: self.namespace,
             timestamp: self.timestamp,
             listing: self.listing.read().await.clone(),
