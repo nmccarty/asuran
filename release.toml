@@ -1,1 +1,5 @@
 consolidate-commits = true
+disable-push = true
+no-dev-version = true
+disable-tag = true
+disable-publish = true
