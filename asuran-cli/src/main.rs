@@ -26,26 +26,27 @@ use cli::{Command, Opt};
 use structopt::StructOpt;
 
 #[cfg_attr(tarpaulin, skip)]
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Our task in main is dead simple, we only need to parse the options and
-    // match on the subcommand
-    let options = Opt::from_args();
-    let command = options.command.clone();
-    match command {
-        Command::New { .. } => new::new(options).await,
-        Command::Store { target, name, .. } => store::store(options, target, name).await,
-        Command::List { .. } => list::list(options).await,
-        Command::Extract {
-            target,
-            archive,
-            glob_opts,
-            preview,
-            ..
-        } => extract::extract(options, target, archive, glob_opts, preview).await,
-        Command::BenchCrypto => bench::bench_crypto().await,
-        Command::Contents {
-            archive, glob_opts, ..
-        } => contents::contents(options, archive, glob_opts).await,
-    }
+fn main() -> Result<()> {
+    smol::run(async {
+        // Our task in main is dead simple, we only need to parse the options and
+        // match on the subcommand
+        let options = Opt::from_args();
+        let command = options.command.clone();
+        match command {
+            Command::New { .. } => new::new(options).await,
+            Command::Store { target, name, .. } => store::store(options, target, name).await,
+            Command::List { .. } => list::list(options).await,
+            Command::Extract {
+                target,
+                archive,
+                glob_opts,
+                preview,
+                ..
+            } => extract::extract(options, target, archive, glob_opts, preview).await,
+            Command::BenchCrypto => bench::bench_crypto().await,
+            Command::Contents {
+                archive, glob_opts, ..
+            } => contents::contents(options, archive, glob_opts).await,
+        }
+    })
 }
