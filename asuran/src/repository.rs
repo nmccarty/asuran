@@ -192,7 +192,7 @@ impl<T: BackendClone + 'static> Repository<T> {
     /// Repository, and false otherwise
     #[instrument(skip(self, data))]
     pub async fn write_chunk(&mut self, data: Vec<u8>) -> Result<(ChunkID, bool)> {
-        let (_, chunk) = self
+        let chunk = self
             .pipeline
             .process(
                 data,
@@ -231,8 +231,7 @@ impl<T: BackendClone + 'static> Repository<T> {
                 self.hmac,
                 self.key.clone(),
             )
-            .await
-            .1;
+            .await;
         let mac = chunk.mac();
         let data = (chunk.split().1).0;
         chunk = Chunk::from_parts(data, self.compression, self.encryption, self.hmac, mac, id);
