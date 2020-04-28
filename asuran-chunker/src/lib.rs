@@ -129,9 +129,9 @@ where
         queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
-        let mut iter = self.chunk_boxed(read);
+        let iter = self.chunk_boxed(read);
         thread::spawn(move || {
-            while let Some(chunk) = iter.next() {
+            for chunk in iter {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
                 block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
@@ -145,9 +145,9 @@ where
         queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
-        let mut iter = self.chunk(read);
+        let iter = self.chunk(read);
         thread::spawn(move || {
-            while let Some(chunk) = iter.next() {
+            for chunk in iter {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
                 block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
@@ -161,9 +161,9 @@ where
         queue_depth: usize,
     ) -> mpsc::Receiver<Result<Vec<u8>, ChunkerError>> {
         let (mut input, output) = mpsc::channel(queue_depth);
-        let mut iter = self.chunk_slice(slice);
+        let iter = self.chunk_slice(slice);
         thread::spawn(move || {
-            while let Some(chunk) = iter.next() {
+            for chunk in iter {
                 // If we are here, and sending to the channel fails, we have no sensible way to
                 // recover, as we have lost communication with the outside world
                 block_on(input.send(chunk)).expect("Chunker to communicate with outside world.");
