@@ -14,6 +14,7 @@ pub mod common;
 pub mod flatfile;
 pub mod mem;
 pub mod multifile;
+pub mod sftp;
 
 #[cfg_attr(tarpaulin, skip)]
 pub mod object_wrappers;

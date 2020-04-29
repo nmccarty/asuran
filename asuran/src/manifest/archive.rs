@@ -67,7 +67,7 @@ impl StoredArchive {
     pub fn dummy_archive() -> StoredArchive {
         StoredArchive {
             name: "Test".to_string(),
-            id: ChunkID::manifest_id(),
+            id: ChunkID::random_id(),
             timestamp: Local::now().with_timezone(Local::now().offset()),
         }
     }

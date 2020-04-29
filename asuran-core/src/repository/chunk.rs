@@ -81,6 +81,12 @@ impl ChunkID {
     pub fn manifest_id() -> ChunkID {
         ChunkID { id: [0_u8; 32] }
     }
+
+    /// Returns a random id, used for testing
+    pub fn random_id() -> ChunkID {
+        let id = rand::random();
+        ChunkID { id }
+    }
 }
 
 /// Encapsulates the Encryption, Compression, and HMAC tags for a chunk
