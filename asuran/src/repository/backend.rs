@@ -47,6 +47,8 @@ pub enum BackendError {
     RepositoryGloballyLocked(String),
     #[error("Task Communication Error, likely trying to talk to a closed backend")]
     ChannelDroppedSend(#[from] futures::channel::mpsc::SendError),
+    #[error("Error connecting to backend.")]
+    ConnectionError(String),
     #[error("Unknown Error")]
     Unknown(String),
 }

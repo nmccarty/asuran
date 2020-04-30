@@ -13,15 +13,12 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::Cursor;
 
-#[derive(Debug)]
 pub struct Mem {
     data: common::Segment<Cursor<Vec<u8>>>,
     index: HashMap<ChunkID, SegmentDescriptor>,
     manifest: Vec<StoredArchive>,
     chunk_settings: ChunkSettings,
     key: Option<EncryptedKey>,
-    actual_key: Key,
-    len: u64,
 }
 
 impl Mem {
@@ -33,7 +30,7 @@ impl Mem {
             Cursor::new(Vec::new()),
             max,
             chunk_settings,
-            key.clone(),
+            key,
         )
         .unwrap();
         Mem {
@@ -41,9 +38,7 @@ impl Mem {
             index: HashMap::new(),
             manifest: Vec::new(),
             chunk_settings,
-            actual_key: key,
             key: None,
-            len: num_cpus::get() as u64,
         }
     }
 
@@ -135,6 +130,12 @@ impl SyncBackend for Mem {
             segment_id: 0,
             start,
         })
+    }
+}
+
+impl std::fmt::Debug for Mem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Mem").finish()
     }
 }
 

@@ -81,7 +81,6 @@ pub struct SegmentHeaderEntry {
 /// It is strongly recommended to call the `flush` method before dropping this type.
 /// The `Drop` impl will attempt to call `flush`, but will ignore any errors that
 /// occur.
-#[derive(Debug)]
 pub struct SegmentHeaderPart<T: Read + Write + Seek> {
     handle: T,
     entries: Vec<SegmentHeaderEntry>,
@@ -173,7 +172,6 @@ impl<T: Read + Write + Seek> Drop for SegmentHeaderPart<T> {
 }
 
 /// A view over the data portion of a segment.
-#[derive(Debug)]
 pub struct SegmentDataPart<T> {
     handle: T,
     size_limit: u64,
@@ -289,13 +287,12 @@ impl<T: Read + Write + Seek> SegmentDataPart<T> {
 }
 
 /// Generic segment implementation wrapping any Read + Write + Seek
-#[derive(Debug)]
 pub struct Segment<T: Read + Write + Seek> {
     data_handle: SegmentDataPart<T>,
     header_handle: SegmentHeaderPart<T>,
 }
 
-impl<T: Read + Write + Seek + std::fmt::Debug> Segment<T> {
+impl<T: Read + Write + Seek> Segment<T> {
     /// Creates a new segment given a reader and a maximum size
     pub fn new(
         data_handle: T,
@@ -332,10 +329,7 @@ impl<T: Read + Write + Seek + std::fmt::Debug> Segment<T> {
             .try_into()
             .expect("Index provided to read_chunk larger than could possibly fit into memory");
         let entry = self.header_handle.get_header(index).ok_or_else(|| {
-            BackendError::SegmentError(format!(
-                "Invalid index {} provided to read_chunk. {:?}",
-                index, self.header_handle
-            ))
+            BackendError::SegmentError(format!("Invalid index {} provided to read_chunk", index))
         })?;
         self.data_handle.read_chunk(entry)
     }

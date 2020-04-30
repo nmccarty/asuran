@@ -28,7 +28,7 @@ use smol::block_on;
 use std::collections::HashSet;
 use std::thread;
 
-pub trait SyncManifest: Send + std::fmt::Debug {
+pub trait SyncManifest: std::fmt::Debug {
     type Iterator: Iterator<Item = StoredArchive> + std::fmt::Debug + Send + 'static;
     fn last_modification(&mut self) -> Result<DateTime<FixedOffset>>;
     fn chunk_settings(&mut self) -> ChunkSettings;
@@ -38,7 +38,7 @@ pub trait SyncManifest: Send + std::fmt::Debug {
     fn touch(&mut self) -> Result<()>;
 }
 
-pub trait SyncIndex: Send + std::fmt::Debug {
+pub trait SyncIndex: std::fmt::Debug {
     fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor>;
     fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()>;
     fn known_chunks(&mut self) -> HashSet<ChunkID>;

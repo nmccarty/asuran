@@ -102,6 +102,7 @@ dependencies = [
  "byteorder",
  "chrono",
  "criterion",
+ "crossbeam",
  "dashmap",
  "dir-diff",
  "fastcdc",
