@@ -44,7 +44,7 @@ Optionally add `-C target-cpu=native` for even better performance. The target fe
 
 See `asuran-cli --help` for usage.
 
-`asuran-cli` is, at heart, a thing wrapper that glues togehter the API of the `asuran` library. The `asuran` crate provides a high level interface for interacting with repositories, and will always be a sepereate component and enjoy the same level of support as `asuran-cli` itself.
+`asuran-cli` is, at heart, a thin wrapper that glues together the API of the `asuran` library. The `asuran` crate provides a high level interface for interacting with repositories, and will always be a sepereate component and enjoy the same level of support as `asuran-cli` itself.
 
 Documentation
 -------------
