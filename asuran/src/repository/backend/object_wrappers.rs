@@ -5,7 +5,6 @@ pub type ManifestObject =
     Box<dyn Manifest<Iterator = Box<dyn Iterator<Item = StoredArchive> + 'static>> + 'static>;
 pub type IndexObject = Box<dyn Index + 'static>;
 pub type BackendObject = Box<dyn Backend<Index = IndexObject, Manifest = ManifestObject>>;
-pub type BackendObjectRef<'a> = &'a dyn Backend<Index = IndexObject, Manifest = ManifestObject>;
 
 /// Wraps a manifest in an object safe way
 #[derive(Debug)]
@@ -38,41 +37,41 @@ impl<T: Manifest> Manifest for ManifestWrapper<T> {
 impl Manifest for ManifestObject {
     type Iterator = Box<dyn Iterator<Item = StoredArchive> + 'static>;
     async fn last_modification(&mut self) -> Result<DateTime<FixedOffset>> {
-        self.last_modification().await
+        (**self).last_modification().await
     }
     async fn chunk_settings(&mut self) -> ChunkSettings {
-        self.chunk_settings().await
+        (**self).chunk_settings().await
     }
     async fn archive_iterator(&mut self) -> Self::Iterator {
-        self.archive_iterator().await
+        (**self).archive_iterator().await
     }
     async fn write_chunk_settings(&mut self, settings: ChunkSettings) -> Result<()> {
-        self.write_chunk_settings(settings).await
+        (**self).write_chunk_settings(settings).await
     }
     async fn write_archive(&mut self, archive: StoredArchive) -> Result<()> {
-        self.write_archive(archive).await
+        (**self).write_archive(archive).await
     }
     async fn touch(&mut self) -> Result<()> {
-        self.touch().await
+        (**self).touch().await
     }
 }
 
 #[async_trait]
 impl Index for IndexObject {
     async fn lookup_chunk(&mut self, id: ChunkID) -> Option<SegmentDescriptor> {
-        self.lookup_chunk(id).await
+        (**self).lookup_chunk(id).await
     }
     async fn set_chunk(&mut self, id: ChunkID, location: SegmentDescriptor) -> Result<()> {
-        self.set_chunk(id, location).await
+        (**self).set_chunk(id, location).await
     }
     async fn known_chunks(&mut self) -> HashSet<ChunkID> {
-        self.known_chunks().await
+        (**self).known_chunks().await
     }
     async fn commit_index(&mut self) -> Result<()> {
-        self.commit_index().await
+        (**self).commit_index().await
     }
     async fn count_chunk(&mut self) -> usize {
-        self.count_chunk().await
+        (**self).count_chunk().await
     }
 }
 
@@ -115,31 +114,28 @@ impl Backend for BackendObject {
     type Manifest = ManifestObject;
     type Index = IndexObject;
     fn get_index(&self) -> Self::Index {
-        let x: BackendObjectRef = &*self;
-        x.get_index()
+        (**self).get_index()
     }
     async fn write_key(&self, key: &EncryptedKey) -> Result<()> {
-        self.write_key(key).await
+        (**self).write_key(key).await
     }
     async fn read_key(&self) -> Result<EncryptedKey> {
-        self.read_key().await
+        (**self).read_key().await
     }
     fn get_manifest(&self) -> Self::Manifest {
-        let x: BackendObjectRef = &*self;
-        x.get_manifest()
+        (**self).get_manifest()
     }
     async fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
-        self.read_chunk(location).await
+        (**self).read_chunk(location).await
     }
     async fn write_chunk(&mut self, chunk: Chunk) -> Result<SegmentDescriptor> {
-        self.write_chunk(chunk).await
+        (**self).write_chunk(chunk).await
     }
     async fn close(&mut self) {
-        self.close().await
+        (**self).close().await
     }
     fn get_object_handle(&self) -> BackendObject {
-        let x: BackendObjectRef = &*self;
-        x.get_object_handle()
+        (**self).get_object_handle()
     }
 }
 
