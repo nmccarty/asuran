@@ -1,3 +1,28 @@
+<a name="0.1.2"></a>
+## 0.1.2 (2020-05-05)
+
+
+#### Other Changes
+
+*   Add script to run a coverage report ([9c643ccd](https://gitlab.com/asuran-rs/asuran/commit/9c643ccd67350fc4571d92430b7f839ba90593f1))
+*   Add scripts to start/stop docker containers ([e99d926b](https://gitlab.com/asuran-rs/asuran/commit/e99d926b1503d1c91e382dd82631e2c1aa14d0eb))
+* **asuran:**  Stub and write tests for SFTP Backend ([938b27be](https://gitlab.com/asuran-rs/asuran/commit/938b27bec3c9583b80b8bcfec2303709b74f31f4))
+* **asuran-cli:**  Remove DynamicBackend and use object wrappers ([c5997e76](https://gitlab.com/asuran-rs/asuran/commit/c5997e7685ad22bcf0a8fbe0962a1ddce89405d2), closes [#64](https://gitlab.com/asuran-rs/asuran/issues/64))
+
+#### Features
+
+* **asuran:**  Implement SFTP Backend ([67edeaf9](https://gitlab.com/asuran-rs/asuran/commit/67edeaf95753fbecfede57c3ba3d262e686b5263))
+
+#### Bug Fixes
+
+* **asuran:**  Fix incorrect trait implementation for BackendObject ([d1cae196](https://gitlab.com/asuran-rs/asuran/commit/d1cae1960ecb17c496cd1f854ba851b3e43e06ec))
+* **asuran-cli:**
+  *  Option incorrectly not appearing in subcommand help ([2f096009](https://gitlab.com/asuran-rs/asuran/commit/2f096009509bca977c9e66a9bd076ee410c7eef9))
+  *  Fix incorrect output on quiet mode ([6996428e](https://gitlab.com/asuran-rs/asuran/commit/6996428e0ca6a67dfdac2a23296d4af7b773ed9a))
+  *  Use smol in multi-threaded mode ([5118afe6](https://gitlab.com/asuran-rs/asuran/commit/5118afe65a1999a22ee5866bb13f8dc914ca4935))
+
+
+
 <a name="0.1.1"></a>
 ## 0.1.1 (2020-04-28)
 
