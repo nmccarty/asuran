@@ -8,6 +8,7 @@ container_ip () {
 }
 
 # Setup environment variables for the sftp container
-export ASURAN_SFTP_HOSTNAME=`container_ip "asuran_test_sftp"`
+export ASURAN_SFTP_HOSTNAME="localhost"
+export ASURAN_SFTP_PORT="2222"
 export ASURAN_SFTP_USER="asuran"
 export ASURAN_SFTP_PASS="asuran"

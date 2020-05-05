@@ -3,7 +3,7 @@ test:macos:
   script:
     - cargo --version
     - rustc --version
-    - cargo test
+    - test_scripts/unix/run_tests.sh
   tags:
     - macos
   needs: []

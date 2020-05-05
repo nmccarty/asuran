@@ -3,7 +3,7 @@ test:windows:
   script:
     - cargo --version
     - rustc --version
-    - cargo test
+    - test_scripts/windows/run_tests.ps1
   tags:
     - windows-own
   needs: []

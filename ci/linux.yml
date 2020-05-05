@@ -4,15 +4,20 @@ test:linux:
   script:
     - rustc --version
     - cargo --version
-    - cargo junit --name linux.xml
+    - cargo test
   tags:
     - linux
   needs: []
-  artifacts:
-    paths:
-      - linux.xml
-    reports:
-      junit: linux.xml
+  services:
+    - name: atmoz/sftp:latest
+      alias: sftp
+      command:
+        - "asuran:asuran:::asuran"
+  variables:
+    ASURAN_SFTP_HOSTNAME: "sftp"
+    ASURAN_SFTP_PORT: "22"
+    ASURAN_SFTP_USER: "asuran"
+    ASURAN_SFTP_PASS: "asuran"
 
 build:linux:
   stage: build
