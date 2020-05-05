@@ -5,8 +5,6 @@ repositories.
  */
 #[cfg_attr(tarpaulin, skip)]
 mod cli;
-#[cfg_attr(tarpaulin, skip)]
-mod util;
 
 #[cfg_attr(tarpaulin, skip)]
 mod bench;

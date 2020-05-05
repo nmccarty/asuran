@@ -3,8 +3,7 @@ The `cli` module provides the data types used for parsing the command line
 arguements, as well as some utility functions for converting those types to
 their equivlants in `asuran` proper.
 */
-use crate::util::DynamicBackend;
-
+use asuran::repository::backend::object_wrappers::BackendObject;
 use asuran::repository::{self, Backend, Key};
 
 use anyhow::{anyhow, Context, Result};
@@ -251,7 +250,7 @@ impl Opt {
     pub fn get_chunk_settings(&self) -> repository::ChunkSettings {
         self.command.repo_opts().get_chunk_settings()
     }
-    pub async fn open_repo_backend(&self) -> Result<(DynamicBackend, Key)> {
+    pub async fn open_repo_backend(&self) -> Result<(BackendObject, Key)> {
         self.command
             .repo_opts()
             .open_repo_backend(self.pipeline_tasks() * 8)
@@ -321,7 +320,7 @@ impl RepoOpt {
     /// 1. The give repository path is of the wrong type (i.e a folder when a FlatFile
     ///    was requested)
     /// 2. Some other error defined in the repostiory implementation occurs trying to open it
-    pub async fn open_repo_backend(&self, queue_depth: usize) -> Result<(DynamicBackend, Key)> {
+    pub async fn open_repo_backend(&self, queue_depth: usize) -> Result<(BackendObject, Key)> {
         match self.repository_type {
             RepositoryType::MultiFile => {
                 // Ensure that the repository path exsits and is a folder
@@ -361,7 +360,7 @@ impl RepoOpt {
                 )
                 .await
                 .with_context(|| "Exeprienced an internal backend error.")?;
-                Ok((DynamicBackend::from(multifile), key))
+                Ok((multifile.get_object_handle(), key))
             }
             RepositoryType::FlatFile => {
                 // First, make sure the repository exists and is a file
@@ -385,7 +384,7 @@ impl RepoOpt {
                 let flatfile =
                     flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None, queue_depth)
                         .with_context(|| "Internal backend error opening flatfile.")?;
-                let flatfile = DynamicBackend::from(flatfile);
+                let flatfile = flatfile.get_object_handle();
 
                 // Attempt to read and decrypt the key
                 let key = flatfile
