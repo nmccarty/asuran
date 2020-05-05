@@ -17,6 +17,7 @@ build:windows:
   artifacts:
     paths:
       - target/release/
+    expire_in: 4 weeks
   tags:
     - windows-own
   needs: ["test:windows"]

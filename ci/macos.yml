@@ -17,6 +17,7 @@ build:macos:
   artifacts:
     paths:
       - target/release/
+    expire_in: 4 weeks
   tags:
     - macos
   needs: ["test:macos"]
