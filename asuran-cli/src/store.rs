@@ -85,7 +85,9 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
     for future in task_queue {
         let (node, x) = future.await;
         x?;
-        println!("Stored File: {}", node.path);
+        if !options.quiet {
+            println!("Stored File: {}", node.path);
+        }
     }
     // Add the backup listing to the archive
     let listing = backup_target.backup_listing().await;
