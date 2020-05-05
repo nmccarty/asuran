@@ -27,8 +27,8 @@ all-chunk = ["asuran-core/all-chunk"]
 all-backend = [] # Placeholder for when we have features for backends
 
 [dependencies]
-asuran-chunker = { version = "^0.1.2-alpha.1", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "^0.1.2-alpha.1", path = "../asuran-core/", default-features = false }
+asuran-chunker = { version = "=0.1.2-alpha.1", path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "=0.1.2-alpha.1", path = "../asuran-core/", default-features = false }
 async-trait = "0.1.30"
 base64 = "0.12.0"
 bincode = "1.2.1"
@@ -47,9 +47,9 @@ rand = { version = "0.7.3", features = ["small_rng"] }
 rmp-serde = "0.14.3"
 semver = "0.9.0"
 serde = { version = "1.0.106", features = ["derive", "rc"] }
-serde_bytes = "0.11.3"
+serde_bytes = "0.11.4"
 smol = "0.1.4"
-ssh2 = "0.8.0"
+ssh2 = "0.8.1"
 thiserror = "1.0.16"
 tracing = "0.1.13"
 tracing-futures = "0.2.4"
