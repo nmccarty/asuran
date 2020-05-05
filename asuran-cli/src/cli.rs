@@ -237,12 +237,12 @@ pub struct Opt {
     #[structopt(subcommand)]
     pub command: Command,
     /// Squelch non-logging operations
-    #[structopt(short, long)]
+    #[structopt(short, long, global = true)]
     pub quiet: bool,
     /// Number of tasks to spawn for the chunk processing pipeline.
     ///
     /// Defaults to 0, which corresponds to the number of CPUs on the system.
-    #[structopt(short, long, default_value = "0")]
+    #[structopt(short = "T", long, default_value = "0", global = true)]
     pub pipeline_tasks: usize,
 }
 
