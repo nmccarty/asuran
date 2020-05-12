@@ -37,8 +37,10 @@ Installing and using
 In most cases you will be interacting with the command line asuran clinet (asuran-cli). Either build it from source from the asuran-cli directory in this repository, or install it with:
 
 ```bash
-env RUSTFLAGS="-C target-feature=+aes,+ssse3" cargo install asuran-cli
+env RUSTFLAGS="-C target-feature=+aes,+ssse3,+avx,+avx2" cargo install asuran-cli
 ```
+
+You can also download a build from our [Releases](https://gitlab.com/asuran-rs/asuran/-/releases) page. These builds require a minimum of a core branded Haswell or equivalent. Building for an older CPU is possible, but you will need to adjust the `RUSTFLAGS` yourself, removing any features that aren't supported on your cpu. You may also need to edit `.config/cargo` and change the `rustflags` there.
 
 Optionally add `-C target-cpu=native` for even better performance. The target features (aes and sse3) are required to get good performance, and asuran does not currently offically support being built without them.
 
