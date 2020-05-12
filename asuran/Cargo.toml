@@ -2,7 +2,7 @@
 name = "asuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "BSD-2-Clause-Patent"
-version = "0.1.2"
+version = "0.1.3-alpha.1"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
@@ -27,8 +27,8 @@ all-chunk = ["asuran-core/all-chunk"]
 all-backend = [] # Placeholder for when we have features for backends
 
 [dependencies]
-asuran-chunker = { version = "= 0.1.2", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "= 0.1.2", path = "../asuran-core/", default-features = false }
+asuran-chunker = { version = "= 0.1.3-alpha.1", path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "= 0.1.3-alpha.1", path = "../asuran-core/", default-features = false }
 async-trait = "0.1.30"
 base64 = "0.12.0"
 bincode = "1.2.1"

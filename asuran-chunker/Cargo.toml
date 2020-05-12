@@ -2,7 +2,7 @@
 name = "asuran-chunker"
 description = "A general API for describing types that can break data in to chunks in repeatable ways"
 license = "BSD-2-Clause-Patent"
-version = "0.1.2"
+version = "0.1.3-alpha.1"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
