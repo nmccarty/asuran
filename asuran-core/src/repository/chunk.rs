@@ -208,7 +208,7 @@ impl Chunk {
     pub fn pack_with_id(
         data: Vec<u8>,
         compression: Compression,
-        encryption: Encryption,
+        mut encryption: Encryption,
         hmac: HMAC,
         key: &Key,
         id: ChunkID,
@@ -301,6 +301,11 @@ impl Chunk {
             mac: header.mac,
             id: header.id,
         }
+    }
+
+    /// Returns a copy of the encryption method/iv used for the chunk
+    pub fn encryption(&self) -> Encryption {
+        self.encryption
     }
 
     #[cfg(test)]

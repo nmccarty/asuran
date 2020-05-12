@@ -233,8 +233,9 @@ impl<T: BackendClone + 'static> Repository<T> {
             )
             .await;
         let mac = chunk.mac();
+        let encryption = chunk.encryption();
         let data = (chunk.split().1).0;
-        chunk = Chunk::from_parts(data, self.compression, self.encryption, self.hmac, mac, id);
+        chunk = Chunk::from_parts(data, self.compression, encryption, self.hmac, mac, id);
         self.write_raw(chunk).await
     }
 

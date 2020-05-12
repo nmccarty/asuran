@@ -100,7 +100,7 @@ impl Encryption {
     ///
     /// Will panic if the user selects an encryption algorithm for which support has not
     /// been compiled in, or if encryption otherwise fails.
-    pub fn encrypt(&self, data: &[u8], key: &Key) -> Vec<u8> {
+    pub fn encrypt(&mut self, data: &[u8], key: &Key) -> Vec<u8> {
         self.encrypt_bytes(data, key.key())
     }
 
@@ -112,7 +112,8 @@ impl Encryption {
     /// Panics if the user selects an encryption algorithm that support was not compiled
     /// in for.
     #[allow(unused_variables)]
-    pub fn encrypt_bytes(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
+    pub fn encrypt_bytes(&mut self, data: &[u8], key: &[u8]) -> Vec<u8> {
+        *self = self.new_iv();
         match self {
             Encryption::NoEncryption => data.to_vec(),
             Encryption::AES256CBC { iv } => {
@@ -282,7 +283,7 @@ mod tests {
     use super::*;
     use std::str;
 
-    fn test_encryption(enc: Encryption) {
+    fn test_encryption(mut enc: Encryption) {
         let mut key: [u8; 32] = [0; 32];
         thread_rng().fill_bytes(&mut key);
 

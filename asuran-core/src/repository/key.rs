@@ -146,11 +146,9 @@ impl EncryptedKey {
         key: &Key,
         mem_cost: u32,
         time_cost: u32,
-        encryption: Encryption,
+        mut encryption: Encryption,
         user_key: &[u8],
     ) -> EncryptedKey {
-        // get a fresh IV for the encryption method
-        let encryption = encryption.new_iv();
         // Serialize the key
         let mut key_buffer = Vec::<u8>::new();
         // Since were are serializing to a Vec::<u8>, and Key does not contain any types that
