@@ -43,7 +43,7 @@ rand = "0.7.3"
 rmp-serde = "0.14.3"
 rust-argon2 = "0.8.2"
 semver = "0.9.0"
-serde = { version = "1.0.106", features = ["derive", "rc"] }
+serde = { version = "1.0.110", features = ["derive"] }
 serde_bytes = "0.11.4"
 sha2 = { version = "0.8.1", optional = true }
 sha3 = { version = "0.8.2", optional = true }
