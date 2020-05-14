@@ -7,6 +7,7 @@ test:macos:
   tags:
     - macos
   needs: []
+  dependencies: []
 
 build:macos:
   stage: build
@@ -14,10 +15,12 @@ build:macos:
     - cargo --version
     - rustc --version
     - cargo build --release
+    - cp target/release/asuran-cli ./asuran-cli-darwin
   artifacts:
     paths:
-      - target/release/
+      - asuran-cli-darwin
     expire_in: 4 weeks
   tags:
     - macos
   needs: ["test:macos"]
+  dependencies: []

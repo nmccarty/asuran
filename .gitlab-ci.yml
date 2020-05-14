@@ -3,6 +3,7 @@ stages:
   - test
   - coverage
   - build
+  - package
   - doc
 
 include:
@@ -29,11 +30,51 @@ test:coverage:
       alias: sftp
       command:
         - "asuran:asuran:::asuran"
+  artifacts:
+    reports:
+      cobertura: tarp/cobertura.xml
   variables:
     ASURAN_SFTP_HOSTNAME: "sftp"
     ASURAN_SFTP_PORT: "22"
     ASURAN_SFTP_USER: "asuran"
     ASURAN_SFTP_PASS: "asuran"
+  dependencies: []
+
+package:normal:
+  stage: package
+  image: "ubuntu"
+  script:
+    - echo "This stage only exists to combine all three binaries into a single archive"
+  dependencies:
+    - build:linux
+    - build:macos
+    - build:windows
+  artifacts:
+    paths:
+      - asuran-cli-linux-x64
+      - asuran-cli-win64.exe
+      - asuran-cli-darwin
+    expire_in: 4 weeks
+  except:
+    - tags
+
+package:release:
+  stage: package
+  image: "ubuntu"
+  script:
+    - echo "This stage only exists to combine all three binaries into a single archive"
+  dependencies:
+    - build:linux
+    - build:macos
+    - build:windows
+  artifacts:
+    paths:
+      - asuran-cli-linux-x64
+      - asuran-cli-win64.exe
+      - asuran-cli-darwin
+  only:
+    - tags
+    
 
 pages:
   stage: doc

@@ -8,6 +8,7 @@ lint:rustfmt:
   allow_failure: true
   when: always
   needs: []
+  dependencies: []
 
 lint:clippy:
   stage: lint
@@ -18,3 +19,4 @@ lint:clippy:
     - linux
   allow_failure: true
   needs: []
+  dependencies: []

@@ -7,6 +7,7 @@ test:windows:
   tags:
     - windows-own
   needs: []
+  dependencies: []
 
 build:windows:
   stage: build
@@ -14,10 +15,12 @@ build:windows:
     - cargo --version
     - rustc --version
     - cargo build --release
+    - cp target/release/asuran-cli.exe ./asuran-cli-win64.exe
   artifacts:
     paths:
-      - target/release/
+      - asuran-cli-win64.exe
     expire_in: 4 weeks
   tags:
     - windows-own
   needs: ["test:windows"]
+  dependencies: []

@@ -18,17 +18,20 @@ test:linux:
     ASURAN_SFTP_PORT: "22"
     ASURAN_SFTP_USER: "asuran"
     ASURAN_SFTP_PASS: "asuran"
+  dependencies: []
 
 build:linux:
   stage: build
   image: "thatonelutenist/rustc-sccache:latest"
   script:
     - cargo build --release
+    - cp target/release/asuran-cli ./asuran-cli-linux-x64
   artifacts:
     paths:
-      - target/release/
+      - asuran-cli-linux-x64
     expire_in: 4 weeks
   tags:
     - linux
   needs: []
+  dependencies: []
 
