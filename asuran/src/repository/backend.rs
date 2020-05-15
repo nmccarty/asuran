@@ -23,15 +23,15 @@ pub use object_wrappers::{backend_to_object, BackendObject};
 /// An error for things that can go wrong with backends
 #[derive(Error, Debug)]
 pub enum BackendError {
-    #[error("I/O Error")]
+    #[error("I/O Error: {0}")]
     IOError(#[from] std::io::Error),
     #[error("Data not found")]
     DataNotFound,
-    #[error("Segment Error")]
+    #[error("Segment Error: {0}")]
     SegmentError(String),
-    #[error("Manifest Error")]
+    #[error("Manifest Error: {0}")]
     ManifestError(String),
-    #[error("Index Error")]
+    #[error("Index Error: {0}")]
     IndexError(String),
     #[error("MessagePack Decode Error")]
     MsgPackDecodeError(#[from] rmp_serde::decode::Error),
@@ -41,15 +41,15 @@ pub enum BackendError {
     FileLockError,
     #[error("Cancelled oneshot")]
     CancelledOneshotError(#[from] futures::channel::oneshot::Canceled),
-    #[error("Chunk Unpacking Error")]
+    #[error("Chunk Unpacking Error: {0}")]
     ChunkUnpackError(#[from] asuran_core::repository::chunk::ChunkError),
-    #[error("Repository has an existing global lock")]
+    #[error("Repository has an existing global lock: {0}")]
     RepositoryGloballyLocked(String),
     #[error("Task Communication Error, likely trying to talk to a closed backend")]
     ChannelDroppedSend(#[from] futures::channel::mpsc::SendError),
-    #[error("Error connecting to backend.")]
+    #[error("Error connecting to backend: {0}")]
     ConnectionError(String),
-    #[error("Unknown Error")]
+    #[error("Unknown Error: {0}")]
     Unknown(String),
 }
 pub type Result<T> = std::result::Result<T, BackendError>;
