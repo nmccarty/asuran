@@ -1,3 +1,24 @@
+<a name="0.1.3"></a>
+## 0.1.3 (2020-05-15)
+
+
+#### Features
+
+* **asuran:**
+  *  Improve error reporting in sftp backend ([89ccffa2](https://gitlab.com/asuran-rs/asuran/commit/89ccffa269e688c2e2c90861efe59999352f9c6b))
+  *  Improve error displays for BackendError ([9b73cb21](https://gitlab.com/asuran-rs/asuran/commit/9b73cb2139dbd9819e4f283c0a1bc6dc81b11f44))
+* **asuran-cli:**  Add frontend support for SFTP ([c2533468](https://gitlab.com/asuran-rs/asuran/commit/c25334683b890c4a1219e75966e8cd072f71b2f5))
+
+#### Breaking Changes
+
+* **asuran:**  Make IV regeneration resistant to mishandling ([21fe6987](https://gitlab.com/asuran-rs/asuran/commit/21fe698753c0ab0df7fce31210caeb7c6a9104eb), closes [#65](https://gitlab.com/asuran-rs/asuran/issues/65), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+
+#### Bug Fixes
+
+* **asuran:**  Make IV regeneration resistant to mishandling ([21fe6987](https://gitlab.com/asuran-rs/asuran/commit/21fe698753c0ab0df7fce31210caeb7c6a9104eb), closes [#65](https://gitlab.com/asuran-rs/asuran/issues/65), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+
+
+
 <a name="0.1.2"></a>
 ## 0.1.2 (2020-05-05)
 
