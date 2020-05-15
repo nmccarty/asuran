@@ -26,7 +26,7 @@ use self::util::LockedFile;
 // Maps to `BackendError::ConnectionError(error.to_string())`
 impl From<ssh2::Error> for BackendError {
     fn from(error: ssh2::Error) -> Self {
-        BackendError::ConnectionError(error.to_string())
+        BackendError::ConnectionError(format!("libssh2 Error: {}", error))
     }
 }
 
@@ -87,7 +87,11 @@ impl SFTPConnection {
                 // Grab the password
                 let password = self.settings().password.as_ref().ok_or_else(|| {
                     BackendError::ConnectionError(
-                        "SSH Agent authentication failed and no password was provided".to_string(),
+                        format!(
+                            "SFTP connection using ssh agent to {}@{}:{} failed, and no password was provided.",
+                            self.settings().username,
+                            hostname,
+                            port)
                     )
                 })?;
                 // Attempt connecting with username/password
@@ -247,7 +251,18 @@ impl SFTP {
         let connection = settings.into().with_connection()?;
         let sftp = connection.sftp().unwrap();
         let key_path = PathBuf::from(&connection.settings().path).join("key");
-        let file = sftp.open(&key_path)?;
+        let key_path = sftp.realpath(&key_path).map_err(|e| {
+            BackendError::ConnectionError(format!(
+                "Failed to resolve path of key file at: {:?}, Error was: {}",
+                key_path, e
+            ))
+        })?;
+        let file = sftp.open(&key_path).map_err(|e| {
+            BackendError::ConnectionError(format!(
+                "Failed to open key file at: {:?} Error was: {}",
+                key_path, e
+            ))
+        })?;
         Ok(rmps::decode::from_read(file)?)
     }
 }
