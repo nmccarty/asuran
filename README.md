@@ -34,6 +34,10 @@ The entire data pipeline is built on top of a modern, async stack, allowing perf
 Installing and using
 --------------------
 
+You can either download a copy from our [releases](https://gitlab.com/asuran-rs/asuran/-/releases) page, or build it from source yourself.
+
+Please note, the builds on our releases page require a core-branded sandybridge or newer/equivalent, with required support for AES and AVX instructions. If you need to run on a lower end CPU or an older machine without these instructions, you will need to build it yourself from source.
+
 In most cases you will be interacting with the command line asuran clinet (asuran-cli). Either build it from source from the asuran-cli directory in this repository, or install it with:
 
 ```bash
