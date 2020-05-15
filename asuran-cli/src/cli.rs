@@ -11,6 +11,7 @@ use clap::{arg_enum, AppSettings};
 use repository::backend::{flatfile, multifile};
 use structopt::StructOpt;
 
+use std::env;
 use std::fs::metadata;
 use std::path::PathBuf;
 
@@ -33,6 +34,7 @@ arg_enum! {
     pub enum RepositoryType {
         MultiFile,
         FlatFile,
+        SFTP,
     }
 }
 
@@ -219,6 +221,16 @@ pub struct RepoOpt {
         possible_values(&HMAC::variants())
     )]
     pub hmac: HMAC,
+    /// Password to use for SFTP connection for SFTP backend.
+    ///
+    /// Will attempt to use ssh-agent authentication if not set.
+    #[structopt(long, env = "ASURAN_SFTP_PASSWORD", hide_env_values = true)]
+    pub sftp_password: Option<String>,
+    /// Port to use for the SFTP connection to the SFTP backend.
+    ///
+    /// Will default to 22 if not specified
+    #[structopt(long, env = "ASURAN_SFTP_PORT")]
+    pub sftp_port: Option<u16>,
 }
 
 /// Struct for holding the options the user has selected
@@ -383,7 +395,7 @@ impl RepoOpt {
                 let chunk_settings = self.get_chunk_settings();
                 let flatfile =
                     flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None, queue_depth)
-                        .with_context(|| "Internal backend error opening flatfile.")?;
+                        .with_context(|| "Internal backen d error opening flatfile.")?;
                 let flatfile = flatfile.get_object_handle();
 
                 // Attempt to read and decrypt the key
@@ -396,6 +408,83 @@ impl RepoOpt {
                 })?;
                 Ok((flatfile, key))
             }
+            RepositoryType::SFTP => {
+                use asuran::repository::backend::sftp::*;
+                let repo_str = self.repo.to_str().context("Non utf-8 in sftp path")?;
+                let (username, hostname, path) = parse_ssh_path(repo_str)?;
+                let settings = SFTPSettings {
+                    hostname,
+                    port: self.sftp_port,
+                    username,
+                    password: self.sftp_password.clone(),
+                    path,
+                };
+                let key = SFTP::read_key(settings.clone())
+                    .context("Unable to read repository key material")?
+                    .decrypt(self.password.as_bytes())
+                    .context(
+                        "Failed to decrypt key material, possibly due to an invalid password",
+                    )?;
+                let chunk_settings = self.get_chunk_settings();
+                let sftp = SFTP::connect(settings, key.clone(), Some(chunk_settings), queue_depth)
+                    .context("Failed to connect to SFTP backend")?;
+                Ok((sftp.get_object_handle(), key))
+            }
         }
     }
+}
+
+/// Takes a string of type user@host:/path, with optional user, and returns a tuple of strings of
+/// rom (user, host, path). Will default to the username this program is running as
+///
+/// Will return an error if this command is not of a valid format
+///
+/// # Example:
+///
+/// ```rust
+/// let path = "username@hostname:/path/of/the/thing";
+/// let (username,hostname,path) = parse_ssh_path(path).unwrap();
+/// assert_eq!(username,"username");
+/// assert_eq!(hostname,"hostname");
+/// assert_eq!(path,"/path/of/the/thing");
+/// ```
+pub fn parse_ssh_path(input: &str) -> Result<(String, String, String)> {
+    // First split into a host/path part We use splitn with a max of two parts, so if by some chance
+    // the user has a colon in the provided path, it doesn't blow up
+    let parts = input.splitn(2, ':').collect::<Vec<_>>();
+    // Make sure there is both a host part and a path part
+    if parts.len() != 2 {
+        return Err(anyhow!(
+            "Provided sftp path either does not contain a host part or a path part"
+        ));
+    }
+    // extract the path part
+    let path = parts[1].to_string();
+    // Parse the username/host part
+    let host_parts = parts[0].splitn(2, '@').collect::<Vec<_>>();
+    // Return an error if the host part was empty
+    if host_parts.is_empty() {
+        return Err(anyhow!("No hostname was provided."));
+    }
+    let (username, hostname) = if host_parts.len() == 1 {
+        // Attempt to get user's username in a janky but cross platform way
+        // *nix has the USER env variable, and windows has USERNAME.
+        // We just try them both, in that order, and fail if neither returns.
+        let username = env::var_os("USER")
+            .or_else(|| env::var_os("USERNAME"))
+            .with_context(|| {
+                "Unable to determine username automatically, please specify a username manually."
+            })?
+            .to_str()
+            .with_context(|| {
+                "OS Provided username contained non-UTF8, please specify a username manually"
+            })?
+            .to_string();
+        (username, host_parts[0].to_string())
+    } else {
+        // Username was provided, use that
+        (host_parts[0].to_string(), host_parts[1].to_string())
+    };
+
+    Ok((username, hostname, path))
 }
