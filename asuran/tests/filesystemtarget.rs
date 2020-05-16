@@ -178,6 +178,7 @@ fn backup_restore_no_empty_dirs_mem() {
 }
 
 #[test]
+#[cfg(feature = "sftp")]
 fn backup_restore_no_empty_dirs_sftp() {
     smol::run(async {
         let input_dir = fs::canonicalize("tests/inputdata/scodev1/").unwrap();

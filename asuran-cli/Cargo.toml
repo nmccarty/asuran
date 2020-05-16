@@ -22,6 +22,8 @@ all-compression = ["asuran/all-compression"]
 all-hmac = ["asuran/all-hmac"]
 all-chunk = ["asuran/all-chunk"]
 all-backend = ["asuran/all-backend"]
+sftp = ["asuran/sftp"]
+only-local-backends = ["asuran/only-local-backends"]
 
 [dependencies]
 anyhow = "1.0.30"

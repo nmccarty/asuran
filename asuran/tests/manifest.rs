@@ -120,6 +120,7 @@ fn put_drop_get_mem() {
 }
 
 #[test]
+#[cfg(feature = "sftp")]
 fn put_drop_get_sftp() {
     smol::run(async {
         let key = Key::random(32);

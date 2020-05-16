@@ -14,6 +14,7 @@ pub mod common;
 pub mod flatfile;
 pub mod mem;
 pub mod multifile;
+#[cfg(feature = "sftp")]
 pub mod sftp;
 
 #[cfg_attr(tarpaulin, skip)]

@@ -54,6 +54,7 @@ pub fn get_repo_flat(
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "sftp")]
 pub fn get_sftp_repo(path: impl AsRef<Path>, key: Key) -> Repository<impl BackendClone> {
     use asuran::repository::backend::sftp::*;
     use std::env;
