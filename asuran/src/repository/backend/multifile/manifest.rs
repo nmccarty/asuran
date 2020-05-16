@@ -467,7 +467,7 @@ mod tests {
     use crate::repository::{ChunkSettings, Key};
     use backend::Manifest as OtherManifest;
     use std::path::PathBuf;
-    use std::{thread, time};
+    use std::time;
     use tempfile::{tempdir, TempDir};
     use walkdir::WalkDir;
 
@@ -585,6 +585,7 @@ mod tests {
     //    directory
     #[test]
     fn write_drop_read() {
+        use smol::Timer;
         smol::run(async {
             let (tempdir, path) = setup();
             let settings = ChunkSettings::lightweight();
@@ -602,7 +603,7 @@ mod tests {
                 archives.push(archive.clone());
                 archive_set.insert(archive);
                 // Pause for a bit to make sure the next one has a sufficently differnt timestamp
-                thread::sleep(time::Duration::from_millis(5));
+                Timer::after(time::Duration::from_millis(5)).await;
             }
 
             // write them into the manifest
