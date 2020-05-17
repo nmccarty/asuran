@@ -47,9 +47,14 @@ pub fn get_repo_flat(
     enc_key: Option<EncryptedKey>,
 ) -> Repository<impl BackendClone> {
     let settings = ChunkSettings::lightweight();
-    let backend =
-        asuran::repository::backend::flatfile::FlatFile::new(path, Some(settings), enc_key, 4)
-            .unwrap();
+    let backend = asuran::repository::backend::flatfile::FlatFile::new(
+        path,
+        Some(settings),
+        enc_key,
+        key.clone(),
+        4,
+    )
+    .unwrap();
     Repository::with(backend, settings, key, 2)
 }
 

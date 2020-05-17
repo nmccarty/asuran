@@ -50,6 +50,8 @@ pub enum BackendError {
     ChannelDroppedSend(#[from] futures::channel::mpsc::SendError),
     #[error("Error connecting to backend: {0}")]
     ConnectionError(String),
+    #[error("FlatFile Format Error: {0}")]
+    FlatFile(#[from] asuran_core::repository::backend::flatfile::FlatFileError),
     #[error("Unknown Error: {0}")]
     Unknown(String),
 }
@@ -59,7 +61,7 @@ pub type Result<T> = std::result::Result<T, BackendError>;
 ///
 /// This does not store the length, as segments are responsible for storing chunks
 /// in a format that does not require prior knowledge of the chunk length.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct SegmentDescriptor {
     pub segment_id: u64,
     pub start: u64,
