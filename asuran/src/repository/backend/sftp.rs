@@ -377,6 +377,11 @@ mod tests {
         let result = backend.read_key().expect("Unable to read key");
         let dec_result = result.decrypt("ASecurePassword".as_bytes()).unwrap();
         assert!(key == dec_result);
+
+        let connection = backend.connection;
+        let result = SFTP::read_key(connection).expect("Unable to read key");
+        let dec_result = result.decrypt("ASecurePassword".as_bytes()).unwrap();
+        assert!(key == dec_result);
     }
 
     #[test]
@@ -400,5 +405,67 @@ mod tests {
         let ret_chunk = backend.read_chunk(desc).expect("Unable to read chunk");
 
         assert!(chunk == ret_chunk);
+    }
+
+    // Connecting without a password or valid ssh-agent credentials should fail
+    #[test]
+    fn connection_fails() {
+        let hostname = env::var_os("ASURAN_SFTP_HOSTNAME")
+            .map(|x| x.into_string().unwrap())
+            .expect("Server must be set");
+        let username = env::var_os("ASURAN_SFTP_USER")
+            .map(|x| x.into_string().unwrap())
+            .unwrap_or("asuran".to_string());
+        let port = env::var_os("ASURAN_SFTP_PORT")
+            .map(|x| x.into_string().unwrap())
+            .unwrap_or("22".to_string())
+            .parse::<u16>()
+            .expect("Unable to parse port");
+
+        let settings = SFTPSettings {
+            hostname,
+            username,
+            port: Some(port),
+            password: None,
+            path: "OhNo!".to_string(),
+        };
+
+        let connection: SFTPConnection = settings.into();
+
+        let result = connection.with_connection();
+
+        assert!(matches!(result, Err(BackendError::ConnectionError(_))));
+    }
+
+    // A not connected connection should return none, and a connected one should return Some
+    #[test]
+    fn get_session() {
+        let hostname = env::var_os("ASURAN_SFTP_HOSTNAME")
+            .map(|x| x.into_string().unwrap())
+            .expect("Server must be set");
+        let username = env::var_os("ASURAN_SFTP_USER")
+            .map(|x| x.into_string().unwrap())
+            .unwrap_or("asuran".to_string());
+        let password = env::var_os("ASURAN_SFTP_PASS")
+            .map(|x| x.into_string().unwrap())
+            .unwrap_or("asuran".to_string());
+        let port = env::var_os("ASURAN_SFTP_PORT")
+            .map(|x| x.into_string().unwrap())
+            .unwrap_or("22".to_string())
+            .parse::<u16>()
+            .expect("Unable to parse port");
+
+        let settings = SFTPSettings {
+            hostname,
+            username,
+            port: Some(port),
+            password: Some(password),
+            path: "yes".to_string(),
+        };
+
+        let connection: SFTPConnection = settings.into();
+        assert!(connection.session().is_none());
+        let connection = connection.with_connection().unwrap();
+        assert!(connection.session().is_some());
     }
 }
