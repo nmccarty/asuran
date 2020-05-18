@@ -1,5 +1,7 @@
 //! The backend provides abstract IO access to the real location of the data in
 //! the repository.
+#![allow(clippy::used_underscore_binding)] // TODO: Fix this after clippy and thiserror start
+                                           // playing nice
 use crate::manifest::StoredArchive;
 use crate::repository::{Chunk, ChunkID, ChunkSettings, EncryptedKey};
 
