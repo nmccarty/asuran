@@ -393,19 +393,21 @@ impl RepoOpt {
 
                 // Attempt to open up the flatfile backend
                 let chunk_settings = self.get_chunk_settings();
-                let flatfile =
-                    flatfile::FlatFile::new(&self.repo, Some(chunk_settings), None, queue_depth)
-                        .with_context(|| "Internal backen d error opening flatfile.")?;
-                let flatfile = flatfile.get_object_handle();
-
                 // Attempt to read and decrypt the key
-                let key = flatfile
-                    .read_key()
-                    .await
+                let key = flatfile::FlatFile::load_encrypted_key(&self.repo)
                     .with_context(|| "Failed to read key from flatfile.")?;
                 let key = key.decrypt(self.password.as_bytes()).with_context(|| {
                     "Unable to decrypt key material, possibly due to an invalid password"
                 })?;
+                let flatfile = flatfile::FlatFile::new(
+                    &self.repo,
+                    Some(chunk_settings),
+                    None,
+                    key.clone(),
+                    queue_depth,
+                )
+                .with_context(|| "Internal backen d error opening flatfile.")?;
+                let flatfile = flatfile.get_object_handle();
                 Ok((flatfile, key))
             }
             RepositoryType::SFTP => {

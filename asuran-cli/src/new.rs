@@ -59,6 +59,7 @@ pub async fn new(options: Opt) -> Result<()> {
                 &options.repo_opts().repo,
                 Some(settings),
                 Some(encrypted_key),
+                key,
                 options.pipeline_tasks() * 2,
             )
             .with_context(|| "Unable to create flatfile.")?;
