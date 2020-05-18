@@ -52,6 +52,9 @@ lazy_static! {
         output
     };
 
+    pub static ref VERSION_STRUCT: Version = {
+        Version::parse(VERSION).expect("Unable to parse version")
+    };
 
 
     /// The UUID of this asuran implementation

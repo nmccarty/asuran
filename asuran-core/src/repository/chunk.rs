@@ -114,7 +114,7 @@ impl ChunkSettings {
 
 /// A split representation of a `Chunk`'s 'header' or metadata.
 /// Used for on disk storage
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ChunkHeader {
     compression: Compression,
     encryption: Encryption,
