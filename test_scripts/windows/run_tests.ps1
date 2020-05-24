@@ -14,8 +14,16 @@ param(
 # Stand up container for testing sftp
 docker run --name "asuran_test_sftp" -p 2222:22 -d atmoz/sftp asuran:asuran:::asuran
 
+# Utilize docker host for connection IPs, if set
+$docker_ip = "localhost"
+if (Test-Path env:DOCKER_HOST) {
+    $docker_ip = ([System.Uri]"$env:DOCKER_HOST").Host
+}
+
+echo "Using $docker_ip for docker connections"
+
 # Setup environment variables for the sftp container
-$env:ASURAN_SFTP_HOSTNAME = 'localhost'
+$env:ASURAN_SFTP_HOSTNAME = $docker_ip
 $env:ASURAN_SFTP_PORT = '2222'
 $env:ASURAN_SFTP_USER = 'asuran'
 $env:ASURAN_SFTP_PASS = 'asuran'
