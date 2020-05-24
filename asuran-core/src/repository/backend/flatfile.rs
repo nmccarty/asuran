@@ -1,7 +1,8 @@
 /*!
 This module contains data structures describing components of the `FlatFile`
 on-disk representation.
-*/
+ */
+#![allow(clippy::used_underscore_binding)]
 use crate::repository::{Chunk, ChunkHeader, ChunkID, ChunkSettings, EncryptedKey, Key};
 
 use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
