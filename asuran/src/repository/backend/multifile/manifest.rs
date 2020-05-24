@@ -277,7 +277,6 @@ impl InternalManifest {
             &self.heads,
             archive.id(),
             archive.timestamp(),
-            archive.name(),
             self.chunk_settings.hmac,
             &self.key,
         );

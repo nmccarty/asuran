@@ -18,8 +18,6 @@ pub struct ManifestTransaction {
     pointer: ChunkID,
     /// The timestamp of this Transactions Creation
     timestamp: DateTime<FixedOffset>,
-    /// The human readable name of the archive
-    name: String,
     /// A 128-bit random nonce
     ///
     /// This is canonically stored as an array of bytes, to keep the serializer and
@@ -47,7 +45,6 @@ impl ManifestTransaction {
         previous_heads: &[ManifestID],
         pointer: ChunkID,
         timestamp: DateTime<FixedOffset>,
-        name: &str,
         hmac: HMAC,
         key: &Key,
     ) -> ManifestTransaction {
@@ -57,7 +54,6 @@ impl ManifestTransaction {
             previous_heads: previous_heads.to_vec(),
             pointer,
             timestamp,
-            name: name.to_string(),
             nonce,
             hmac,
             tag: ManifestID([0_u8; 32]),
@@ -86,11 +82,6 @@ impl ManifestTransaction {
         self.pointer
     }
 
-    /// Returns the name of the archive
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
     /// Returns the timestamp of the archive
     pub fn timestamp(&self) -> DateTime<FixedOffset> {
         self.timestamp
@@ -116,11 +107,11 @@ impl ManifestTransaction {
 mod tests {
     use super::*;
 
-    fn create_tx(name: &str, key: &Key) -> ManifestTransaction {
+    fn create_tx(_name: &str, key: &Key) -> ManifestTransaction {
         let hmac = HMAC::Blake2b;
         let pointer = ChunkID::new(&[1_u8; 32]);
         let timestamp = Local::now().with_timezone(Local::now().offset());
-        ManifestTransaction::new(&[], pointer, timestamp, name, hmac, key)
+        ManifestTransaction::new(&[], pointer, timestamp, hmac, key)
     }
 
     // Creating a manifest and verifying it should result in success

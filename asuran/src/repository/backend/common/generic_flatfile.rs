@@ -223,11 +223,7 @@ impl<F: Read + Write + Seek + 'static> GenericFlatFile<F> {
                 // Load any archives
                 for (id, timestamp) in footer.archives {
                     // Temporary hack, the name field is pending removal
-                    manifest.push(StoredArchive {
-                        id,
-                        name: "".to_string(),
-                        timestamp,
-                    });
+                    manifest.push(StoredArchive { id, timestamp });
                 }
 
                 // Load up the next header

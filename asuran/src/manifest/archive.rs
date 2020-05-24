@@ -41,8 +41,6 @@ type Result<T> = std::result::Result<T, ArchiveError>;
 /// as it leaks information that should not be leaked, so it will be removed soon.
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StoredArchive {
-    /// The name of the archive
-    pub name: String,
     /// Pointer the the archive metadata in the repository
     pub id: ChunkID,
     /// Time the archive was started it
@@ -66,7 +64,6 @@ impl StoredArchive {
     #[cfg(test)]
     pub fn dummy_archive() -> StoredArchive {
         StoredArchive {
-            name: "Test".to_string(),
             id: ChunkID::random_id(),
             timestamp: Local::now().with_timezone(Local::now().offset()),
         }
@@ -81,17 +78,11 @@ impl StoredArchive {
     pub fn id(&self) -> ChunkID {
         self.id
     }
-
-    /// Returns the name of the archive
-    pub fn name(&self) -> &str {
-        &self.name
-    }
 }
 
 impl From<ManifestTransaction> for StoredArchive {
     fn from(item: ManifestTransaction) -> Self {
         StoredArchive {
-            name: item.name().to_string(),
             id: item.pointer(),
             timestamp: item.timestamp(),
         }
@@ -354,7 +345,6 @@ impl ActiveArchive {
 
         StoredArchive {
             id,
-            name: dumb_archive.name,
             timestamp: dumb_archive.timestamp,
         }
     }

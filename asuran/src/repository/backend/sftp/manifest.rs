@@ -294,7 +294,6 @@ impl SyncManifest for SFTPManifest {
             &self.heads,
             archive.id(),
             archive.timestamp(),
-            archive.name(),
             self.chunk_settings.hmac,
             &self.key,
         );
