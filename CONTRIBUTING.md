@@ -49,6 +49,9 @@ These are issues expected to give a good introduction to the repository. They ar
 
 New contributors are encouraged to go for issues with the `Good First Issue` tag first, and then move up to `D-EASY` as they grow more comfortable with the project. Though, this is not a hard guideline, if you want to jump straight in, feel free to grab a `D-MEDIUM` or `D-HARD` and contact @ThatOneLutenist or ask in one of the chats if you get stuck or need mentoring.
 
+Additionally, we have a more general [`Help
+Wanted`](https://gitlab.com/asuran-rs/asuran/-/issues?label_name%5B%5D=Help+Wanted) tag, that denotes issues that I have identified as one I would epically appreciate assistance with.
+
 Primer on our development procedures
 ------------------------------------
 
