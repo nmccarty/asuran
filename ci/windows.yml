@@ -8,7 +8,7 @@ test:windows:
     - windows-own
   needs: []
   dependencies: []
-  retry: 3
+  retry: 2
 
 build:windows:
   stage: build
