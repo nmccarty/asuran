@@ -27,6 +27,8 @@ all-hmac = ["asuran-core/all-hmac"]
 all-chunk = ["asuran-core/all-chunk"]
 # Groups of all of a type
 all-backend = ["sftp"] # Placeholder for when we have features for backends
+# Vendor OpenSSL for the sftp backend
+vendored-openssl = ["ssh2/vendored-openssl"]
 
 [dependencies]
 asuran-chunker = { version = "= 0.1.4-alpha.1", path = "../asuran-chunker/", features = ["streams"] }

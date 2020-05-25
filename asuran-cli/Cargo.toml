@@ -24,6 +24,8 @@ all-chunk = ["asuran/all-chunk"]
 all-backend = ["asuran/all-backend"]
 sftp = ["asuran/sftp"]
 only-local-backends = ["asuran/only-local-backends"]
+# Vendor OpenSSL for the sftp backend
+vendored-openssl = ["asuran/vendored-openssl"]
 
 [dependencies]
 anyhow = "1.0.31"
