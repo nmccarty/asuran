@@ -31,3 +31,23 @@ Contacting
 Join our [matrix chat](https://matrix.to/#/!gfTQMJBreSJoPEkEeI:matrix.org?via=matrix.org&via=t2bot.io) to ask questions, report bugs, or suggest improvements.
 
 Additionally, feel free to open an issue on the gitlab with any bugs you find.
+
+A note on stability
+-------------------
+
+Asuran and asuran-cli are *pre-alpha software*, prior to version 1.0.0, releases are for evaluation and testing only. Prior to 1.0.0, the API may make breaking changes between patch releases, and there may be breaking format changes between patch releases before 0.2.0 (after 0.2.0, breaking format changes may only happen between minor version increases). Please always read the changelog before updating.
+
+Support
+=======
+
+Developing software is hard work, and continuing to improve asuran takes a substantial portion of my time.
+
+I am currently working on getting a patreon/open collective/sponus or the like setup, but in the mean time, if you wish to support me, feel free to toss me your favorite cryptocurrency:
+
+-	BTC: bc1q99tz5sv4mn9l3mhx3qc3lh64skgx85uxssg3tc
+-	ETH: 0xd9CdBD945fE347FDAC4DFA71E13cB3EED7595882
+-	XRP: r46gGdwgMVMaWreVbRzSoxm9QrT3uSoEWC
+-	USDT: 0xd9CdBD945fE347FDAC4DFA71E13cB3EED7595882
+-	BCH: qrrsykuptuu7urt38k4u29j3kvnfa9n3msjssg6cje
+
+If you would like to donate in a currency not listed here, please submit an issue and I will add an address.

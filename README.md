@@ -7,7 +7,13 @@ Asuran is a new archive format and rust implementation. It aims to be the archiv
 
 Asuran is also blazing fast, [check out some benchmarks!](https://gitlab.com/asuran-rs/archiver-benchmarks/-/blob/master/RESULTS.md)
 
-![Codecov](https://img.shields.io/codecov/c/gl/asuran-rs/asuran?style=flat-square) ![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/asuran-rs/asuran/master?style=flat-square) ![Crates.io](https://img.shields.io/crates/v/asuran?style=flat-square) ![Crates.io](https://img.shields.io/crates/l/asuran?style=flat-square)
+![Codecov](https://img.shields.io/codecov/c/gl/asuran-rs/asuran?style=flat-square) ![Gitlab pipeline status
+(branch)](https://img.shields.io/gitlab/pipeline/asuran-rs/asuran/master?style=flat-square) ![Crates.io](https://img.shields.io/crates/v/asuran?style=flat-square) ![Crates.io](https://img.shields.io/crates/l/asuran?style=flat-square)
+
+A note on stability
+-------------------
+
+Asuran and asuran-cli are *pre-alpha software*, prior to version 1.0.0, releases are for evaluation and testing only. Prior to 1.0.0, the API may make breaking changes between patch releases, and there may be breaking format changes between patch releases before 0.2.0 (after 0.2.0, breaking format changes may only happen between minor version increases). Please always read the changelog before updating.
 
 Mission Statement
 -----------------
