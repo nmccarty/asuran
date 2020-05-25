@@ -46,7 +46,6 @@ arg_enum! {
     /// an IV with them.
     #[derive(Debug, Clone)]
     pub enum Encryption {
-        AES256CBC,
         AES256CTR,
         ChaCha20,
         None,
@@ -301,7 +300,6 @@ impl RepoOpt {
         };
 
         let encryption = match self.encryption {
-            Encryption::AES256CBC => repository::Encryption::new_aes256cbc(),
             Encryption::AES256CTR => repository::Encryption::new_aes256ctr(),
             Encryption::ChaCha20 => repository::Encryption::new_chacha20(),
             Encryption::None => repository::Encryption::NoEncryption,
