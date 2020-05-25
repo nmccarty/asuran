@@ -359,7 +359,6 @@ mod tests {
         ];
         let encryptions = [
             Encryption::NoEncryption,
-            Encryption::new_aes256cbc(),
             Encryption::new_aes256ctr(),
             Encryption::new_chacha20(),
         ];

@@ -38,9 +38,6 @@ overflow-checks = false
 [profile.dev.package.blake3]
 opt-level = 3
 overflow-checks = false
-[profile.dev.package.block-modes]
-opt-level = 3
-overflow-checks = false
 [profile.dev.package.lz4]
 opt-level = 3
 overflow-checks = false

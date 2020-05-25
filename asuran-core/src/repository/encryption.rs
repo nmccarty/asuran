@@ -10,14 +10,8 @@ encryption algorithms.
 // code a bit cleaner. We write the code assuming that the user will compile with at least one
 // encryption method (this is an encrypting archiver after all)
 
-#[cfg(feature = "aes")]
-use aes::Aes256;
 #[cfg(feature = "aes-ctr")]
 use aes_ctr::Aes256Ctr;
-#[allow(unused_imports)]
-use block_modes::block_padding::Pkcs7;
-#[allow(unused_imports)]
-use block_modes::{BlockMode, Cbc};
 #[cfg(feature = "chacha20")]
 use chacha20::ChaCha20;
 use rand::prelude::*;
@@ -37,12 +31,8 @@ use crate::repository::Key;
 
 /// Error describing things that can go wrong with encryption/decryption
 #[derive(Error, Debug)]
-pub enum EncryptionError {
-    #[error("Invalid key/IV length used to construct encryptor/decryptor")]
-    InvalidKeyIVLength(#[from] block_modes::InvalidKeyIvLength),
-    #[error("Error with block mode encryption/decryption")]
-    BlockModeError(#[from] block_modes::BlockModeError),
-}
+#[allow(clippy::empty_enum)]
+pub enum EncryptionError {}
 
 type Result<T> = std::result::Result<T, EncryptionError>;
 
@@ -50,19 +40,11 @@ type Result<T> = std::result::Result<T, EncryptionError>;
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub enum Encryption {
     NoEncryption,
-    AES256CBC { iv: [u8; 16] },
     AES256CTR { iv: [u8; 16] },
     ChaCha20 { iv: [u8; 12] },
 }
 
 impl Encryption {
-    /// Creates an `AES256CBC` with a random, securely generated IV
-    pub fn new_aes256cbc() -> Encryption {
-        let mut iv: [u8; 16] = [0; 16];
-        thread_rng().fill_bytes(&mut iv);
-        Encryption::AES256CBC { iv }
-    }
-
     /// Creates a new `AES256CTR` with a random securely generated IV
     pub fn new_aes256ctr() -> Encryption {
         let mut iv: [u8; 16] = [0; 16];
@@ -84,7 +66,6 @@ impl Encryption {
     pub fn key_length(&self) -> usize {
         match self {
             Encryption::NoEncryption => 16,
-            Encryption::AES256CBC { .. } => 32,
             Encryption::AES256CTR { .. } => 32,
             Encryption::ChaCha20 { .. } => 32,
         }
@@ -116,29 +97,6 @@ impl Encryption {
         *self = self.new_iv();
         match self {
             Encryption::NoEncryption => data.to_vec(),
-            Encryption::AES256CBC { iv } => {
-                cfg_if::cfg_if! {
-                    if #[cfg(feature = "aes")] {
-                        // Create a key of the correct length, and fill it with
-                        // zeros to start with
-                        let mut proper_key: [u8; 32] = [0; 32];
-                        proper_key[..cmp::min(key.len(), 32)]
-                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-
-                        let encryptor: Cbc<Aes256, Pkcs7> =
-                            Cbc::new_var(&proper_key, &iv[..])
-                            .expect("Unable to encrypt data. Something is *seriously* wrong. Please contact a maintainer.");
-                        let final_result = encryptor.encrypt_vec(data);
-                        // Zeroize key
-                        proper_key.zeroize();
-
-                        final_result
-                    } else {
-                        unimplemented!("Asuran has not been compiled with AES support.")
-                    }
-
-                }
-            }
             Encryption::AES256CTR { iv } => {
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "aes-ctr")] {
@@ -201,28 +159,6 @@ impl Encryption {
     pub fn decrypt_bytes(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         match self {
             Encryption::NoEncryption => Ok(data.to_vec()),
-            Encryption::AES256CBC { iv } => {
-                cfg_if::cfg_if! {
-                    if #[cfg(feature = "aes")] {
-                        // Creates a key of the correct length, and fills it with
-                        // zeros to start with
-                        let mut proper_key: [u8; 32] = [0; 32];
-                        // Copy key into proper key
-                        proper_key[..cmp::min(key.len(), 32)]
-                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-
-                        let decryptor: Cbc<Aes256, Pkcs7> = Cbc::new_var(&key, &iv[..])?;
-                        let final_result = decryptor.decrypt_vec(data)?;
-
-                        // Zeroize key
-                        proper_key.zeroize();
-
-                        Ok(final_result)
-                    } else {
-                        unimplemented!("Asuran has not been compiled with AES support")
-                    }
-                }
-            }
             Encryption::AES256CTR { iv } => {
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "aes-ctr")] {
@@ -271,7 +207,6 @@ impl Encryption {
     pub fn new_iv(self) -> Encryption {
         match self {
             Encryption::NoEncryption => Encryption::NoEncryption,
-            Encryption::AES256CBC { .. } => Encryption::new_aes256cbc(),
             Encryption::AES256CTR { .. } => Encryption::new_aes256ctr(),
             Encryption::ChaCha20 { .. } => Encryption::new_chacha20(),
         }
@@ -303,8 +238,8 @@ mod tests {
     }
 
     #[test]
-    fn test_aes256cbc() {
-        let enc = Encryption::new_aes256cbc();
+    fn test_chacha20() {
+        let enc = Encryption::new_chacha20();
         test_encryption(enc);
     }
 

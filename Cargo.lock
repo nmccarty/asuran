@@ -183,7 +183,6 @@ dependencies = [
  "aes-ctr",
  "blake2b_simd",
  "blake3",
- "block-modes",
  "byteorder",
  "cfg-if",
  "chacha20",
@@ -327,16 +326,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c924d49bd09e7c06003acda26cd9742e796e34282ec6c1189404dee0c1f4774"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "block-modes"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31aa8410095e39fdb732909fb5730a48d5bd7c2e3cd76bd1b07b3dbea130c529"
-dependencies = [
- "block-cipher-trait",
- "block-padding",
 ]
 
 [[package]]
