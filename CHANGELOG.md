@@ -1,3 +1,44 @@
+<a name="0.1.4"></a>
+## 0.1.4 (2020-05-30)
+
+
+#### Breaking Changes
+
+* **asuran:**
+  *  Remove name field from StoredArchive ([e5e0cbd6](https://gitlab.com/asuran-rs/asuran/commit/e5e0cbd65267077e835aae345c65d200c85f4f64), closes [#66](https://gitlab.com/asuran-rs/asuran/issues/66), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+  *  Replace FlatFile with new format ([fed5466c](https://gitlab.com/asuran-rs/asuran/commit/fed5466c154eb554af460c11a85b1a4fe23c6ab9), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/), [#](https://gitlab.com/asuran-rs/asuran/issues/))
+* **asuran-core:**
+  *  Remove support for AES CBC ([5ddbc54c](https://gitlab.com/asuran-rs/asuran/commit/5ddbc54c63715d47a5fc146f483228961672cd58), closes [#69](https://gitlab.com/asuran-rs/asuran/issues/69), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+  *  Reimplement FlatFile structs for new format ([ff2608f2](https://gitlab.com/asuran-rs/asuran/commit/ff2608f2a00f49d8b608d871c816d4f0261f0a78), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+
+#### Features
+
+*   Expose vendored-openssl feature ([bd7167b9](https://gitlab.com/asuran-rs/asuran/commit/bd7167b9aec0294f07a57aa67b65b2272f62e237))
+* **asuran:**
+  *  Replace FlatFile with new format ([fed5466c](https://gitlab.com/asuran-rs/asuran/commit/fed5466c154eb554af460c11a85b1a4fe23c6ab9), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/), [#](https://gitlab.com/asuran-rs/asuran/issues/))
+  *  Expose cargo feature for SFTP backend ([6c6e1979](https://gitlab.com/asuran-rs/asuran/commit/6c6e19797fdcc512cc2a1f4481ddc4d0e6868a2a))
+* **asuran-cli:**  Update asuran-cli to new FlatFile API ([0dac0051](https://gitlab.com/asuran-rs/asuran/commit/0dac0051592a0cbbe4fb8216b4a0d6e2d352e5ad))
+* **asuran-core:**
+  *  Runtime feature detection for AESNI ([6768925b](https://gitlab.com/asuran-rs/asuran/commit/6768925bcf37b96fd9b857abf9b5695650d7761d), closes [#68](https://gitlab.com/asuran-rs/asuran/issues/68))
+  *  Remove support for AES CBC ([5ddbc54c](https://gitlab.com/asuran-rs/asuran/commit/5ddbc54c63715d47a5fc146f483228961672cd58), closes [#69](https://gitlab.com/asuran-rs/asuran/issues/69), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+  *  Reimplement FlatFile structs for new format ([ff2608f2](https://gitlab.com/asuran-rs/asuran/commit/ff2608f2a00f49d8b608d871c816d4f0261f0a78), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+
+#### Bug Fixes
+
+* **asuran:**
+  *  Remove name field from StoredArchive ([e5e0cbd6](https://gitlab.com/asuran-rs/asuran/commit/e5e0cbd65267077e835aae345c65d200c85f4f64), closes [#66](https://gitlab.com/asuran-rs/asuran/issues/66), breaks [#](https://gitlab.com/asuran-rs/asuran/issues/))
+  *  Lock smol at 0.1.4 ([eb24770d](https://gitlab.com/asuran-rs/asuran/commit/eb24770de8093048f06accccb65fb5799f5613c4))
+* **asuran-cli:**  Remove AES256CBC ([56efe318](https://gitlab.com/asuran-rs/asuran/commit/56efe31880a73b4bca3c1ae643740201aef97fb8))
+
+#### Other Changes
+
+* **asuran:**
+  *  Improve test coverage in sftp module ([520a424b](https://gitlab.com/asuran-rs/asuran/commit/520a424b21c34770c740acb4935ec934dad4efc0))
+  *  Add temporary clippy exclusion to backend.rs ([b2445572](https://gitlab.com/asuran-rs/asuran/commit/b2445572df08ebb18a199974bcae049544828c9c))
+* **asuran-core:**  Squelch clippy false positive ([3d52ab3a](https://gitlab.com/asuran-rs/asuran/commit/3d52ab3a75506b0c1c4a985cdf0b2ecfdaf971c7))
+
+
+
 <a name="0.1.3"></a>
 ## 0.1.3 (2020-05-15)
 
