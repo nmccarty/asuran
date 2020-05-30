@@ -14,12 +14,12 @@ readme = "README.md"
 
 [features]
 default = ["all-chunk"]
-core = ["aes-ctr", "blake3", "zstd"]
+core = ["aes-family", "blake3", "zstd"]
 # Convience renames
 blake2b = ["blake2b_simd"]
 lzma = ["xz2"]
 # Groups
-aes-family = ["aes-ctr", "aes"]
+aes-family = ["aes-soft", "ctr"]
 chacha-family = ["chacha20"]
 # Group of all of a type
 all-encryption = ["aes-family", "chacha-family"]
@@ -28,14 +28,14 @@ all-hmac = ["blake2b", "blake3", "sha2", "sha3"]
 all-chunk = ["all-encryption", "all-compression", "all-hmac"]
 
 [dependencies]
-aes = { version = "0.3.2", optional = true }
-aes-ctr = { version = "0.3.0", optional = true }
+aes-soft = { version = "0.3", optional = true }
 blake2b_simd = { version = "0.5.10", optional = true }
 blake3 = { version = "0.3.3", optional = true }
 byteorder = "1.3.4"
 cfg-if = "0.1.10"
 chacha20 = { version = "0.3.4", optional = true }
 chrono = { version = "0.4.11", features = ["serde"] }
+ctr = { version = "0.3.2", optional = true }
 hmac = "0.7.1"
 lz4 = { version = "1.23.1", optional = true }
 rand = "0.7.3"
@@ -53,3 +53,7 @@ uuid = "0.8.1"
 xz2 = { version = "0.1.6", optional = true }
 zeroize = { version = "1.1.0", features = ["zeroize_derive"] }
 zstd = { version = "0.5.1", optional = true }
+block-cipher-trait = "0.6.2"
+
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+aesni = { version = "0.6", features = ["ctr", "nocheck"] }

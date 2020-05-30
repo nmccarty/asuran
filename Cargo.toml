@@ -26,10 +26,10 @@ overflow-checks = false
 [profile.dev.package.rust-argon2]
 opt-level = 3
 overflow-checks = false
-[profile.dev.package.aes]
+[profile.dev.package.aes-soft]
 opt-level = 3
 overflow-checks = false
-[profile.dev.package.aes-ctr]
+[profile.dev.package.ctr]
 opt-level = 3
 overflow-checks = false
 [profile.dev.package.blake2b_simd]

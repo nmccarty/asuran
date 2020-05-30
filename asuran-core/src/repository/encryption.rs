@@ -10,8 +10,8 @@ encryption algorithms.
 // code a bit cleaner. We write the code assuming that the user will compile with at least one
 // encryption method (this is an encrypting archiver after all)
 
-#[cfg(feature = "aes-ctr")]
-use aes_ctr::Aes256Ctr;
+mod aes_shim;
+
 #[cfg(feature = "chacha20")]
 use chacha20::ChaCha20;
 use rand::prelude::*;
@@ -27,6 +27,7 @@ use thiserror::Error;
 #[allow(unused_imports)]
 use zeroize::Zeroize;
 
+#[cfg(feature = "aes-family")]
 use crate::repository::Key;
 
 /// Error describing things that can go wrong with encryption/decryption
@@ -99,18 +100,8 @@ impl Encryption {
             Encryption::NoEncryption => data.to_vec(),
             Encryption::AES256CTR { iv } => {
                 cfg_if::cfg_if! {
-                    if #[cfg(feature = "aes-ctr")] {
-                        let mut proper_key: [u8; 32] = [0; 32];
-                        proper_key[..cmp::min(key.len(), 32)]
-                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-                        let key = GenericArray::from_slice(&key);
-                        let iv = GenericArray::from_slice(&iv[..]);
-                        let mut encryptor = Aes256Ctr::new(&key, &iv);
-                        let mut final_result = data.to_vec();
-                        encryptor.apply_keystream(&mut final_result);
-
-                        proper_key.zeroize();
-                        final_result
+                    if #[cfg(feature = "aes-family")] {
+                        aes_shim::aes_256_ctr(data, key, &iv[..])
                     } else {
                         unimplemented!("Asuran has not been compiled with AES-CTR Support")
                     }
@@ -161,19 +152,8 @@ impl Encryption {
             Encryption::NoEncryption => Ok(data.to_vec()),
             Encryption::AES256CTR { iv } => {
                 cfg_if::cfg_if! {
-                    if #[cfg(feature = "aes-ctr")] {
-                        let mut proper_key: [u8; 32] = [0; 32];
-                        proper_key[..cmp::min(key.len(), 32)]
-                            .clone_from_slice(&key[..cmp::min(key.len(), 32)]);
-
-                        let key = GenericArray::from_slice(&key);
-                        let iv = GenericArray::from_slice(&iv[..]);
-                        let mut decryptor = Aes256Ctr::new(&key, &iv);
-                        let mut final_result = data.to_vec();
-                        decryptor.apply_keystream(&mut final_result);
-
-                        proper_key.zeroize();
-                        Ok(final_result)
+                    if #[cfg(feature = "aes-family")] {
+                        Ok(aes_shim::aes_256_ctr(data, key, &iv[..]))
                     } else {
                         unimplemented!("Asuran has not been compiled with AES support")
                     }
