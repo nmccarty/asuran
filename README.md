@@ -42,15 +42,15 @@ Installing and using
 
 You can either download a copy from our [releases](https://gitlab.com/asuran-rs/asuran/-/releases) page, or build it from source yourself.
 
-Please note, the builds on our releases page require a core-branded sandybridge or newer/equivalent, with required support for AES and AVX instructions. If you need to run on a lower end CPU or an older machine without these instructions, you will need to build it yourself from source.
+Please note, the builds on our releases page require a core-branded sandybridge or newer/equivalent, with required support for AVX instructions. If you need to run on a lower end CPU or an older machine without these instructions, you will need to build it yourself from source.
 
-In most cases you will be interacting with the command line asuran clinet (asuran-cli). Either build it from source from the asuran-cli directory in this repository, or install it with:
+In most cases you will be interacting with the command line asuran client (asuran-cli). Either build it from source from the asuran-cli directory in this repository, or install it with:
 
 ```bash
-env RUSTFLAGS="-C target-feature=+aes,+ssse3" cargo install asuran-cli
+cargo install asuran-cli
 ```
 
-Optionally add `-C target-cpu=native` for even better performance. The target features (aes and sse3) are required to get good performance, and asuran does not currently offically support being built without them.
+Optionally build with `env RUSTFLAGS="-C target-cpu=native -C target-feature=+aes" cargo install asuran-cli` for even better performance.
 
 See `asuran-cli --help` for usage.
 
