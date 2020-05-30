@@ -28,9 +28,12 @@ fn aes_soft_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
 /// This function performs AES256CTR, unconditionally using aesni. Will blow up if called on a
 /// machine without AESNI instructions
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn aesni_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
+#[target_feature(enable = "aes")]
+#[target_feature(enable = "sse3")]
+unsafe fn aesni_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     use aesni::Aes256Ctr;
     use stream_cipher::NewStreamCipher;
+
     let mut proper_key: [u8; 32] = [0; 32];
     proper_key[..cmp::min(key.len(), 32)].clone_from_slice(&key[..cmp::min(key.len(), 32)]);
     let key = GenericArray::from_slice(&key);
@@ -50,7 +53,8 @@ pub fn aes_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
             use std::is_x86_feature_detected;
             // Check for aes acceleration support
             if is_x86_feature_detected!("aes") && is_x86_feature_detected!("ssse3") {
-                aesni_256_ctr(data,key,iv)
+                // safe because we just verified aes and sse3 support
+                unsafe {aesni_256_ctr(data,key,iv)}
             } else {
                 aes_soft_256_ctr(data, key, iv)
             }
