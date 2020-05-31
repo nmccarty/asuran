@@ -2,7 +2,7 @@
 name = "asuran"
 description = "Deduplicating, encrypting, fast, and tamper evident archive format"
 license = "BSD-2-Clause-Patent"
-version = "0.1.5"
+version = "0.1.6-alpha.1"
 repository = "https://gitlab.com/asuran-rs/asuran/"
 documentation = "https://docs.rs/crate/asuran"
 homepage = "https://asuran.rs"
@@ -31,8 +31,8 @@ all-backend = ["sftp"] # Placeholder for when we have features for backends
 vendored-openssl = ["ssh2/vendored-openssl"]
 
 [dependencies]
-asuran-chunker = { version = "= 0.1.5", path = "../asuran-chunker/", features = ["streams"] }
-asuran-core = { version = "= 0.1.5", path = "../asuran-core/", default-features = false }
+asuran-chunker = { version = "= 0.1.6-alpha.1", path = "../asuran-chunker/", features = ["streams"] }
+asuran-core = { version = "= 0.1.6-alpha.1", path = "../asuran-core/", default-features = false }
 async-trait = "0.1.31"
 base64 = "0.12.1"
 bincode = "1.2.1"
