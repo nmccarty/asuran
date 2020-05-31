@@ -1,3 +1,13 @@
+<a name="0.1.5"></a>
+## 0.1.5 (2020-05-31)
+
+
+#### Bug Fixes
+
+* **asuran-core:**  Fix perf regression with aes feature detection ([840cd30a](https://gitlab.com/asuran-rs/asuran/commit/840cd30a15df0a9d3532535a893f1498e4a9476d))
+
+
+
 <a name="0.1.4"></a>
 ## 0.1.4 (2020-05-30)
 
