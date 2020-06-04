@@ -72,8 +72,7 @@ impl InternalManifest {
                 x.path()
                     .file_name()?
                     .to_str()
-                    .map(|y| std::result::Result::ok(y.parse::<usize>()))
-                    .flatten()
+                    .and_then(|y| std::result::Result::ok(y.parse::<usize>()))
                     .map(|z| (z, x))
             })
             .collect::<Vec<_>>();

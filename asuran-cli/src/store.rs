@@ -66,7 +66,7 @@ pub async fn store(options: Opt, target: PathBuf, name: Option<String>) -> Resul
             (
                 node.clone(),
                 backup_target
-                    .store_object(&mut repo, chunker.clone(), &archive, node)
+                    .store_object(&mut repo, chunker, &archive, node)
                     .await,
             )
         }));

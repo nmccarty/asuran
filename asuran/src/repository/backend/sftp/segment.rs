@@ -68,8 +68,7 @@ impl SFTPSegmentHandler {
             .filter(|(path, _)| {
                 path.components()
                     .next_back()
-                    .map(|x| x.as_os_str().to_string_lossy().parse::<u64>().ok())
-                    .flatten()
+                    .and_then(|x| x.as_os_str().to_string_lossy().parse::<u64>().ok())
                     .is_some()
             })
             // Read each of those directories
@@ -85,8 +84,7 @@ impl SFTPSegmentHandler {
             .filter(|(_path, file_stat)| file_stat.file_type().is_file())
             .filter_map(|(path, _)| {
                 path.file_name()
-                    .map(|x| x.to_string_lossy().parse::<u64>().ok())
-                    .flatten()
+                    .and_then(|x| x.to_string_lossy().parse::<u64>().ok())
             })
             .max();
 

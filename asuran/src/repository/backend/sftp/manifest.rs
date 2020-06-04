@@ -74,8 +74,7 @@ impl SFTPManifest {
             // Make sure the file name component is a number, and map to (number, path)
             .filter_map(|path| {
                 path.file_name()
-                    .map(|x| x.to_string_lossy().parse::<u64>().ok())
-                    .flatten()
+                    .and_then(|x| x.to_string_lossy().parse::<u64>().ok())
                     .map(|x| (x, path))
             })
             .collect::<Vec<_>>();

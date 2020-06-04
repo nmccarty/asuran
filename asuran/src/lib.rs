@@ -9,6 +9,8 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::similar_names)]
 #![allow(clippy::missing_errors_doc)]
+// Temporary, this seems to be causing a lot of issues with clippy right now
+#![allow(clippy::used_underscore_binding)]
 
 use byteorder::{BigEndian, WriteBytesExt};
 use lazy_static::lazy_static;
