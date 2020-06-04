@@ -218,7 +218,7 @@ impl SFTP {
         chunk_settings: Option<ChunkSettings>,
         queue_depth: usize,
     ) -> Result<BackendHandle<SFTP>> {
-        use crossbeam::channel::bounded;
+        use crossbeam_channel::bounded;
         let (s, r) = bounded(1);
         let handle = BackendHandle::new(queue_depth, move || {
             let result = Self::connect_raw(settings, &key, chunk_settings);
