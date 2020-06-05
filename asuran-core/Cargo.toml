@@ -19,13 +19,16 @@ core = ["aes-family", "blake3", "zstd"]
 blake2b = ["blake2b_simd"]
 lzma = ["xz2"]
 # Groups
-aes-family = ["aes-soft", "ctr"]
+aes-family = ["aes-soft", "ctr", "aesni"]
 chacha-family = ["chacha20"]
 # Group of all of a type
 all-encryption = ["aes-family", "chacha-family"]
 all-compression = ["zstd", "lz4", "lzma"]
 all-hmac = ["blake2b", "blake3", "sha2", "sha3"]
 all-chunk = ["all-encryption", "all-compression", "all-hmac"]
+# Enable neon support for blake3 on ARM
+# see cargo issue #7914
+blake3-neon = ["blake3/neon"]
 
 [dependencies]
 aes-soft = { version = "0.3.3", optional = true }
@@ -56,4 +59,4 @@ zstd = { version = "0.5.2", optional = true }
 block-cipher-trait = "0.6.2"
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
-aesni = { version = "0.6.0", features = ["ctr", "nocheck"] }
+aesni = { version = "0.6.0", features = ["ctr", "nocheck"], optional = true }

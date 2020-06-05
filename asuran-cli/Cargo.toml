@@ -26,6 +26,7 @@ sftp = ["asuran/sftp"]
 only-local-backends = ["asuran/only-local-backends"]
 # Vendor OpenSSL for the sftp backend
 vendored-openssl = ["asuran/vendored-openssl"]
+blake3-neon = ["asuran/blake3-neon"]
 
 [dependencies]
 anyhow = "1.0.31"

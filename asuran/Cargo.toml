@@ -29,6 +29,7 @@ all-chunk = ["asuran-core/all-chunk"]
 all-backend = ["sftp"] # Placeholder for when we have features for backends
 # Vendor OpenSSL for the sftp backend
 vendored-openssl = ["ssh2/vendored-openssl"]
+blake3-neon = ["asuran-core/blake3-neon"]
 
 [dependencies]
 asuran-chunker = { version = "= 0.1.6-alpha.1", path = "../asuran-chunker/", features = ["streams"] }
