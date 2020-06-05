@@ -8,9 +8,11 @@ members = [
 ]
 
 [profile.bench]
+codegen-units=1
 lto = true
 
 [profile.release]
+codegen-units=1
 lto = true
 
 # Improve test speeds by optimizing some extra slow things
