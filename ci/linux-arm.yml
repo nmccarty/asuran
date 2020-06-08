@@ -1,0 +1,39 @@
+test:linux-arm:
+  stage: test
+  image: "registry.gitlab.com/asuran-rs/rust-sccache-docker:latest"
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test
+  needs: []
+  services:
+    - name: registry.gitlab.com/asuran-rs/sftp-docker:latest
+      alias: sftp
+      command:
+        - "asuran:asuran:::asuran"
+  variables:
+    ASURAN_SFTP_HOSTNAME: "sftp"
+    ASURAN_SFTP_PORT: "22"
+    ASURAN_SFTP_USER: "asuran"
+    ASURAN_SFTP_PASS: "asuran"
+  dependencies: []
+  tags:
+    - linux-arm
+
+build:linux-arm:
+  stage: build
+  image: "registry.gitlab.com/asuran-rs/rust-sccache-docker:latest"
+  script:
+    - cd asuran-cli
+    - cargo build --release --features blake3-neon
+    - cd ..
+    - cp target/release/asuran-cli ./asuran-cli-linux-aarch64
+  artifacts:
+    paths:
+      - asuran-cli-linux-aarch64
+    expire_in: 4 weeks
+  needs: []
+  dependencies: []
+  tags:
+    - linux-arm
+

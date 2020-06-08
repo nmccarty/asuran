@@ -9,6 +9,7 @@ stages:
 include:
   - local: '/ci/lint.yml'
   - local: '/ci/linux.yml'
+  - local: '/ci/linux-arm.yml'
   - local: '/ci/windows.yml'
   - local: '/ci/macos.yml'
     
@@ -51,11 +52,13 @@ package:normal:
     - build:linux
     - build:macos
     - build:windows
+    - build:linux-arm
   artifacts:
     paths:
       - asuran-cli-linux-x64
       - asuran-cli-win64.exe
       - asuran-cli-darwin
+      - asuran-cli-linux-aarch64
     expire_in: 4 weeks
   except:
     - tags
@@ -69,11 +72,13 @@ package:release:
     - build:linux
     - build:macos
     - build:windows
+    - build:linux-arm
   artifacts:
     paths:
       - asuran-cli-linux-x64
       - asuran-cli-win64.exe
       - asuran-cli-darwin
+      - asuran-cli-linux-aarch64
   only:
     - tags
     
