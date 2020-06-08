@@ -28,7 +28,7 @@ test:coverage:
   allow_failure: true
   needs: []
   services:
-    - name: atmoz/sftp:latest
+    - name: registry.gitlab.com/asuran-rs/sftp-docker:latest
       alias: sftp
       command:
         - "asuran:asuran:::asuran"
@@ -80,7 +80,7 @@ package:release:
 
 pages:
   stage: doc
-  image: "guangie88/rustfmt-clippy:stable"
+  image: "registry.gitlab.com/asuran-rs/rust-sccache-docker:latest"
   script:
     - cargo doc --no-deps --document-private-items
     - mv target/doc public

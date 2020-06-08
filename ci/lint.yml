@@ -1,6 +1,6 @@
 lint:rustfmt:
   stage: lint
-  image: "thatonelutenist/rustc-sccache:latest"
+  image: "registry.gitlab.com/asuran-rs/rust-sccache-docker:latest"
   script:
     - cargo fmt --all -- --check
   tags:
@@ -12,7 +12,7 @@ lint:rustfmt:
 
 lint:clippy:
   stage: lint
-  image: "thatonelutenist/rustc-sccache:latest"
+  image: "registry.gitlab.com/asuran-rs/rust-sccache-docker:latest"
   script:
     - cargo clippy -- -D warnings
   tags:
