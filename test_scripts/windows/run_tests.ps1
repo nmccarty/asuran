@@ -12,7 +12,7 @@ param(
 # unlikely they will clash with any id's in use on your system, but please be aware of this.
 
 # Stand up container for testing sftp
-docker run --name "asuran_test_sftp" -p 2222:22 -d atmoz/sftp asuran:asuran:::asuran
+docker run --name "asuran_test_sftp" -p 2222:22 -d registry.gitlab.com/asuran-rs/sftp-docker:latest asuran:asuran:::asuran
 
 # Utilize docker host for connection IPs, if set
 $docker_ip = "localhost"

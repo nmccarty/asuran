@@ -9,5 +9,5 @@
 
 
 # Stand up the container for testing SFTP
-docker run --name "asuran_test_sftp" -p 2222:22 -d atmoz/sftp asuran:asuran:::asuran
+docker run --name "asuran_test_sftp" -p 2222:22 -d registry.gitlab.com/asuran-rs/sftp-docker:latest asuran:asuran:::asuran
 
