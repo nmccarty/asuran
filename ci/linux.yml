@@ -5,6 +5,7 @@ test:linux:
     - rustc --version
     - cargo --version
     - cargo test
+    - /opt/.cargo/bin/sccache --show-stats
   tags:
     - linux
   needs: []
@@ -26,6 +27,7 @@ build:linux:
   script:
     - cargo build --release
     - cp target/release/asuran-cli ./asuran-cli-linux-x64
+    - /opt/.cargo/bin/sccache --show-stats
   artifacts:
     paths:
       - asuran-cli-linux-x64

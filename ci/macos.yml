@@ -4,6 +4,7 @@ test:macos:
     - cargo --version
     - rustc --version
     - test_scripts/unix/run_tests.sh
+    - sccache --show-stats
   tags:
     - macos
   needs: []
@@ -16,6 +17,7 @@ build:macos:
     - rustc --version
     - cargo build --release
     - cp target/release/asuran-cli ./asuran-cli-darwin
+    - sccache --show-stats
   artifacts:
     paths:
       - asuran-cli-darwin

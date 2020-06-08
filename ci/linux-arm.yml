@@ -5,6 +5,7 @@ test:linux-arm:
     - rustc --version
     - cargo --version
     - cargo test
+    - /opt/.cargo/bin/sccache --show-stats
   needs: []
   services:
     - name: registry.gitlab.com/asuran-rs/sftp-docker:latest
@@ -28,6 +29,7 @@ build:linux-arm:
     - cargo build --release --features blake3-neon
     - cd ..
     - cp target/release/asuran-cli ./asuran-cli-linux-aarch64
+    - /opt/.cargo/bin/sccache --show-stats
   artifacts:
     paths:
       - asuran-cli-linux-aarch64

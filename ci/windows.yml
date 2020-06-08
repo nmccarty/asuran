@@ -4,6 +4,7 @@ test:windows:
     - cargo --version
     - rustc --version
     - test_scripts/windows/run_tests.ps1
+    - sccache --show-stats
   tags:
     - windows-own
   needs: []
@@ -17,6 +18,7 @@ build:windows:
     - rustc --version
     - cargo build --release
     - cp target/release/asuran-cli.exe ./asuran-cli-win64.exe
+    - sccache --show-stats
   artifacts:
     paths:
       - asuran-cli-win64.exe
