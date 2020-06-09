@@ -27,3 +27,5 @@ build:windows:
     - windows-own
   needs: []
   dependencies: []
+  variables:
+    - RUSTFLAGS: "-C target-cpu=sandybridge"

@@ -36,4 +36,6 @@ build:linux:
     - linux
   needs: []
   dependencies: []
+  variables:
+    - RUSTFLAGS: "-C target-cpu=sandybridge"
 
