@@ -27,4 +27,4 @@ build:macos:
   needs: ["test:macos"]
   dependencies: []
   variables:
-    - RUSTFLAGS: "-C target-cpu=sandybridge"
+    RUSTFLAGS: "-C target-cpu=sandybridge"

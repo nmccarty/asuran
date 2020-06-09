@@ -28,4 +28,4 @@ build:windows:
   needs: []
   dependencies: []
   variables:
-    - RUSTFLAGS: "-C target-cpu=sandybridge"
+    RUSTFLAGS: "-C target-cpu=sandybridge"
