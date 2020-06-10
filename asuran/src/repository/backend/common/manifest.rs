@@ -2,8 +2,8 @@ use crate::repository::{ChunkID, Key, HMAC};
 
 use chrono::prelude::*;
 use rand::prelude::*;
-use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
+use serde_cbor as cbor;
 
 /// Wrapper around [u8; 32] used for transaction hashes
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
@@ -67,7 +67,7 @@ impl ManifestTransaction {
     /// Will zero the hmac value before performing the operation
     fn update_tag(&mut self, key: &Key) {
         self.tag.0 = [0_u8; 32];
-        let bytes = rmps::encode::to_vec(self).expect("Serialization in hmac failed");
+        let bytes = cbor::ser::to_vec(self).expect("Serialization in hmac failed");
         let tag = self.hmac.mac(&bytes[..], key);
         self.tag.0.copy_from_slice(&tag[..32]);
     }
@@ -147,8 +147,8 @@ mod tests {
     fn serialize_deserialize() {
         let key = Key::random(32);
         let tx = create_tx("test", &key);
-        let bytes = rmps::encode::to_vec(&tx).unwrap();
-        let output_tx: ManifestTransaction = rmps::decode::from_slice(&bytes[..]).unwrap();
+        let bytes = cbor::ser::to_vec(&tx).unwrap();
+        let output_tx: ManifestTransaction = cbor::de::from_slice(&bytes[..]).unwrap();
         assert!(output_tx.verify(&key));
     }
 }

@@ -7,7 +7,7 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 use smol::block_on;
 
 use std::collections::{HashMap, HashSet};
@@ -66,7 +66,9 @@ impl InternalIndex {
             // Open the file
             let mut file = File::open(file.path())?;
             // Keep deserializing transactions until we encouter an error
-            while let Ok(tx) = rmps::decode::from_read::<_, IndexTransaction>(&mut file) {
+            let de = cbor::Deserializer::from_reader(&mut file);
+            let mut de = de.into_iter::<IndexTransaction>();
+            while let Some(tx) = de.next().and_then(std::result::Result::ok) {
                 // Insert each item into the state
                 state.insert(tx.chunk_id, tx.descriptor);
             }
@@ -109,7 +111,7 @@ impl InternalIndex {
         let mut file = BufWriter::new(&mut self.file);
         file.seek(SeekFrom::End(0))?;
         for tx in self.changes.drain(0..self.changes.len()) {
-            rmps::encode::write(&mut file, &tx)?;
+            cbor::ser::to_writer(&mut file, &tx)?;
         }
         Ok(())
     }

@@ -6,8 +6,8 @@ use crate::repository::Encryption;
 
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use rand::prelude::*;
-use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use serde_cbor::{de::from_slice, Serializer};
 use thiserror::Error;
 use tracing::{error, trace};
 use zeroize::Zeroize;
@@ -22,7 +22,7 @@ pub enum KeyError {
     #[error("Something went wrong with argon2")]
     Argon2Error(#[from] argon2::Error),
     #[error("Something went wrong with Serialization/Deserailization")]
-    DecodeError(#[from] rmp_serde::decode::Error),
+    DecodeError(#[from] serde_cbor::error::Error),
 }
 
 type Result<T> = std::result::Result<T, KeyError>;
@@ -230,8 +230,7 @@ impl EncryptedKey {
             .encryption
             .decrypt_bytes(&self.encrypted_bytes, &generated_key_bytes)?;
         // Deserialize the key
-        let mut de = Deserializer::new(&key_bytes[..]);
-        let key: Key = Deserialize::deserialize(&mut de)?;
+        let key = from_slice(&key_bytes[..])?;
 
         Ok(key)
     }

@@ -4,7 +4,7 @@ use super::{BackendError, Result, SegmentDescriptor};
 use crate::repository::backend::common::sync_backend::{BackendHandle, SyncBackend, SyncManifest};
 use crate::repository::{Chunk, ChunkSettings, EncryptedKey, Key};
 
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 use ssh2::{Session, Sftp};
 
 use std::fmt::Debug;
@@ -263,7 +263,7 @@ impl SFTP {
                 key_path, e
             ))
         })?;
-        Ok(rmps::decode::from_read(file)?)
+        Ok(cbor::de::from_reader(file)?)
     }
 }
 
@@ -282,14 +282,14 @@ impl SyncBackend for SFTP {
         let mut file =
             LockedFile::open_read_write(&key_path, sftp)?.ok_or(BackendError::FileLockError)?;
 
-        rmps::encode::write(&mut file, &key)?;
+        cbor::ser::to_writer(&mut file, &key)?;
         Ok(())
     }
     fn read_key(&mut self) -> Result<EncryptedKey> {
         let key_path = PathBuf::from(&self.connection.settings().path).join("key");
         let sftp = self.connection.sftp().expect("Somehow not connected");
         let file = sftp.open(&key_path)?;
-        Ok(rmps::decode::from_read(file)?)
+        Ok(cbor::de::from_reader(file)?)
     }
     fn read_chunk(&mut self, location: SegmentDescriptor) -> Result<Chunk> {
         self.segment_handler.read_chunk(location)

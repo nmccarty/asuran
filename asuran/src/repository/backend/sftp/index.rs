@@ -5,7 +5,7 @@ use crate::repository::backend::common::IndexTransaction;
 use crate::repository::backend::{BackendError, Result, SegmentDescriptor};
 use crate::repository::ChunkID;
 
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -74,7 +74,9 @@ impl SFTPIndex {
         for (_, path) in &items {
             let mut file = sftp.open(path)?;
             // Keep deserializing transactions until we encounter an error
-            while let Ok(tx) = rmps::decode::from_read::<_, IndexTransaction>(&mut file) {
+            let de = cbor::Deserializer::from_reader(&mut file);
+            let mut de = de.into_iter::<IndexTransaction>();
+            while let Some(tx) = de.next().and_then(std::result::Result::ok) {
                 state.insert(tx.chunk_id, tx.descriptor);
             }
         }
@@ -137,7 +139,7 @@ impl SyncIndex for SFTPIndex {
         let mut file = BufWriter::new(&mut self.file);
         file.seek(SeekFrom::End(0))?;
         for tx in self.changes.drain(0..self.changes.len()) {
-            rmps::encode::write(&mut file, &tx)?;
+            cbor::ser::to_writer(&mut file, &tx)?;
         }
         drop(file);
         self.file.fsync()?;

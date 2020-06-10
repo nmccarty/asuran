@@ -36,10 +36,8 @@ pub enum BackendError {
     ManifestError(String),
     #[error("Index Error: {0}")]
     IndexError(String),
-    #[error("MessagePack Decode Error")]
-    MsgPackDecodeError(#[from] rmp_serde::decode::Error),
-    #[error("MessagePack Encode Error")]
-    MsgPackEncodeError(#[from] rmp_serde::encode::Error),
+    #[error("CBOR Encode/Decode Error")]
+    MsgPackEncodeError(#[from] serde_cbor::error::Error),
     #[error("Failed to lock file")]
     FileLockError,
     #[error("Cancelled oneshot")]

@@ -7,7 +7,7 @@ use crate::repository::backend::{
 use crate::repository::{ChunkSettings, Key};
 
 use async_trait::async_trait;
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 use uuid::Uuid;
 
 use std::fs::{create_dir_all, remove_file, File, OpenOptions};
@@ -113,7 +113,7 @@ impl MultiFile {
     pub fn read_key(path: impl AsRef<Path>) -> Result<EncryptedKey> {
         let key_path = path.as_ref().join("key");
         let file = File::open(&key_path)?;
-        Ok(rmps::decode::from_read(&file)?)
+        Ok(cbor::de::from_reader(&file)?)
     }
 }
 
@@ -137,7 +137,7 @@ impl Backend for MultiFile {
         let key_path = self.path.join("key");
         let mut file =
             LockedFile::open_read_write(&key_path)?.ok_or(BackendError::FileLockError)?;
-        Ok(rmps::encode::write(&mut file, key)?)
+        Ok(cbor::ser::to_writer(&mut file, key)?)
     }
     /// Attempts to read the key from the repository
     ///
@@ -145,7 +145,7 @@ impl Backend for MultiFile {
     async fn read_key(&self) -> Result<EncryptedKey> {
         let key_path = self.path.join("key");
         let file = File::open(&key_path)?;
-        Ok(rmps::decode::from_read(&file)?)
+        Ok(cbor::de::from_reader(&file)?)
     }
 
     /// Starts reading a chunk, and returns a oneshot recieve with the result of that process

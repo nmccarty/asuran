@@ -7,9 +7,9 @@ use crate::repository::{Chunk, ChunkHeader, ChunkID, ChunkSettings, EncryptedKey
 
 use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
 use chrono::{DateTime, FixedOffset};
-use rmp_serde as rmps;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use serde_cbor as cbor;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -24,10 +24,8 @@ pub const MAGIC_NUMBER: [u8; 8] = *b"ASURAN_F";
 pub enum FlatFileError {
     #[error("General I/O Error: {0}")]
     IOError(#[from] std::io::Error),
-    #[error("Configuration Encode Error: {0}")]
-    Encode(#[from] rmps::encode::Error),
-    #[error("Configuration Decode Error: {0}")]
-    Decode(#[from] rmps::decode::Error),
+    #[error("Configuration Encode/Decode Error: {0}")]
+    Decode(#[from] cbor::error::Error),
     #[error("Unable to encode key in u16::MAX bytes")]
     KeyTooLong,
     #[error("Magic number was not correct for Asuran FlatFile format")]
@@ -74,7 +72,7 @@ impl FlatFileHeader {
     /// Will return `Err(FlatFileHeaderError::KeyTooLong)` if the key is unable to be
     /// serialized in `u16::MAX` (65,535) bytes. This (realistically) should never happen.
     pub fn new(key: &EncryptedKey) -> Result<FlatFileHeader> {
-        let enc_key = rmps::encode::to_vec(key).expect(
+        let enc_key = cbor::ser::to_vec(key).expect(
             "Encrypted key does not have any types that should fail to serialize.\
              This should never fail.",
         );
@@ -100,7 +98,7 @@ impl FlatFileHeader {
 
     /// Decodes the contained `EncryptedKey`
     pub fn key(&self) -> Result<EncryptedKey> {
-        let enc_key = rmps::decode::from_slice(&self.enc_key[..])?;
+        let enc_key = cbor::de::from_slice(&self.enc_key[..])?;
         Ok(enc_key)
     }
 
@@ -327,7 +325,7 @@ impl EntryFooter {
         key: &Key,
         chunk_settings: ChunkSettings,
     ) -> EntryFooter {
-        let data = rmps::encode::to_vec(data).expect(
+        let data = cbor::ser::to_vec(data).expect(
             "EntryFooterData contains no types for which serialization can fail.\
              This should, realistically, never happen.",
         );
@@ -338,7 +336,7 @@ impl EntryFooter {
             chunk_settings.hmac,
             key,
         );
-        let chunk_bytes = rmps::encode::to_vec(&chunk).expect(
+        let chunk_bytes = cbor::ser::to_vec(&chunk).expect(
             "Chunk contains no types for which serialization can fail.\
              This should, realistically, never happen.",
         );
@@ -353,9 +351,9 @@ impl EntryFooter {
     /// - If decrypting/decompressing the `Chunk` fails
     /// - If decoding the `EntryFooterData` from the unpacked bytes fails
     pub fn into_data(self, key: &Key) -> Result<EntryFooterData> {
-        let chunk: Chunk = rmps::decode::from_slice(&self.chunk_bytes[..])?;
+        let chunk: Chunk = cbor::de::from_slice(&self.chunk_bytes[..])?;
         let bytes = chunk.unpack(key)?;
-        let data: EntryFooterData = rmps::decode::from_slice(&bytes[..])?;
+        let data: EntryFooterData = cbor::de::from_slice(&bytes[..])?;
         Ok(data)
     }
 

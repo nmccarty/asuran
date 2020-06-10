@@ -3,8 +3,8 @@ use crate::repository::{Chunk, ChunkSettings, Key};
 
 use asuran_core::repository::chunk::{ChunkBody, ChunkHeader};
 
-use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
+use serde_cbor as cbor;
 use uuid::Uuid;
 
 use std::convert::TryInto;
@@ -101,9 +101,9 @@ impl<T: Read + Write + Seek> SegmentHeaderPart<T> {
         // if we are empty, we don't need to actually read anything
         if len > 0 {
             handle.seek(SeekFrom::Start(0))?;
-            let chunk: Chunk = rmps::decode::from_read(&mut handle)?;
+            let chunk: Chunk = cbor::de::from_reader(&mut handle)?;
             let data = chunk.unpack(&key)?;
-            let entries: Vec<SegmentHeaderEntry> = rmps::decode::from_slice(&data[..])?;
+            let entries: Vec<SegmentHeaderEntry> = cbor::de::from_slice(&data[..])?;
             Ok(SegmentHeaderPart {
                 handle,
                 entries,
@@ -135,7 +135,7 @@ impl<T: Read + Write + Seek> SegmentHeaderPart<T> {
     pub fn flush(&mut self) -> Result<()> {
         if self.changed {
             self.handle.seek(SeekFrom::Start(0))?;
-            let data = rmps::encode::to_vec(&self.entries)?;
+            let data = cbor::ser::to_vec(&self.entries)?;
             let chunk = Chunk::pack(
                 data,
                 self.settings.compression,
@@ -143,7 +143,7 @@ impl<T: Read + Write + Seek> SegmentHeaderPart<T> {
                 self.settings.hmac,
                 &self.key,
             );
-            rmps::encode::write(&mut self.handle, &chunk)?;
+            cbor::ser::to_writer(&mut self.handle, &chunk)?;
             self.changed = false;
             Ok(())
         } else {

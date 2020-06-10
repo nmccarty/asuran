@@ -10,8 +10,8 @@ use dashmap::DashMap;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use piper::Lock;
-use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
+use serde_cbor::Serializer;
 use smol::Task;
 use thiserror::Error;
 
@@ -26,8 +26,10 @@ pub enum ArchiveError {
     Chunker(#[from] crate::chunker::ChunkerError),
     #[error("I/O Error")]
     IO(#[from] std::io::Error),
-    #[error("")]
+    #[error("RepositoryError): {0}")]
     Repository(#[from] crate::repository::RepositoryError),
+    #[error("Failed to deserialize archive")]
+    ArchiveDeserialization,
 }
 
 type Result<T> = std::result::Result<T, ArchiveError>;
@@ -53,9 +55,8 @@ impl StoredArchive {
     /// Loads the archive metadata from the repository and unpacks it for use
     pub async fn load(&self, repo: &mut Repository<impl BackendClone>) -> Result<ActiveArchive> {
         let bytes = repo.read_chunk(self.id).await?;
-        let mut de = Deserializer::new(&bytes[..]);
-        let dumb_archive: Archive =
-            Deserialize::deserialize(&mut de).expect("Unable to deserialize archive");
+        let dumb_archive: Archive = serde_cbor::de::from_slice(&bytes[..])
+            .map_err(|_| ArchiveError::ArchiveDeserialization)?;
         let archive = ActiveArchive::from_archive(dumb_archive);
         Ok(archive)
     }

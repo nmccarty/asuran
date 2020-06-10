@@ -14,7 +14,7 @@ use futures::channel::oneshot;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use petgraph::Graph;
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 use smol::block_on;
 
 use std::collections::{HashMap, HashSet};
@@ -84,7 +84,9 @@ impl InternalManifest {
             // Open the file
             let mut file = File::open(file.path())?;
             // Keep deserializing transactions until we encounter an error
-            while let Ok(tx) = rmps::decode::from_read::<_, ManifestTransaction>(&mut file) {
+            let de = cbor::Deserializer::from_reader(&mut file);
+            let mut de = de.into_iter::<ManifestTransaction>();
+            while let Some(tx) = de.next().and_then(std::result::Result::ok) {
                 known_entries.insert(tx.tag(), tx);
             }
         }
@@ -122,11 +124,11 @@ impl InternalManifest {
             // Clear the file
             sfile.set_len(0)?;
             // Write our new chunksettings
-            rmps::encode::write(&mut sfile, &chunk_settings)?;
+            cbor::ser::to_writer(&mut sfile, &chunk_settings)?;
             chunk_settings
         } else {
             let mut sfile = File::open(manifest_path.join("chunk.settings"))?;
-            rmps::decode::from_read(&mut sfile)?
+            cbor::de::from_reader(&mut sfile)?
         };
 
         // Construct the Internal Manifest
@@ -263,7 +265,7 @@ impl InternalManifest {
         // Clear the file
         sfile.set_len(0)?;
         // Write our new chunksettings
-        rmps::encode::write(&mut sfile, &settings)?;
+        cbor::ser::to_writer(&mut sfile, &settings)?;
         self.chunk_settings = settings;
         Ok(())
     }
@@ -282,7 +284,7 @@ impl InternalManifest {
         // Write the transaction to the file
         let file = &mut self.file;
         file.seek(SeekFrom::End(0))?;
-        rmps::encode::write(file, &tx)?;
+        cbor::ser::to_writer(file, &tx)?;
         // Add the transaction to our entries list
         let id = tx.tag();
         self.known_entries.insert(id, tx);

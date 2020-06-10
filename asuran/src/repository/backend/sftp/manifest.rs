@@ -8,7 +8,7 @@ use crate::{manifest::StoredArchive, repository::backend::Result};
 
 use chrono::prelude::*;
 use petgraph::Graph;
-use rmp_serde as rmps;
+use serde_cbor as cbor;
 use ssh2::FileStat;
 
 use std::collections::{HashMap, HashSet};
@@ -87,7 +87,9 @@ impl SFTPManifest {
             // Open the file
             let mut file = sftp.open(path)?;
             // Keep deserializing transactions until we hit an error
-            while let Ok(tx) = rmps::decode::from_read::<_, ManifestTransaction>(&mut file) {
+            let de = cbor::Deserializer::from_reader(&mut file);
+            let mut de = de.into_iter::<ManifestTransaction>();
+            while let Some(tx) = de.next().and_then(std::result::Result::ok) {
                 known_entries.insert(tx.tag(), tx);
             }
         }
@@ -135,11 +137,11 @@ impl SFTPManifest {
                 },
             )?;
             // Write out new chunksettings
-            rmps::encode::write(&mut sfile, &chunk_settings)?;
+            cbor::ser::to_writer(&mut sfile, &chunk_settings)?;
             chunk_settings
         } else {
             let mut sfile = sftp.open(&sfile_path)?;
-            rmps::decode::from_read(&mut sfile)?
+            cbor::de::from_reader(&mut sfile)?
         };
 
         // Construct the manifest
@@ -283,7 +285,7 @@ impl SyncManifest for SFTPManifest {
             },
         )?;
         // Write out new chunksettings
-        rmps::encode::write(&mut sfile, &chunk_settings)?;
+        cbor::ser::to_writer(&mut sfile, &chunk_settings)?;
         self.chunk_settings = chunk_settings;
         Ok(())
     }
@@ -299,7 +301,7 @@ impl SyncManifest for SFTPManifest {
         // Write the transaction to the file
         let file = &mut self.file;
         file.seek(SeekFrom::End(0))?;
-        rmps::encode::write(file, &tx)?;
+        cbor::ser::to_writer(file, &tx)?;
         // Add the transaction to our entries list
         let id = tx.tag();
         self.known_entries.insert(id, tx);
