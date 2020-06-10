@@ -31,32 +31,34 @@ all-chunk = ["all-encryption", "all-compression", "all-hmac"]
 blake3-neon = ["blake3/neon"]
 
 [dependencies]
-aes-soft = { version = "0.3.3", optional = true }
+aes-soft = { version = "0.4.0", optional = true }
 blake2b_simd = { version = "0.5.10", optional = true }
 blake3 = { version = "0.3.4", optional = true }
+block-cipher = "0.7.0"
 block-cipher-trait = "0.6.2"
 byteorder = "1.3.4"
 cfg-if = "0.1.10"
-chacha20 = { version = "0.3.4", optional = true }
+chacha20 = { version = "0.4.1", optional = true }
 chrono = { version = "0.4.11", features = ["serde"] }
-ctr = { version = "0.3.2", optional = true }
-hmac = "0.7.1"
-lz4 = { version = "1.23.1", optional = true }
+crypto-mac = "0.8.0"
+ctr = { version = "0.4.0", optional = true }
+hmac = "0.8.0"
+lz4 = { version = "1.23.2", optional = true }
 rand = "0.7.3"
 rust-argon2 = "0.8.2"
 semver = "0.10.0"
 serde = { version = "1.0.111", features = ["derive"] }
 serde_bytes = "0.11.4"
 serde_cbor = "0.11.1"
-sha2 = { version = "0.8.2", optional = true }
-sha3 = { version = "0.8.2", optional = true }
-stream-cipher = "0.3.2"
+sha2 = { version = "0.9.0", optional = true }
+sha3 = { version = "0.9.0", optional = true }
+stream-cipher = "0.4.0"
 thiserror = "1.0.19"
-tracing = "0.1.14"
+tracing = "0.1.15"
 uuid = "0.8.1"
 xz2 = { version = "0.1.6", optional = true }
 zeroize = { version = "1.1.0", features = ["zeroize_derive"] }
 zstd = { version = "0.5.2", optional = true }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
-aesni = { version = "0.6.0", features = ["ctr", "nocheck"], optional = true }
+aesni = { version = "0.7.0", features = ["ctr", "nocheck"], optional = true }

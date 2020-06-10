@@ -8,8 +8,9 @@ use std::cmp;
 /// of aes
 fn aes_soft_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     use aes_soft::Aes256;
-    use block_cipher_trait::BlockCipher;
+    use block_cipher::NewBlockCipher;
     use ctr::Ctr128;
+    use stream_cipher::FromBlockCipher;
 
     let mut proper_key: [u8; 32] = [0; 32];
     proper_key[..cmp::min(key.len(), 32)].clone_from_slice(&key[..cmp::min(key.len(), 32)]);
@@ -17,7 +18,7 @@ fn aes_soft_256_ctr(data: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
         "Attemped to instantiate an AES cipher with an invalid length key in internal method.",
     );
     let iv = GenericArray::from_slice(iv);
-    let mut encryptor: Ctr128<Aes256> = Ctr128::from_cipher(aes, iv);
+    let mut encryptor: Ctr128<Aes256> = Ctr128::from_block_cipher(aes, iv);
     let mut final_result = data.to_vec();
     encryptor.apply_keystream(&mut final_result);
 

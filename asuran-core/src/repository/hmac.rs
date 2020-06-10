@@ -15,6 +15,8 @@ use blake2b_simd::blake2bp;
 use blake2b_simd::Params;
 use cfg_if::cfg_if;
 #[allow(unused_imports)]
+use crypto_mac::NewMac;
+#[allow(unused_imports)]
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "sha2")]
@@ -65,8 +67,8 @@ impl HMAC {
                     if #[cfg(feature = "sha2")] {
                         let mut mac = HmacSha256::new_varkey(key)
                             .expect("HmacSHA256 was provided with a key of invalid length.");
-                        mac.input(data);
-                        mac.result().code().to_vec()
+                        mac.update(data);
+                        mac.finalize().into_bytes().as_slice().to_vec()
                     } else {
                         unimplemented!("Asuran was not compiled with SHA2 support")
                     }
@@ -117,8 +119,8 @@ impl HMAC {
                     if #[cfg(feature = "sha3")] {
                         let mut mac = HmacSHA3::new_varkey(key)
                             .expect("HmacSHA3 was provided with a key of invalid length.");
-                        mac.input(data);
-                        mac.result().code().to_vec()
+                        mac.update(data);
+                        mac.finalize().into_bytes().as_slice().to_vec()
                     } else {
                         unimplemented!("Asuran was not compiled with SHA3 support")
                     }
@@ -169,7 +171,7 @@ impl HMAC {
                     if #[cfg(feature = "sha2")] {
                         let mut mac = HmacSha256::new_varkey(key)
                             .expect("HmacSHA256 was provided with a key of invalid length.");
-                        mac.input(data);
+                        mac.update(data);
                         let result = mac.verify(input_mac);
                         result.is_ok()
                     } else {
@@ -217,7 +219,7 @@ impl HMAC {
                     if #[cfg(feature = "sha3")] {
                         let mut mac = HmacSHA3::new_varkey(key)
                             .expect("HmacSHA3 was provided with a key of invalid length");
-                        mac.input(data);
+                        mac.update(data);
                         let result = mac.verify(input_mac);
                         result.is_ok()
                     } else {
