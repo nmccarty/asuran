@@ -3,8 +3,8 @@ use super::{BackupObject, BackupTarget, Listing, Node, NodeType, RestoreObject, 
 use crate::manifest::archive::Extent;
 use crate::manifest::driver::{BackupDriver, RestoreDriver};
 
+use async_lock::Lock;
 use async_trait::async_trait;
-use piper::Lock;
 use smol::{blocking, Task};
 use walkdir::WalkDir;
 

@@ -27,7 +27,7 @@ use structopt::StructOpt;
 #[cfg_attr(tarpaulin, skip)]
 fn main() -> Result<()> {
     let num_threads = num_cpus::get_physical();
-    let (s, r) = piper::chan::<()>(0);
+    let (s, r) = async_channel::bounded::<()>(0);
     let mut threads = Vec::new();
     for _ in 0..num_threads {
         let r = r.clone();
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
     drop(s);
 
     for t in threads {
-        t.join().unwrap();
+        t.join().unwrap().unwrap();
     }
 
     result

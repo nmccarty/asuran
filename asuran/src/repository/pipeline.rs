@@ -16,7 +16,7 @@ struct Message {
 
 #[derive(Clone)]
 pub struct Pipeline {
-    input: piper::Sender<(Vec<u8>, Message)>,
+    input: async_channel::Sender<(Vec<u8>, Message)>,
 }
 
 impl Pipeline {
@@ -25,12 +25,12 @@ impl Pipeline {
         // A hacky approximation for the depth of the queue used
         // roughly 1.5 times the number of tasks used, plus one extra to make sure its not zero
         let queue_depth = (task_count * 3) / 2 + 1;
-        let (input, rx) = piper::chan(queue_depth);
+        let (input, rx) = async_channel::bounded(queue_depth);
 
         for _ in 0..task_count {
             let rx = rx.clone();
             thread::spawn(move || {
-                while let Some(input) = block_on(rx.recv()) {
+                while let Ok(input) = block_on(rx.recv()) {
                     let (chunk, message): (Vec<u8>, Message) = input;
                     let c = Chunk::pack(
                         chunk,
@@ -66,7 +66,10 @@ impl Pipeline {
             ret_chunk: c_tx,
         };
         let input = self.input.clone();
-        input.send((data, message)).await;
+        input
+            .send((data, message))
+            .await
+            .expect("Sending to processing thread failed");
 
         c_rx.await
             .expect("Not able to communicate with processing tasks. Unable to recover.")

@@ -16,10 +16,10 @@ streams = ["smol", "futures"]
 [dependencies]
 fastcdc = "1.0.3"
 futures = { version = "0.3.5", default-features = false, features = ["std"], optional = true }
-rand = "0.7.3"
+rand = { version = "0.7.3", default-features = false, features = ["std"] }
 rand_chacha = "0.2.2"
-smol = { version = "0.1.11", optional = true }
-thiserror = "1.0.19"
+smol = { version = "0.1.17", optional = true }
+thiserror = "1.0.20"
 
 [dev-dependencies]
 criterion = "0.3.2"

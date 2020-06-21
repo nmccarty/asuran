@@ -5,11 +5,11 @@ use crate::repository::{BackendClone, ChunkID, Repository};
 pub use asuran_core::manifest::archive::{Archive, ChunkLocation, Extent};
 pub use asuran_core::manifest::listing::{Listing, Node, NodeType};
 
+use async_lock::Lock;
 use chrono::prelude::*;
 use dashmap::DashMap;
 use futures::future::join_all;
 use futures::stream::StreamExt;
-use piper::Lock;
 use serde::{Deserialize, Serialize};
 use serde_cbor::Serializer;
 use smol::Task;
